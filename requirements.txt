@@ -1,0 +1,7 @@
+matplotlib
+numpy
+pandas
+requests
+beautifulsoup4
+lxml
+python-dotenv

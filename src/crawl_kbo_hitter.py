@@ -35,11 +35,16 @@ F_SEASON = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ddlSeason$ddlS
 F_SERIES = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ddlSeries$ddlSeries"
 F_TEAM   = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ddlTeam$ddlTeam"
 F_POS    = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ddlPos$ddlPos"
+F_PAGE   = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$hfPage"
+F_SORT   = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$hfOrderByCol"
+F_ORDER  = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$hfOrderBy"
+BTN_PAGE1 = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ucPager$btnNo1"
 
 
 def _viewstate(soup: BeautifulSoup) -> dict:
     out = {}
-    for name in ["__VIEWSTATE", "__VIEWSTATEGENERATOR", "__EVENTVALIDATION"]:
+    for name in ["__VIEWSTATE", "__VIEWSTATEGENERATOR", "__EVENTVALIDATION",
+                 "__EVENTTARGET", "__EVENTARGUMENT", "__LASTFOCUS"]:
         tag = soup.find("input", {"name": name})
         out[name] = tag["value"] if tag else ""
     return out
@@ -58,52 +63,54 @@ def _parse_table(soup: BeautifulSoup) -> pd.DataFrame | None:
 
 
 def _total_pages(soup: BeautifulSoup) -> int:
-    pager = soup.find(class_="paging")
-    if not pager:
-        return 1
-    nums = [int(m.group(1)) for a in pager.find_all("a", id=True)
+    nums = [int(m.group(1)) for a in soup.find_all("a", id=True)
             if (m := re.search(r"btnNo(\d+)", a["id"]))]
     return max(nums) if nums else 1
 
 
 def fetch_year(session: requests.Session, year: int) -> pd.DataFrame:
-    # 1페이지: GET
-    r0 = session.get(BASE_URL, params={
-        "sort": "PA_CN", "order": "D",
-        "year": str(year), "teamCode": "", "pcode": "", "playerName": "",
-    }, timeout=20)
+    # 1단계: GET으로 초기 ViewState 획득 (년도 무관, 기본값 로드)
+    r0 = session.get(BASE_URL, timeout=20)
     r0.raise_for_status()
     soup0 = BeautifulSoup(r0.text, "lxml")
+    vs = _viewstate(soup0)
+
+    # 2단계: 년도 변경 POST → ViewState만 갱신됨 (데이터는 아직 이전 년도)
+    def _form(event_target, page="1"):
+        return {**vs, "__EVENTTARGET": event_target, "__EVENTARGUMENT": "",
+                F_SEASON: str(year), F_SERIES: "0", F_TEAM: "", F_POS: "",
+                F_PAGE: page, F_SORT: "HRA_RT", F_ORDER: "DESC"}
+
+    r1 = session.post(BASE_URL, data=_form(F_SEASON), timeout=20)
+    r1.raise_for_status()
+    vs = _viewstate(BeautifulSoup(r1.text, "lxml"))
+
+    # 3단계: 1페이지 버튼 POST → 올바른 년도 데이터 로드
+    r2 = session.post(BASE_URL, data=_form(BTN_PAGE1), timeout=20)
+    r2.raise_for_status()
+    soup2 = BeautifulSoup(r2.text, "lxml")
 
     frames = []
-    df0 = _parse_table(soup0)
-    if df0 is not None:
-        frames.append(df0)
+    df1 = _parse_table(soup2)
+    if df1 is not None:
+        frames.append(df1)
 
-    total = _total_pages(soup0)
-    vs    = _viewstate(soup0)
+    total = _total_pages(soup2)
+    vs    = _viewstate(soup2)
 
+    # 4단계: 2페이지부터 페이지네이션 POST
     for page in range(2, total + 1):
         event_target = (
             "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents"
             f"$ucPager$btnNo{page}"
         )
-        post = {
-            "__EVENTTARGET":   event_target,
-            "__EVENTARGUMENT": "",
-            F_SEASON: str(year),
-            F_SERIES: "0",
-            F_TEAM:   "",
-            F_POS:    "0",
-            **vs,
-        }
-        rp = session.post(BASE_URL, data=post, timeout=20)
+        rp = session.post(BASE_URL, data=_form(event_target, str(page)), timeout=20)
         rp.raise_for_status()
         soup_p = BeautifulSoup(rp.text, "lxml")
         dfp = _parse_table(soup_p)
         if dfp is not None:
             frames.append(dfp)
-        vs = _viewstate(soup_p)   # 다음 페이지용 ViewState 갱신
+        vs = _viewstate(soup_p)
         time.sleep(random.uniform(0.6, 1.2))
 
     if not frames:
