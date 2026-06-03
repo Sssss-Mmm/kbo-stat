@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python3 *)",
+      "WebFetch(domain:www.fmkorea.com)",
+      "Bash(python *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(kill 7823)",
+      "Bash(kill 7859)",
+      "WebFetch(domain:m.sports.naver.com)",
+      "WebFetch(domain:sports.naver.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:kys9261.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:visualbaseball.com)",
+      "Bash(pip list *)",
+      "WebFetch(domain:mykbostats.com)",
+      "WebFetch(domain:www.koreabaseball.com)",
+      "WebFetch(domain:www.fangraphs.com)",
+      "Bash(/home/sssssmmm/kbo-stat/.venv/bin/pip install *)"
+    ]
+  }
+}
