@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KBO Visual Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>KBO Visual Lab</h1>
+          <p>공식 기록 기반 시즌·선수 시각화</p>
+        </div>
+      </div>
+
+      <nav class="top-nav" aria-label="주요 보기">
+        <button class="nav-button active" data-scroll-target="overview">요약</button>
+        <button class="nav-button" data-scroll-target="leaders">리더</button>
+        <button class="nav-button" data-scroll-target="map">분포</button>
+        <button class="nav-button" data-scroll-target="trend">추이</button>
+      </nav>
+
+      <button class="icon-button" id="themeToggle" title="테마 전환" aria-label="테마 전환">
+        <span id="themeIcon">☾</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="control-band" aria-label="데이터 필터">
+        <div class="control-row">
+          <label>
+            시즌
+            <select id="seasonSelect"></select>
+          </label>
+
+          <div class="segmented" role="tablist" aria-label="선수 유형">
+            <button class="active" data-kind="hitter" role="tab" aria-selected="true">타자</button>
+            <button data-kind="pitcher" role="tab" aria-selected="false">투수</button>
+          </div>
+
+          <label>
+            팀
+            <select id="teamSelect">
+              <option value="all">전체</option>
+            </select>
+          </label>
+
+          <label class="search-box">
+            검색
+            <input id="searchInput" type="search" placeholder="선수명" />
+          </label>
+        </div>
+      </section>
+
+      <section id="overview" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Season Snapshot</p>
+            <h2 id="snapshotTitle">시즌 한눈에</h2>
+          </div>
+          <p id="dataNote" class="muted"></p>
+        </div>
+
+        <div class="metric-grid" id="metricGrid"></div>
+      </section>
+
+      <section id="leaders" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Title Race</p>
+            <h2>주요 부문 리더</h2>
+          </div>
+          <div class="metric-picker" id="metricPicker"></div>
+        </div>
+
+        <div class="leader-layout">
+          <div class="leader-bars" id="leaderBars"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="leaderHead"></thead>
+              <tbody id="leaderBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="map" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Player Map</p>
+            <h2 id="scatterTitle">선수 분포</h2>
+          </div>
+          <p class="muted" id="scatterHint"></p>
+        </div>
+
+        <div class="viz-shell">
+          <svg id="scatterSvg" role="img" aria-label="선수 산점도"></svg>
+          <aside class="detail-panel" id="detailPanel">
+            <p class="eyebrow">선수 상세</p>
+            <h3>점을 선택하세요</h3>
+            <p class="muted">마우스를 올리거나 클릭하면 주요 기록이 표시됩니다.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="trend" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">League Trend</p>
+            <h2>리그 평균 추이</h2>
+          </div>
+          <p class="muted">최근 12시즌 기준</p>
+        </div>
+
+        <div class="trend-grid">
+          <svg id="trendSvg" role="img" aria-label="리그 평균 추이"></svg>
+          <div class="team-list" id="teamList"></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="tooltip" id="tooltip" hidden></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
