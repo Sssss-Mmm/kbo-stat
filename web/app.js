@@ -1,4 +1,4 @@
-const DATA_ROOT = "../data/raw/kbo_official";
+const DATA_ROOTS = ["../data/raw/kbo_official", "/data/raw/kbo_official", "./data/raw/kbo_official"];
 const YEARS = Array.from({ length: 45 }, (_, i) => 2026 - i);
 const TEAM_COLORS = [
   "#1f8a70",
@@ -12,6 +12,20 @@ const TEAM_COLORS = [
   "#de7c23",
   "#53636f",
 ];
+const FALLBACK_STANDINGS = {
+  2026: [
+    { Season: 2026, "순위": 1, "팀명": "LG", "경기": 57, "승": 36, "패": 21, "무": 0, "승률": 0.632, "게임차": 0, "최근10경기": "8승0무2패", "연속": "2승", "홈": "19-0-10", "방문": "17-0-11" },
+    { Season: 2026, "순위": 2, "팀명": "KT", "경기": 58, "승": 34, "패": 23, "무": 1, "승률": 0.596, "게임차": 2, "최근10경기": "6승0무4패", "연속": "1승", "홈": "16-0-13", "방문": "18-1-10" },
+    { Season: 2026, "순위": 3, "팀명": "삼성", "경기": 56, "승": 32, "패": 23, "무": 1, "승률": 0.582, "게임차": 3, "최근10경기": "5승0무5패", "연속": "3패", "홈": "16-1-13", "방문": "16-0-10" },
+    { Season: 2026, "순위": 4, "팀명": "KIA", "경기": 58, "승": 31, "패": 26, "무": 1, "승률": 0.544, "게임차": 5, "최근10경기": "6승0무4패", "연속": "2승", "홈": "18-1-10", "방문": "13-0-16" },
+    { Season: 2026, "순위": 5, "팀명": "한화", "경기": 57, "승": 29, "패": 27, "무": 1, "승률": 0.518, "게임차": 6.5, "최근10경기": "6승1무3패", "연속": "2승", "홈": "12-0-16", "방문": "17-1-11" },
+    { Season: 2026, "순위": 6, "팀명": "두산", "경기": 59, "승": 29, "패": 28, "무": 2, "승률": 0.509, "게임차": 7, "최근10경기": "7승1무2패", "연속": "4승", "홈": "18-1-11", "방문": "11-1-17" },
+    { Season: 2026, "순위": 7, "팀명": "SSG", "경기": 58, "승": 25, "패": 32, "무": 1, "승률": 0.439, "게임차": 11, "최근10경기": "3승0무7패", "연속": "1패", "홈": "13-1-15", "방문": "12-0-17" },
+    { Season: 2026, "순위": 8, "팀명": "NC", "경기": 56, "승": 24, "패": 31, "무": 1, "승률": 0.436, "게임차": 11, "최근10경기": "6승0무4패", "연속": "1패", "홈": "12-0-15", "방문": "12-1-16" },
+    { Season: 2026, "순위": 9, "팀명": "롯데", "경기": 57, "승": 22, "패": 34, "무": 1, "승률": 0.393, "게임차": 13.5, "최근10경기": "3승0무7패", "연속": "3패", "홈": "8-0-19", "방문": "14-1-15" },
+    { Season: 2026, "순위": 10, "팀명": "키움", "경기": 60, "승": 21, "패": 38, "무": 1, "승률": 0.356, "게임차": 16, "최근10경기": "1승0무9패", "연속": "4패", "홈": "13-1-16", "방문": "8-0-22" },
+  ],
+};
 
 const state = {
   kind: "hitter",
@@ -20,6 +34,7 @@ const state = {
   query: "",
   metric: "AVG",
   data: new Map(),
+  standings: new Map(),
   selected: null,
 };
 
@@ -27,7 +42,7 @@ const $ = (id) => document.getElementById(id);
 
 const configs = {
   hitter: {
-    file: (year) => `${DATA_ROOT}/kbo_${year}.csv`,
+    file: (year) => `kbo_${year}.csv`,
     defaultMetric: "AVG",
     metrics: ["AVG", "HR", "RBI", "SB", "XBH", "ISOP", "GPA", "XR"],
     lowerIsBetter: [],
@@ -42,7 +57,7 @@ const configs = {
     trendMetric: "AVG",
   },
   pitcher: {
-    file: (year) => `${DATA_ROOT}/kbo_pitcher_${year}.csv`,
+    file: (year) => `kbo_pitcher_${year}.csv`,
     defaultMetric: "ERA",
     metrics: ["ERA", "W", "SO", "SV", "HLD", "K/9", "BB/9", "K/BB", "OPS"],
     lowerIsBetter: ["ERA", "BB/9", "OPS"],
@@ -122,11 +137,32 @@ async function loadSeason(kind, year) {
   const key = `${kind}:${year}`;
   if (state.data.has(key)) return state.data.get(key);
 
-  const response = await fetch(configs[kind].file(year));
-  if (!response.ok) throw new Error(`${year} ${kind} 데이터를 불러오지 못했습니다.`);
-  const rows = parseCsv(await response.text()).map(normalizeRow);
+  const text = await fetchDataFile(configs[kind].file(year));
+  if (!text) {
+    showDataError(`${year} ${kind === "hitter" ? "타자" : "투수"} CSV를 불러오지 못했습니다.`);
+    state.data.set(key, []);
+    return [];
+  }
+  const rows = parseCsv(text).map(normalizeRow);
   state.data.set(key, rows);
   return rows;
+}
+
+async function fetchDataFile(fileName) {
+  for (const root of DATA_ROOTS) {
+    try {
+      const response = await fetch(`${root}/${fileName}`);
+      if (response.ok) return response.text();
+    } catch {
+      // Try the next candidate root.
+    }
+  }
+  return null;
+}
+
+function showDataError(message) {
+  const note = $("dataNote");
+  if (note) note.textContent = `${message} 서버를 레포 루트에서 실행해 주세요.`;
 }
 
 async function loadTrendData() {
@@ -142,6 +178,22 @@ async function loadTrendData() {
     }
   }
   return rows.filter((row) => Number.isFinite(row.value));
+}
+
+async function loadStandings(year) {
+  if (state.standings.has(year)) return state.standings.get(year);
+
+  try {
+    const text = await fetchDataFile(`kbo_team_rank_${year}.csv`);
+    if (!text) throw new Error("missing standings");
+    const rows = parseCsv(text).map(normalizeRow);
+    state.standings.set(year, rows);
+    return rows;
+  } catch {
+    const fallback = FALLBACK_STANDINGS[year] || [];
+    state.standings.set(year, fallback);
+    return fallback;
+  }
 }
 
 function parseCsv(text) {
@@ -214,6 +266,7 @@ function render() {
   renderTeamOptions();
   renderMetricPicker();
   renderOverview(rows);
+  renderStandings();
   renderLeaders(rows);
   renderScatter(rows);
   renderTrend();
@@ -260,6 +313,34 @@ function renderOverview(rows) {
         <p class="sub">${result.sub}</p>
       </article>`;
     })
+    .join("");
+}
+
+async function renderStandings() {
+  const rows = await loadStandings(state.season);
+  const columns = ["순위", "팀명", "경기", "승", "패", "무", "승률", "게임차", "연속"];
+
+  $("standingsHead").innerHTML = `<tr>${columns.map((col) => `<th>${col}</th>`).join("")}</tr>`;
+
+  if (!rows.length) {
+    $("standingsNote").textContent = `${state.season} 구단 순위 CSV가 아직 없습니다.`;
+    $("standingsBars").innerHTML = `<p class="muted">data/raw/kbo_official/kbo_team_rank_${state.season}.csv 파일을 추가하면 표시됩니다.</p>`;
+    $("standingsBody").innerHTML = "";
+    return;
+  }
+
+  const sorted = [...rows].sort((a, b) => Number(a["순위"]) - Number(b["순위"]));
+  const maxWins = Math.max(...sorted.map((row) => row["승"]).filter(Number.isFinite), 1);
+  $("standingsNote").textContent = `${sorted.length}개 구단 · 공식 순위표 기준`;
+  $("standingsBars").innerHTML = sorted
+    .map((row) => `<div class="bar-row">
+      <strong>${row["팀명"]}</strong>
+      <span class="bar-track"><span class="bar-fill" style="width:${((row["승"] || 0) / maxWins) * 100}%"></span></span>
+      <span>${formatCell("승률", row["승률"])}</span>
+    </div>`)
+    .join("");
+  $("standingsBody").innerHTML = sorted
+    .map((row) => `<tr>${columns.map((col) => `<td>${formatCell(col, row[col])}</td>`).join("")}</tr>`)
     .join("");
 }
 
@@ -470,7 +551,7 @@ function fmtInt(value) {
 
 function formatMetric(metric, value) {
   if (!Number.isFinite(value)) return "-";
-  if (["AVG", "ISOP", "GPA", "OBP", "SLG", "OPS", "BABIP", "WPCT"].includes(metric)) return fmtRate(value);
+  if (["AVG", "ISOP", "GPA", "OBP", "SLG", "OPS", "BABIP", "WPCT", "승률"].includes(metric)) return fmtRate(value);
   if (["ERA", "K/9", "BB/9", "K/BB", "P/G", "P/IP", "GO/AO"].includes(metric)) return fmtTwo(value);
   if (["XR"].includes(metric)) return fmtOne(value);
   return fmtInt(value);
