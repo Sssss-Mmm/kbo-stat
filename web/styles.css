@@ -242,13 +242,15 @@ h2 {
   font-size: 13px;
 }
 
-.leader-layout {
+.leader-layout,
+.standings-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.25fr);
   gap: 18px;
 }
 
 .leader-bars,
+.standings-bars,
 .table-wrap,
 .viz-shell,
 .team-list {
@@ -258,7 +260,8 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.leader-bars {
+.leader-bars,
+.standings-bars {
   padding: 14px;
 }
 
@@ -430,6 +433,7 @@ svg {
 
   .control-row,
   .leader-layout,
+  .standings-layout,
   .viz-shell,
   .trend-grid {
     grid-template-columns: 1fr;
