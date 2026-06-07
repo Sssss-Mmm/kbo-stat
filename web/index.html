@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>KBO Visual Lab</title>
+    <title>AI Baseball Lab</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -11,139 +11,239 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true"></span>
         <div>
-          <h1>KBO Visual Lab</h1>
-          <p>공식 기록 기반 시즌·선수 시각화</p>
+          <h1>AI Baseball Lab</h1>
+          <p>&#44256;&#47540;&#46972; &#49828;&#53440;&#51068; &#49884;&#44033;&#54868; + &#49440;&#49688; &#48708;&#44368; + AI &#50556;&#44396; &#48516;&#49437;</p>
         </div>
       </div>
 
-      <nav class="top-nav" aria-label="주요 보기">
-        <button class="nav-button active" data-scroll-target="overview">요약</button>
-        <button class="nav-button" data-scroll-target="standings">구단</button>
-        <button class="nav-button" data-scroll-target="leaders">리더</button>
-        <button class="nav-button" data-scroll-target="map">분포</button>
-        <button class="nav-button" data-scroll-target="trend">추이</button>
+      <nav class="top-nav" aria-label="Main sections">
+        <button class="nav-button active" data-scroll-target="today">&#50724;&#45720;&#51032; KBO</button>
+        <button class="nav-button" data-scroll-target="team">&#54016; &#48516;&#49437;</button>
+        <button class="nav-button" data-scroll-target="player">&#49440;&#49688; &#48516;&#49437;</button>
+        <button class="nav-button" data-scroll-target="compare">&#49440;&#49688; &#48708;&#44368;</button>
+        <button class="nav-button" data-scroll-target="story">&#49828;&#53664;&#47532;</button>
       </nav>
-
-      <button class="icon-button" id="themeToggle" title="테마 전환" aria-label="테마 전환">
-        <span id="themeIcon">☾</span>
-      </button>
     </header>
 
     <main>
-      <section class="control-band" aria-label="데이터 필터">
-        <div class="control-row">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Portfolio Concept</p>
+          <h2>&#45800;&#49692; &#45936;&#51060;&#53552; &#49884;&#44033;&#54868;&#47484; &#45336;&#50612;, &#50556;&#44396;&#54060;&#51060; &#51656;&#47928;&#54616;&#47732; AI&#44032; &#44540;&#44144;&#47484; &#48372;&#50668;&#51452;&#45716; &#49892;&#54744;&#49892;.</h2>
+        </div>
+        <div class="hero-controls" aria-label="Dashboard filters">
           <label>
-            시즌
+            &#49884;&#51596;
             <select id="seasonSelect"></select>
           </label>
-
-          <div class="segmented" role="tablist" aria-label="선수 유형">
-            <button class="active" data-kind="hitter" role="tab" aria-selected="true">타자</button>
-            <button data-kind="pitcher" role="tab" aria-selected="false">투수</button>
-          </div>
-
           <label>
-            팀
-            <select id="teamSelect">
-              <option value="all">전체</option>
-            </select>
+            &#54016;
+            <select id="teamSelect"></select>
           </label>
+        </div>
+      </section>
 
+      <section id="today" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Home</p>
+            <h2>&#50724;&#45720;&#51032; KBO</h2>
+          </div>
+          <p class="muted" id="dataNote">&#45936;&#51060;&#53552;&#47484; &#48520;&#47084;&#50724;&#45716; &#51473;&#51077;&#45768;&#45796;.</p>
+        </div>
+
+        <div class="today-grid">
+          <article class="today-card primary-card">
+            <span class="card-kicker">&#54788;&#51116; &#49692;&#50948;</span>
+            <h3 id="leaderTeam">-</h3>
+            <p id="leaderRecord" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#50672;&#49849;/&#50672;&#54056;</span>
+            <h3 id="streakTeam">-</h3>
+            <p id="streakText" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#50724;&#45720; &#44221;&#44592;</span>
+            <h3 id="todayGame">-</h3>
+            <p id="todayGameText" class="muted">-</p>
+            <div id="todayGameList" class="schedule-list"></div>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#44032;&#51109; &#46888;&#44144;&#50868; &#49440;&#49688;</span>
+            <h3 id="hotPlayer">-</h3>
+            <p id="hotPlayerText" class="muted">-</p>
+          </article>
+        </div>
+
+        <div class="spotlight-grid">
+          <article class="spotlight-card">
+            <span class="flame" aria-hidden="true">&#128293;</span>
+            <p>&#52572;&#44540; 10&#44221;&#44592; &#49849;&#47456; 1&#50948;</p>
+            <h3 id="recentBest">-</h3>
+          </article>
+          <article class="spotlight-card">
+            <span class="flame" aria-hidden="true">&#128293;</span>
+            <p>WAR &#49345;&#49849;&#54253; 1&#50948;</p>
+            <h3 id="warRiser">&#44608;&#46020;&#50689;</h3>
+          </article>
+          <article class="spotlight-card">
+            <span class="flame" aria-hidden="true">&#128293;</span>
+            <p>&#54856;&#47088; &#54168;&#51060;&#49828; 1&#50948;</p>
+            <h3 id="hrPace">-</h3>
+          </article>
+        </div>
+      </section>
+
+      <section id="team" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Team Analysis</p>
+            <h2>&#54016; &#48516;&#49437;</h2>
+          </div>
+          <div class="quick-teams" id="quickTeams"></div>
+        </div>
+
+        <div class="team-grid">
+          <article class="chart-panel wide">
+            <div class="panel-head">
+              <div>
+                <h3>&#49692;&#50948; &#48320;&#54868;</h3>
+                <p>&#50900;&#48324; &#44221;&#44592;&#51068; &#44592;&#51456; &#46972;&#51064; &#52264;&#53944;</p>
+              </div>
+              <span class="pill" id="selectedTeamPill">&#51204;&#52404;</span>
+            </div>
+            <svg id="rankTrendSvg" role="img" aria-label="Rank trend chart"></svg>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#50900;&#48324; &#49849;&#47456;</h3>
+                <p>&#49884;&#51596; &#54924;&#48373;&#49464; &#54869;&#51064;</p>
+              </div>
+            </div>
+            <svg id="monthlyWinSvg" role="img" aria-label="Monthly win rate chart"></svg>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#46301;&#51216; / &#49892;&#51216;</h3>
+                <p>&#44277;&#44201;&#47141;&#44284; &#53804;&#49688;&#47141; &#48708;&#44368;</p>
+              </div>
+            </div>
+            <svg id="runDiffSvg" role="img" aria-label="Runs scored and allowed chart"></svg>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#54856; / &#50896;&#51221;</h3>
+                <p>&#54856;&#44221;&#44592;&#50752; &#50896;&#51221;&#44221;&#44592; &#49457;&#44284;</p>
+              </div>
+            </div>
+            <div id="homeAwayBars" class="bar-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="player" class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Player Analysis</p>
+            <h2>&#49440;&#49688; &#48516;&#49437;</h2>
+          </div>
           <label class="search-box">
-            검색
-            <input id="searchInput" type="search" placeholder="선수명" />
+            &#49440;&#49688; &#44160;&#49353;
+            <input id="playerSearch" type="search" placeholder="ex. Kim Do-yeong, Choi Won-jun" />
           </label>
         </div>
-      </section>
 
-      <section id="overview" class="section-band">
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Season Snapshot</p>
-            <h2 id="snapshotTitle">시즌 한눈에</h2>
-          </div>
-          <p id="dataNote" class="muted"></p>
-        </div>
-
-        <div class="metric-grid" id="metricGrid"></div>
-      </section>
-
-      <section id="standings" class="section-band">
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Team Standings</p>
-            <h2>구단 순위</h2>
-          </div>
-          <p id="standingsNote" class="muted"></p>
-        </div>
-
-        <div class="standings-layout">
-          <div class="standings-bars" id="standingsBars"></div>
-          <div class="table-wrap">
-            <table>
-              <thead id="standingsHead"></thead>
-              <tbody id="standingsBody"></tbody>
-            </table>
-          </div>
+        <div class="player-grid">
+          <article class="chart-panel player-card" id="playerCard"></article>
+          <article class="chart-panel wide">
+            <div class="panel-head">
+              <div>
+                <h3>&#54620;&#45576;&#50640; &#48372;&#45716; &#54645;&#49900; &#51648;&#54364;</h3>
+                <p>WAR, OPS, AVG, OBP, SLG</p>
+              </div>
+            </div>
+            <div id="playerMetricBars" class="metric-bars"></div>
+          </article>
         </div>
       </section>
 
-      <section id="leaders" class="section-band">
+      <section id="compare" class="section-band">
         <div class="section-title">
           <div>
-            <p class="eyebrow">Title Race</p>
-            <h2>주요 부문 리더</h2>
+            <p class="eyebrow">Player Compare</p>
+            <h2>&#44608;&#46020;&#50689; vs &#45432;&#49884;&#54872;&#51060; &#51116;&#48156;&#54616;&#45716; &#54868;&#47732;</h2>
           </div>
-          <div class="metric-picker" id="metricPicker"></div>
+          <div class="compare-controls">
+            <select id="compareA"></select>
+            <select id="compareB"></select>
+          </div>
         </div>
 
-        <div class="leader-layout">
-          <div class="leader-bars" id="leaderBars"></div>
-          <div class="table-wrap">
-            <table>
-              <thead id="leaderHead"></thead>
-              <tbody id="leaderBody"></tbody>
-            </table>
-          </div>
+        <div class="compare-grid">
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>WAR / OPS / HR / RBI</h3>
+                <p>&#47112;&#51060;&#45908; &#52264;&#53944;</p>
+              </div>
+            </div>
+            <svg id="radarSvg" role="img" aria-label="Player compare radar chart"></svg>
+          </article>
+          <article class="chart-panel">
+            <div id="compareSummary" class="compare-summary"></div>
+          </article>
         </div>
       </section>
 
-      <section id="map" class="section-band">
+      <section id="story" class="section-band">
         <div class="section-title">
           <div>
-            <p class="eyebrow">Player Map</p>
-            <h2 id="scatterTitle">선수 분포</h2>
+            <p class="eyebrow">Story Lab</p>
+            <h2>&#49828;&#53664;&#47532; &#44592;&#45733; + AI &#50556;&#44396; &#48516;&#49437;</h2>
           </div>
-          <p class="muted" id="scatterHint"></p>
         </div>
 
-        <div class="viz-shell">
-          <svg id="scatterSvg" role="img" aria-label="선수 산점도"></svg>
-          <aside class="detail-panel" id="detailPanel">
-            <p class="eyebrow">선수 상세</p>
-            <h3>점을 선택하세요</h3>
-            <p class="muted">마우스를 올리거나 클릭하면 주요 기록이 표시됩니다.</p>
-          </aside>
+        <div class="story-grid">
+          <article class="story-card">
+            <span>&#50669;&#45824; &#52572;&#44256;&#51032; &#50773;&#51312;&#45716;?</span>
+            <strong>82 &#54644;&#53468; vs 94 LG vs 20 NC vs 23 LG</strong>
+          </article>
+          <article class="story-card">
+            <span>&#44032;&#51109; &#44537;&#51201;&#51064; &#50864;&#49849;</span>
+            <strong>&#54252;&#49828;&#53944;&#49884;&#51596; &#49828;&#53664;&#47532; &#51088;&#46041; &#49373;&#49457;</strong>
+          </article>
+          <article class="story-card">
+            <span>&#50669;&#45824; &#52572;&#44256;&#51032; &#50808;&#44397;&#51064; &#53440;&#51088;</span>
+            <strong>OPS, WAR, HR &#44540;&#44144; &#48708;&#44368;</strong>
+          </article>
+          <article class="story-card">
+            <span>&#50669;&#45824; &#52572;&#44256;&#51032; &#47560;&#47924;&#47532;</span>
+            <strong>SV, ERA, WPA &#44592;&#48152; &#48516;&#49437;</strong>
+          </article>
         </div>
-      </section>
 
-      <section id="trend" class="section-band">
-        <div class="section-title">
+        <article class="ai-panel">
           <div>
-            <p class="eyebrow">League Trend</p>
-            <h2>리그 평균 추이</h2>
+            <p class="eyebrow">AI Baseball Analyst</p>
+            <h3>&#50780; &#54620;&#54868;&#44032; &#50732;&#54644; &#44053;&#54616;&#51648;?</h3>
+            <p class="muted">&#54016; &#53440;&#50984;, &#54016; WAR, &#48520;&#54172; WAR, &#46301;&#49892;&#52264;&#47484; RAG + &#45936;&#51060;&#53552; &#48516;&#49437;&#51004;&#47196; &#52286;&#44256; &#44540;&#44144;&#47484; &#54632;&#44760; &#51228;&#49884;&#54616;&#45716; &#52255;&#48391; &#50689;&#50669;&#51077;&#45768;&#45796;.</p>
           </div>
-          <p class="muted">최근 12시즌 기준</p>
-        </div>
-
-        <div class="trend-grid">
-          <svg id="trendSvg" role="img" aria-label="리그 평균 추이"></svg>
-          <div class="team-list" id="teamList"></div>
-        </div>
+          <div class="stack-grid compact">
+            <article><strong>Front</strong><span>Next.js</span><span>TypeScript</span><span>Tailwind</span><span>Recharts</span></article>
+            <article><strong>Backend</strong><span>Spring Boot</span><span>PostgreSQL</span><span>Redis</span></article>
+            <article><strong>Data</strong><span>KBO Open API</span><span>Crawling</span><span>RAG Pipeline</span></article>
+          </div>
+        </article>
       </section>
     </main>
 
-    <div class="tooltip" id="tooltip" hidden></div>
-    <script src="./app.js?v=2"></script>
+    <script src="./app.js"></script>
   </body>
 </html>

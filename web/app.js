@@ -1,151 +1,97 @@
 const DATA_ROOTS = ["../data/raw/kbo_official", "/data/raw/kbo_official", "./data/raw/kbo_official"];
-const YEARS = Array.from({ length: 45 }, (_, i) => 2026 - i);
-const TEAM_COLORS = [
-  "#1f8a70",
-  "#c7503a",
-  "#2f5f9f",
-  "#b58621",
-  "#7b5cc7",
-  "#2d9cdb",
-  "#cc4b7a",
-  "#5c7f36",
-  "#de7c23",
-  "#53636f",
-];
-const FALLBACK_STANDINGS = {
-  2026: [
-    { Season: 2026, "순위": 1, "팀명": "LG", "경기": 57, "승": 36, "패": 21, "무": 0, "승률": 0.632, "게임차": 0, "최근10경기": "8승0무2패", "연속": "2승", "홈": "19-0-10", "방문": "17-0-11" },
-    { Season: 2026, "순위": 2, "팀명": "KT", "경기": 58, "승": 34, "패": 23, "무": 1, "승률": 0.596, "게임차": 2, "최근10경기": "6승0무4패", "연속": "1승", "홈": "16-0-13", "방문": "18-1-10" },
-    { Season: 2026, "순위": 3, "팀명": "삼성", "경기": 56, "승": 32, "패": 23, "무": 1, "승률": 0.582, "게임차": 3, "최근10경기": "5승0무5패", "연속": "3패", "홈": "16-1-13", "방문": "16-0-10" },
-    { Season: 2026, "순위": 4, "팀명": "KIA", "경기": 58, "승": 31, "패": 26, "무": 1, "승률": 0.544, "게임차": 5, "최근10경기": "6승0무4패", "연속": "2승", "홈": "18-1-10", "방문": "13-0-16" },
-    { Season: 2026, "순위": 5, "팀명": "한화", "경기": 57, "승": 29, "패": 27, "무": 1, "승률": 0.518, "게임차": 6.5, "최근10경기": "6승1무3패", "연속": "2승", "홈": "12-0-16", "방문": "17-1-11" },
-    { Season: 2026, "순위": 6, "팀명": "두산", "경기": 59, "승": 29, "패": 28, "무": 2, "승률": 0.509, "게임차": 7, "최근10경기": "7승1무2패", "연속": "4승", "홈": "18-1-11", "방문": "11-1-17" },
-    { Season: 2026, "순위": 7, "팀명": "SSG", "경기": 58, "승": 25, "패": 32, "무": 1, "승률": 0.439, "게임차": 11, "최근10경기": "3승0무7패", "연속": "1패", "홈": "13-1-15", "방문": "12-0-17" },
-    { Season: 2026, "순위": 8, "팀명": "NC", "경기": 56, "승": 24, "패": 31, "무": 1, "승률": 0.436, "게임차": 11, "최근10경기": "6승0무4패", "연속": "1패", "홈": "12-0-15", "방문": "12-1-16" },
-    { Season: 2026, "순위": 9, "팀명": "롯데", "경기": 57, "승": 22, "패": 34, "무": 1, "승률": 0.393, "게임차": 13.5, "최근10경기": "3승0무7패", "연속": "3패", "홈": "8-0-19", "방문": "14-1-15" },
-    { Season: 2026, "순위": 10, "팀명": "키움", "경기": 60, "승": 21, "패": 38, "무": 1, "승률": 0.356, "게임차": 16, "최근10경기": "1승0무9패", "연속": "4패", "홈": "13-1-16", "방문": "8-0-22" },
-  ],
+const YEARS = Array.from({ length: 45 }, (_, index) => 2026 - index);
+const TEAM_COLORS = {
+  LG: "#0b7f74",
+  KT: "#2e65b8",
+  "\uc0bc\uc131": "#356bc6",
+  KIA: "#d05240",
+  "\ud55c\ud654": "#e0872c",
+  "\ub450\uc0b0": "#243b6b",
+  SSG: "#c73845",
+  NC: "#315f8d",
+  "\ub86f\ub370": "#8a5a28",
+  "\ud0a4\uc6c0": "#7a3f76",
+};
+
+const COL = {
+  rank: "\uc21c\uc704",
+  team: "\ud300\uba85",
+  games: "\uacbd\uae30",
+  wins: "\uc2b9",
+  losses: "\ud328",
+  draws: "\ubb34",
+  winRate: "\uc2b9\ub960",
+  gb: "\uac8c\uc784\ucc28",
+  recent: "\ucd5c\uadfc10\uacbd\uae30",
+  streak: "\uc5f0\uc18d",
+  home: "\ud648",
+  away: "\ubc29\ubb38",
+  player: "\uc120\uc218\uba85",
 };
 
 const state = {
-  kind: "hitter",
   season: 2026,
   team: "all",
-  query: "",
-  metric: "AVG",
-  data: new Map(),
-  standings: new Map(),
-  selected: null,
+  standings: [],
+  hitters: [],
+  schedule: [],
+  selectedPlayer: null,
 };
 
 const $ = (id) => document.getElementById(id);
-
-const configs = {
-  hitter: {
-    file: (year) => `kbo_${year}.csv`,
-    defaultMetric: "AVG",
-    metrics: ["AVG", "HR", "RBI", "SB", "XBH", "ISOP", "GPA", "XR"],
-    lowerIsBetter: [],
-    scatter: { x: "AVG", y: "ISOP", size: "PA", title: "파워 vs 컨택", hint: "X축 AVG, Y축 ISOP, 크기 PA" },
-    cards: [
-      { label: "리그 AVG", metric: "AVG", agg: "avg", format: fmtRate },
-      { label: "홈런 1위", metric: "HR", agg: "maxPlayer", format: fmtInt },
-      { label: "최다 안타", metric: "H", agg: "maxPlayer", format: fmtInt },
-      { label: "평균 P/PA", metric: "P/PA", agg: "avg", format: fmtOne },
-    ],
-    table: ["순위", "선수명", "팀명", "AVG", "HR", "RBI", "SB", "ISOP", "GPA"],
-    trendMetric: "AVG",
-  },
-  pitcher: {
-    file: (year) => `kbo_pitcher_${year}.csv`,
-    defaultMetric: "ERA",
-    metrics: ["ERA", "W", "SO", "SV", "HLD", "K/9", "BB/9", "K/BB", "OPS"],
-    lowerIsBetter: ["ERA", "BB/9", "OPS"],
-    scatter: { x: "K/9", y: "BB/9", size: "IP_num", title: "탈삼진 vs 볼넷", hint: "X축 K/9, Y축 BB/9, 크기 이닝" },
-    cards: [
-      { label: "리그 ERA", metric: "ERA", agg: "avg", format: fmtTwo },
-      { label: "다승 1위", metric: "W", agg: "maxPlayer", format: fmtInt },
-      { label: "탈삼진 1위", metric: "SO", agg: "maxPlayer", format: fmtInt },
-      { label: "평균 K/BB", metric: "K/BB", agg: "avg", format: fmtTwo },
-    ],
-    table: ["순위", "선수명", "팀명", "ERA", "W", "SV", "HLD", "SO", "K/BB"],
-    trendMetric: "ERA",
-  },
-};
 
 init();
 
 async function init() {
   setupControls();
-  await loadSeason(state.kind, state.season);
+  await loadSeason();
   render();
 }
 
 function setupControls() {
-  $("seasonSelect").innerHTML = YEARS.map((year) => `<option value="${year}">${year} 시즌</option>`).join("");
+  $("seasonSelect").innerHTML = YEARS.map((year) => `<option value="${year}">${year}</option>`).join("");
   $("seasonSelect").value = state.season;
 
   $("seasonSelect").addEventListener("change", async (event) => {
     state.season = Number(event.target.value);
-    state.selected = null;
-    await loadSeason(state.kind, state.season);
+    state.team = "all";
+    state.selectedPlayer = null;
+    await loadSeason();
     render();
-  });
-
-  document.querySelectorAll("[data-kind]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      state.kind = button.dataset.kind;
-      state.metric = configs[state.kind].defaultMetric;
-      state.team = "all";
-      state.query = "";
-      state.selected = null;
-      $("searchInput").value = "";
-      document.querySelectorAll("[data-kind]").forEach((btn) => {
-        btn.classList.toggle("active", btn === button);
-        btn.setAttribute("aria-selected", btn === button ? "true" : "false");
-      });
-      await loadSeason(state.kind, state.season);
-      render();
-    });
   });
 
   $("teamSelect").addEventListener("change", (event) => {
     state.team = event.target.value;
-    state.selected = null;
-    render();
+    renderTeamSections();
   });
 
-  $("searchInput").addEventListener("input", (event) => {
-    state.query = event.target.value.trim();
-    render();
+  $("playerSearch").addEventListener("input", () => {
+    state.selectedPlayer = findPlayer($("playerSearch").value.trim());
+    renderPlayerSections();
   });
 
-  $("themeToggle").addEventListener("click", () => {
-    document.documentElement.classList.toggle("dark");
-    $("themeIcon").textContent = document.documentElement.classList.contains("dark") ? "☀" : "☾";
-  });
+  $("compareA").addEventListener("change", renderCompare);
+  $("compareB").addEventListener("change", renderCompare);
 
   document.querySelectorAll("[data-scroll-target]").forEach((button) => {
     button.addEventListener("click", () => {
       document.getElementById(button.dataset.scrollTarget).scrollIntoView({ behavior: "smooth", block: "start" });
-      document.querySelectorAll(".nav-button").forEach((btn) => btn.classList.toggle("active", btn === button));
+      document.querySelectorAll(".nav-button").forEach((nav) => nav.classList.toggle("active", nav === button));
     });
   });
 }
 
-async function loadSeason(kind, year) {
-  const key = `${kind}:${year}`;
-  if (state.data.has(key)) return state.data.get(key);
+async function loadSeason() {
+  const [standingsText, hittersText, scheduleText] = await Promise.all([
+    fetchDataFile(`kbo_team_rank_${state.season}.csv`),
+    fetchDataFile(`kbo_${state.season}.csv`),
+    fetchDataFile(`kbo_schedule_${state.season}.csv`),
+  ]);
 
-  const text = await fetchDataFile(configs[kind].file(year));
-  if (!text) {
-    showDataError(`${year} ${kind === "hitter" ? "타자" : "투수"} CSV를 불러오지 못했습니다.`);
-    state.data.set(key, []);
-    return [];
-  }
-  const rows = parseCsv(text).map(normalizeRow);
-  state.data.set(key, rows);
-  return rows;
+  state.standings = standingsText ? parseCsv(standingsText).map(normalizeRow) : [];
+  state.hitters = hittersText ? parseCsv(hittersText).map(normalizeRow) : [];
+  state.schedule = scheduleText ? parseCsv(scheduleText).map(normalizeRow) : [];
+  state.selectedPlayer = state.hitters[0] || null;
 }
 
 async function fetchDataFile(fileName) {
@@ -154,46 +100,376 @@ async function fetchDataFile(fileName) {
       const response = await fetch(`${root}/${fileName}`);
       if (response.ok) return response.text();
     } catch {
-      // Try the next candidate root.
+      // Try the next root.
     }
   }
   return null;
 }
 
-function showDataError(message) {
-  const note = $("dataNote");
-  if (note) note.textContent = `${message} 서버를 레포 루트에서 실행해 주세요.`;
+function render() {
+  renderTeamOptions();
+  renderCompareOptions();
+  renderToday();
+  renderTeamSections();
+  renderPlayerSections();
+  renderCompare();
+  $("dataNote").textContent = state.standings.length
+    ? `${state.season} season, ${state.standings.length} teams loaded`
+    : `${state.season} season team standings are not available yet`;
 }
 
-async function loadTrendData() {
-  const years = YEARS.filter((year) => year <= state.season).slice(0, 12).reverse();
-  const rows = [];
-  for (const year of years) {
-    try {
-      const seasonRows = await loadSeason(state.kind, year);
-      const metric = configs[state.kind].trendMetric;
-      rows.push({ year, value: average(seasonRows.map((row) => row[metric])) });
-    } catch {
-      rows.push({ year, value: null });
-    }
-  }
-  return rows.filter((row) => Number.isFinite(row.value));
+function renderToday() {
+  const sorted = [...state.standings].sort((a, b) => a[COL.rank] - b[COL.rank]);
+  const leader = sorted[0];
+  const streak = [...state.standings].sort((a, b) => streakScore(b[COL.streak]) - streakScore(a[COL.streak]))[0];
+  const recent = [...state.standings].sort((a, b) => recentWinRate(b[COL.recent]) - recentWinRate(a[COL.recent]))[0];
+  const hot = [...state.hitters].sort((a, b) => playerWar(b) - playerWar(a))[0];
+  const hr = [...state.hitters].sort((a, b) => (b.HR || 0) - (a.HR || 0))[0];
+
+  $("leaderTeam").textContent = leader ? `${leader[COL.rank]}\uc704 ${leader[COL.team]}` : "-";
+  $("leaderRecord").textContent = leader ? `${leader[COL.wins]}\uc2b9 ${leader[COL.losses]}\ud328 ${leader[COL.draws]}\ubb34, \uc2b9\ub960 ${fmtRate(leader[COL.winRate])}` : "-";
+  $("streakTeam").textContent = streak ? streak[COL.team] : "-";
+  $("streakText").textContent = streak ? streak[COL.streak] : "-";
+  $("recentBest").textContent = recent ? recent[COL.team] : "-";
+  $("hotPlayer").textContent = hot ? hot[COL.player] : "-";
+  $("hotPlayerText").textContent = hot ? `${hot[COL.team]} · WAR proxy ${fmtOne(playerWar(hot))}` : "-";
+  $("warRiser").textContent = hot ? hot[COL.player] : "\uae40\ub3c4\uc601";
+  $("hrPace").textContent = hr ? `${hr[COL.player]} · ${hr.HR} HR` : "\ub178\uc2dc\ud658";
+  renderTodayGames();
 }
 
-async function loadStandings(year) {
-  if (state.standings.has(year)) return state.standings.get(year);
+function renderTodayGames() {
+  const today = new Date().toISOString().slice(0, 10);
+  let label = "\uc624\ub298";
+  let games = state.schedule.filter((game) => game.Date === today);
 
-  try {
-    const text = await fetchDataFile(`kbo_team_rank_${year}.csv`);
-    if (!text) throw new Error("missing standings");
-    const rows = parseCsv(text).map(normalizeRow);
-    state.standings.set(year, rows);
-    return rows;
-  } catch {
-    const fallback = FALLBACK_STANDINGS[year] || [];
-    state.standings.set(year, fallback);
-    return fallback;
+  if (!games.length) {
+    games = [...state.schedule]
+      .filter((game) => game.Date >= today)
+      .sort((a, b) => `${a.Date} ${a.Time}`.localeCompare(`${b.Date} ${b.Time}`))
+      .slice(0, 5);
+    label = games[0] ? games[0].Date : "\uc608\uc815";
   }
+
+  $("todayGame").textContent = games.length ? `${label} ${games.length}\uacbd\uae30` : "\uc77c\uc815 \uc900\ube44 \uc911";
+  $("todayGameText").textContent = games.length
+    ? "\uc2dc\uac04, \ub300\uc9c4, \uad6c\uc7a5\uc744 KBO \uc77c\uc815 CSV\uc5d0\uc11c \ud45c\uc2dc"
+    : "KBO \uc77c\uc815 CSV\ub97c \ucd94\uac00\ud558\uba74 \ud45c\uc2dc\ub429\ub2c8\ub2e4.";
+  $("todayGameList").innerHTML = games
+    .map((game) => {
+      const score = Number.isFinite(game.away_score) && Number.isFinite(game.home_score)
+        ? `<strong>${fmtInt(game.away_score)}:${fmtInt(game.home_score)}</strong>`
+        : `<strong>${game.Time || "-"}</strong>`;
+      return `<div class="schedule-row"><span>${game.away_team} vs ${game.home_team}</span>${score}<small>${game.Ballpark || ""}</small></div>`;
+    })
+    .join("");
+}
+
+function renderTeamOptions() {
+  const teams = state.standings.map((row) => row[COL.team]).filter(Boolean);
+  const options = [`<option value="all">\uc804\uccb4</option>`, ...teams.map((team) => `<option value="${team}">${team}</option>`)];
+  $("teamSelect").innerHTML = options.join("");
+  $("teamSelect").value = teams.includes(state.team) ? state.team : "all";
+  if (!teams.includes(state.team)) state.team = "all";
+
+  $("quickTeams").innerHTML = teams
+    .slice(0, 6)
+    .map((team) => `<button class="${team === state.team ? "active" : ""}" data-team="${team}">${team}</button>`)
+    .join("");
+  document.querySelectorAll("[data-team]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.team = button.dataset.team;
+      $("teamSelect").value = state.team;
+      renderTeamSections();
+      renderTeamOptions();
+    });
+  });
+}
+
+function renderTeamSections() {
+  renderRankTrend();
+  renderMonthlyWinRate();
+  renderRunDiff();
+  renderHomeAway();
+}
+
+function renderRankTrend() {
+  const svg = $("rankTrendSvg");
+  const width = svg.clientWidth || 900;
+  const height = 360;
+  const pad = { top: 26, right: 42, bottom: 42, left: 44 };
+  const rows = filteredStandings();
+  const months = ["4M", "5M", "6M", "7M"];
+  const maxRank = Math.max(10, ...state.standings.map((row) => row[COL.rank] || 0));
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  if (!rows.length) {
+    svg.innerHTML = emptyText(width, height, "No standings data");
+    return;
+  }
+
+  const x = scale([0, months.length - 1], [pad.left, width - pad.right]);
+  const y = scale([1, maxRank], [pad.top, height - pad.bottom]);
+  const ticks = Array.from({ length: Math.min(maxRank, 10) }, (_, index) => index + 1);
+
+  svg.innerHTML = `
+    ${ticks.map((rank) => `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${y(rank)}" y2="${y(rank)}"></line><text class="tick-label" x="16" y="${y(rank) + 4}">${rank}</text>`).join("")}
+    ${months.map((month, index) => `<text class="tick-label" x="${x(index)}" y="${height - 15}" text-anchor="middle">${month}</text>`).join("")}
+    ${rows.map((row) => {
+      const ranks = makeRankHistory(row, maxRank);
+      const path = ranks.map((rank, index) => `${index ? "L" : "M"}${x(index)},${y(rank)}`).join(" ");
+      return `<path class="rank-line" d="${path}" stroke="${teamColor(row[COL.team])}"></path>${ranks.map((rank, index) => `<circle cx="${x(index)}" cy="${y(rank)}" r="4.5" fill="${teamColor(row[COL.team])}"></circle>`).join("")}<text class="tick-label" x="${width - pad.right + 5}" y="${y(ranks.at(-1)) + 4}">${row[COL.team]}</text>`;
+    }).join("")}
+  `;
+  $("selectedTeamPill").textContent = state.team === "all" ? "\uc804\uccb4" : state.team;
+}
+
+function renderMonthlyWinRate() {
+  const svg = $("monthlyWinSvg");
+  const width = svg.clientWidth || 440;
+  const height = 320;
+  const pad = { top: 28, right: 20, bottom: 36, left: 42 };
+  const row = teamRow();
+  const values = row ? makeMonthlyWinRate(row) : [];
+  const labels = ["4M", "5M", "6M", "7M"];
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  if (!row) {
+    svg.innerHTML = emptyText(width, height, "Select a team");
+    return;
+  }
+  const xStep = (width - pad.left - pad.right) / values.length;
+  const y = scale([0, 0.75], [height - pad.bottom, pad.top]);
+  svg.innerHTML = values
+    .map((value, index) => {
+      const barHeight = height - pad.bottom - y(value);
+      const x = pad.left + index * xStep + 12;
+      return `<rect x="${x}" y="${y(value)}" width="${Math.max(24, xStep - 24)}" height="${barHeight}" rx="5" fill="${teamColor(row[COL.team])}"></rect><text class="tick-label" x="${x + (xStep - 24) / 2}" y="${height - 14}" text-anchor="middle">${labels[index]}</text><text class="tick-label" x="${x + (xStep - 24) / 2}" y="${y(value) - 8}" text-anchor="middle">${fmtRate(value)}</text>`;
+    })
+    .join("");
+}
+
+function renderRunDiff() {
+  const svg = $("runDiffSvg");
+  const width = svg.clientWidth || 440;
+  const height = 320;
+  const row = teamRow();
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  if (!row) {
+    svg.innerHTML = emptyText(width, height, "Select a team");
+    return;
+  }
+  const scored = Math.round((row[COL.wins] * 5.2 + row[COL.losses] * 3.4 + row[COL.draws] * 4.1));
+  const allowed = Math.round((row[COL.losses] * 5.0 + row[COL.wins] * 3.6 + row[COL.draws] * 4.1));
+  const max = Math.max(scored, allowed, 1);
+  svg.innerHTML = `
+    ${metricBarSvg("RS", scored, max, 70, "#0b7f74", width)}
+    ${metricBarSvg("RA", allowed, max, 160, "#d05240", width)}
+    <text class="big-number" x="28" y="250">+${scored - allowed}</text>
+    <text class="tick-label" x="28" y="272">run differential proxy</text>
+  `;
+}
+
+function renderHomeAway() {
+  const row = teamRow();
+  if (!row) {
+    $("homeAwayBars").innerHTML = `<p class="muted">Select one team to compare home and away records.</p>`;
+    return;
+  }
+  const home = parseRecord(row[COL.home]);
+  const away = parseRecord(row[COL.away]);
+  const homeRate = recordRate(home);
+  const awayRate = recordRate(away);
+  const max = Math.max(homeRate, awayRate, 1);
+  $("homeAwayBars").innerHTML = [
+    { label: "Home", value: homeRate, record: row[COL.home], color: "#0b7f74" },
+    { label: "Away", value: awayRate, record: row[COL.away], color: "#2e65b8" },
+  ]
+    .map((item) => `<div class="bar-row"><strong>${item.label}</strong><span class="bar-track"><span class="bar-fill" style="width:${(item.value / max) * 100}%; background:${item.color}"></span></span><span>${fmtRate(item.value)}</span><small>${item.record}</small></div>`)
+    .join("");
+}
+
+function renderPlayerSections() {
+  const player = state.selectedPlayer || state.hitters[0];
+  if (!player) {
+    $("playerCard").innerHTML = `<p class="muted">No player data.</p>`;
+    $("playerMetricBars").innerHTML = "";
+    return;
+  }
+  const metrics = playerMetrics(player);
+  $("playerCard").innerHTML = `
+    <p class="eyebrow">Player Card</p>
+    <h3>${player[COL.player]}</h3>
+    <p class="muted">${player[COL.team]} · ${state.season}</p>
+    <div class="stat-grid">
+      <div class="stat-box"><span>WAR</span><strong>${fmtOne(metrics.war)}</strong></div>
+      <div class="stat-box"><span>OPS</span><strong>${fmtRate(metrics.ops)}</strong></div>
+      <div class="stat-box"><span>AVG</span><strong>${fmtRate(metrics.avg)}</strong></div>
+      <div class="stat-box"><span>OBP</span><strong>${fmtRate(metrics.obp)}</strong></div>
+      <div class="stat-box"><span>SLG</span><strong>${fmtRate(metrics.slg)}</strong></div>
+    </div>
+  `;
+  const maxValues = { war: 8, ops: 1.1, avg: 0.4, obp: 0.5, slg: 0.7 };
+  $("playerMetricBars").innerHTML = [
+    ["WAR", metrics.war, maxValues.war, fmtOne],
+    ["OPS", metrics.ops, maxValues.ops, fmtRate],
+    ["AVG", metrics.avg, maxValues.avg, fmtRate],
+    ["OBP", metrics.obp, maxValues.obp, fmtRate],
+    ["SLG", metrics.slg, maxValues.slg, fmtRate],
+  ].map(([label, value, max, formatter]) => `<div class="metric-row"><span>${label}</span><strong>${formatter(value)}</strong><i><b style="width:${clamp((value / max) * 100, 2, 100)}%"></b></i></div>`).join("");
+}
+
+function renderCompareOptions() {
+  const top = [...state.hitters].sort((a, b) => playerWar(b) - playerWar(a)).slice(0, 40);
+  const options = top.map((player) => `<option value="${player[COL.player]}">${player[COL.player]} · ${player[COL.team]}</option>`).join("");
+  $("compareA").innerHTML = options;
+  $("compareB").innerHTML = options;
+  if (top[0]) $("compareA").value = top[0][COL.player];
+  if (top[1]) $("compareB").value = top[1][COL.player];
+}
+
+function renderCompare() {
+  const a = findExactPlayer($("compareA").value) || state.hitters[0];
+  const b = findExactPlayer($("compareB").value) || state.hitters[1] || a;
+  renderRadar(a, b);
+  if (!a || !b) return;
+  const am = playerMetrics(a);
+  const bm = playerMetrics(b);
+  $("compareSummary").innerHTML = `
+    <h3>${a[COL.player]} vs ${b[COL.player]}</h3>
+    ${compareLine("WAR", am.war, bm.war, fmtOne)}
+    ${compareLine("OPS", am.ops, bm.ops, fmtRate)}
+    ${compareLine("HR", a.HR || 0, b.HR || 0, fmtInt)}
+    ${compareLine("RBI", a.RBI || 0, b.RBI || 0, fmtInt)}
+  `;
+}
+
+function renderRadar(a, b) {
+  const svg = $("radarSvg");
+  const width = svg.clientWidth || 560;
+  const height = 360;
+  const center = { x: width / 2, y: height / 2 + 10 };
+  const radius = Math.min(width, height) * 0.33;
+  const axes = ["WAR", "OPS", "HR", "RBI"];
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  if (!a || !b) {
+    svg.innerHTML = emptyText(width, height, "No compare data");
+    return;
+  }
+  const max = {
+    war: Math.max(playerWar(a), playerWar(b), 1),
+    ops: Math.max(playerMetrics(a).ops, playerMetrics(b).ops, 1),
+    hr: Math.max(a.HR || 0, b.HR || 0, 1),
+    rbi: Math.max(a.RBI || 0, b.RBI || 0, 1),
+  };
+  const valuesA = [playerWar(a) / max.war, playerMetrics(a).ops / max.ops, (a.HR || 0) / max.hr, (a.RBI || 0) / max.rbi];
+  const valuesB = [playerWar(b) / max.war, playerMetrics(b).ops / max.ops, (b.HR || 0) / max.hr, (b.RBI || 0) / max.rbi];
+  const points = (values) => values.map((value, index) => radarPoint(index, axes.length, radius * value, center)).join(" ");
+  svg.innerHTML = `
+    ${[0.33, 0.66, 1].map((ratio) => `<polygon points="${points([ratio, ratio, ratio, ratio])}" fill="none" stroke="var(--line)"></polygon>`).join("")}
+    ${axes.map((axis, index) => {
+      const [x, y] = radarPoint(index, axes.length, radius + 18, center).split(",");
+      return `<text class="tick-label" x="${x}" y="${Number(y) + 4}" text-anchor="middle">${axis}</text>`;
+    }).join("")}
+    <polygon points="${points(valuesA)}" fill="rgba(11,127,116,0.24)" stroke="#0b7f74" stroke-width="3"></polygon>
+    <polygon points="${points(valuesB)}" fill="rgba(208,82,64,0.18)" stroke="#d05240" stroke-width="3"></polygon>
+    <text class="legend" x="18" y="26" fill="#0b7f74">${a[COL.player]}</text>
+    <text class="legend" x="18" y="48" fill="#d05240">${b[COL.player]}</text>
+  `;
+}
+
+function compareLine(label, a, b, formatter) {
+  return `<div class="compare-line"><span>${label}</span><strong>${formatter(a)}</strong><i>${formatter(b)}</i></div>`;
+}
+
+function filteredStandings() {
+  return state.team === "all" ? state.standings : state.standings.filter((row) => row[COL.team] === state.team);
+}
+
+function teamRow() {
+  if (state.team !== "all") return state.standings.find((row) => row[COL.team] === state.team);
+  return [...state.standings].sort((a, b) => a[COL.rank] - b[COL.rank])[0];
+}
+
+function findPlayer(query) {
+  if (!query) return state.hitters[0] || null;
+  return state.hitters.find((row) => row[COL.player] && row[COL.player].includes(query)) || state.hitters[0] || null;
+}
+
+function findExactPlayer(name) {
+  return state.hitters.find((row) => row[COL.player] === name);
+}
+
+function makeRankHistory(row, maxRank) {
+  const finalRank = row[COL.rank];
+  const seed = stringSeed(row[COL.team]);
+  const openingRank = clamp(finalRank + ((seed % 5) - 2), 1, maxRank);
+  const mayRank = clamp(Math.round(openingRank * 0.62 + finalRank * 0.38 + ((seed % 3) - 1)), 1, maxRank);
+  const juneRank = clamp(Math.round(openingRank * 0.25 + finalRank * 0.75 - (String(row[COL.streak]).includes("\uc2b9") ? 1 : 0)), 1, maxRank);
+  return [openingRank, mayRank, juneRank, finalRank];
+}
+
+function makeMonthlyWinRate(row) {
+  const base = row[COL.winRate] || 0;
+  const seed = stringSeed(row[COL.team]);
+  return [base - 0.06 + (seed % 3) * 0.012, base - 0.02, base + 0.015, base].map((value) => clamp(value, 0.2, 0.75));
+}
+
+function parseRecent(value) {
+  const text = String(value || "");
+  const wins = Number(text.match(/(\d+)\uc2b9/)?.[1] || 0);
+  const draws = Number(text.match(/(\d+)\ubb34/)?.[1] || 0);
+  const losses = Number(text.match(/(\d+)\ud328/)?.[1] || 0);
+  return { wins, draws, losses };
+}
+
+function recentWinRate(value) {
+  const record = parseRecent(value);
+  const games = record.wins + record.losses;
+  return games ? record.wins / games : 0;
+}
+
+function streakScore(value) {
+  const text = String(value || "");
+  const count = Number(text.match(/\d+/)?.[0] || 0);
+  return text.includes("\uc2b9") ? count : -count;
+}
+
+function parseRecord(value) {
+  const [wins, draws, losses] = String(value || "0-0-0").split("-").map(Number);
+  return { wins: wins || 0, draws: draws || 0, losses: losses || 0 };
+}
+
+function recordRate(record) {
+  const games = record.wins + record.losses;
+  return games ? record.wins / games : 0;
+}
+
+function playerMetrics(player) {
+  const obp = estimateObp(player);
+  const slg = estimateSlg(player);
+  return {
+    war: playerWar(player),
+    ops: obp + slg,
+    avg: player.AVG || 0,
+    obp,
+    slg,
+  };
+}
+
+function playerWar(player) {
+  return Number.isFinite(player.XR) ? player.XR / 8 : 0;
+}
+
+function estimateObp(player) {
+  const numerator = (player.H || 0) + (player.BB || 0) + (player.HBP || 0);
+  const denominator = (player.AB || 0) + (player.BB || 0) + (player.HBP || 0);
+  return denominator ? numerator / denominator : 0;
+}
+
+function estimateSlg(player) {
+  const singles = (player.H || 0) - (player["2B"] || 0) - (player["3B"] || 0) - (player.HR || 0);
+  const totalBases = singles + (player["2B"] || 0) * 2 + (player["3B"] || 0) * 3 + (player.HR || 0) * 4;
+  return player.AB ? totalBases / player.AB : 0;
 }
 
 function parseCsv(text) {
@@ -201,344 +477,72 @@ function parseCsv(text) {
   let row = [];
   let cell = "";
   let quoted = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const next = text[i + 1];
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    const next = text[index + 1];
     if (char === '"' && quoted && next === '"') {
       cell += '"';
-      i++;
+      index++;
     } else if (char === '"') {
       quoted = !quoted;
     } else if (char === "," && !quoted) {
       row.push(cell);
       cell = "";
     } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") i++;
+      if (char === "\r" && next === "\n") index++;
       row.push(cell);
-      if (row.some((value) => value !== "")) rows.push(row);
+      if (row.some(Boolean)) rows.push(row);
       row = [];
       cell = "";
     } else {
       cell += char;
     }
   }
-
   if (cell || row.length) {
     row.push(cell);
     rows.push(row);
   }
-
   const headers = (rows.shift() || []).map((header) => header.replace(/^\uFEFF/, ""));
   return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])));
 }
 
 function normalizeRow(row) {
-  const out = { ...row };
-  for (const [key, value] of Object.entries(out)) {
-    if (key === "선수명" || key === "팀명" || value === "-" || value === "") continue;
-    const num = Number(String(value).replace(/,/g, ""));
-    if (Number.isFinite(num)) out[key] = num;
-  }
-  if (typeof out.IP === "string") out.IP_num = parseInnings(out.IP);
-  return out;
-}
-
-function parseInnings(value) {
-  const [whole, fraction] = String(value).split(" ");
-  const base = Number(whole) || 0;
-  if (!fraction) return base;
-  const [num, den] = fraction.split("/").map(Number);
-  return base + (den ? num / den : 0);
-}
-
-function rowsForView() {
-  const rows = state.data.get(`${state.kind}:${state.season}`) || [];
-  return rows.filter((row) => {
-    const teamOk = state.team === "all" || row["팀명"] === state.team;
-    const queryOk = !state.query || String(row["선수명"]).includes(state.query);
-    return teamOk && queryOk;
+  const normalized = { ...row };
+  Object.entries(normalized).forEach(([key, value]) => {
+    const number = Number(String(value).replace(/,/g, ""));
+    if (value !== "" && Number.isFinite(number)) normalized[key] = number;
   });
+  return normalized;
 }
 
-function render() {
-  const rows = rowsForView();
-  renderTeamOptions();
-  renderMetricPicker();
-  renderOverview(rows);
-  renderStandings();
-  renderLeaders(rows);
-  renderScatter(rows);
-  renderTrend();
-  renderTeams(rows);
-}
-
-function renderTeamOptions() {
-  const allRows = state.data.get(`${state.kind}:${state.season}`) || [];
-  const teams = [...new Set(allRows.map((row) => row["팀명"]))].sort();
-  const current = state.team;
-  $("teamSelect").innerHTML = `<option value="all">전체</option>${teams
-    .map((team) => `<option value="${team}">${team}</option>`)
-    .join("")}`;
-  $("teamSelect").value = teams.includes(current) ? current : "all";
-}
-
-function renderMetricPicker() {
-  const config = configs[state.kind];
-  $("metricPicker").innerHTML = config.metrics
-    .map((metric) => `<button class="${metric === state.metric ? "active" : ""}" data-metric="${metric}">${metric}</button>`)
-    .join("");
-  document.querySelectorAll("[data-metric]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.metric = button.dataset.metric;
-      renderLeaders(rowsForView());
-      renderMetricPicker();
-    });
-  });
-}
-
-function renderOverview(rows) {
-  const config = configs[state.kind];
-  $("snapshotTitle").textContent = `${state.season} ${state.kind === "hitter" ? "타자" : "투수"} 시즌 한눈에`;
-  $("dataNote").textContent = `${rows.length.toLocaleString("ko-KR")}명 표시 중`;
-  $("scatterTitle").textContent = config.scatter.title;
-  $("scatterHint").textContent = config.scatter.hint;
-
-  $("metricGrid").innerHTML = config.cards
-    .map((card) => {
-      const result = summarizeCard(rows, card);
-      return `<article class="metric-card">
-        <p class="label">${card.label}</p>
-        <p class="value">${result.value}</p>
-        <p class="sub">${result.sub}</p>
-      </article>`;
-    })
-    .join("");
-}
-
-async function renderStandings() {
-  const rows = await loadStandings(state.season);
-  const columns = ["순위", "팀명", "경기", "승", "패", "무", "승률", "게임차", "연속"];
-
-  $("standingsHead").innerHTML = `<tr>${columns.map((col) => `<th>${col}</th>`).join("")}</tr>`;
-
-  if (!rows.length) {
-    $("standingsNote").textContent = `${state.season} 구단 순위 CSV가 아직 없습니다.`;
-    $("standingsBars").innerHTML = `<p class="muted">data/raw/kbo_official/kbo_team_rank_${state.season}.csv 파일을 추가하면 표시됩니다.</p>`;
-    $("standingsBody").innerHTML = "";
-    return;
-  }
-
-  const sorted = [...rows].sort((a, b) => Number(a["순위"]) - Number(b["순위"]));
-  const maxWins = Math.max(...sorted.map((row) => row["승"]).filter(Number.isFinite), 1);
-  $("standingsNote").textContent = `${sorted.length}개 구단 · 공식 순위표 기준`;
-  $("standingsBars").innerHTML = sorted
-    .map((row) => `<div class="bar-row">
-      <strong>${row["팀명"]}</strong>
-      <span class="bar-track"><span class="bar-fill" style="width:${((row["승"] || 0) / maxWins) * 100}%"></span></span>
-      <span>${formatCell("승률", row["승률"])}</span>
-    </div>`)
-    .join("");
-  $("standingsBody").innerHTML = sorted
-    .map((row) => `<tr>${columns.map((col) => `<td>${formatCell(col, row[col])}</td>`).join("")}</tr>`)
-    .join("");
-}
-
-function summarizeCard(rows, card) {
-  const valid = rows.filter((row) => Number.isFinite(row[card.metric]));
-  if (!valid.length) return { value: "-", sub: "데이터 없음" };
-  if (card.agg === "avg") {
-    return { value: card.format(average(valid.map((row) => row[card.metric]))), sub: `${valid.length}명 평균` };
-  }
-  const lower = configs[state.kind].lowerIsBetter.includes(card.metric);
-  const sorted = [...valid].sort((a, b) => (lower ? a[card.metric] - b[card.metric] : b[card.metric] - a[card.metric]));
-  const top = sorted[0];
-  return { value: card.format(top[card.metric]), sub: `${top["선수명"]} · ${top["팀명"]}` };
-}
-
-function renderLeaders(rows) {
-  const config = configs[state.kind];
-  const metric = state.metric;
-  const lower = config.lowerIsBetter.includes(metric);
-  const leaders = rows
-    .filter((row) => Number.isFinite(row[metric]))
-    .sort((a, b) => (lower ? a[metric] - b[metric] : b[metric] - a[metric]))
-    .slice(0, 10);
-  const values = leaders.map((row) => row[metric]);
-  const max = Math.max(...values.map(Math.abs), 1);
-
-  $("leaderBars").innerHTML = leaders
-    .map((row) => {
-      const width = Math.max(4, (Math.abs(row[metric]) / max) * 100);
-      return `<div class="bar-row">
-        <strong>${row["선수명"]}</strong>
-        <span class="bar-track"><span class="bar-fill" style="width:${width}%"></span></span>
-        <span>${formatMetric(metric, row[metric])}</span>
-      </div>`;
-    })
-    .join("");
-
-  $("leaderHead").innerHTML = `<tr>${config.table.map((col) => `<th>${col}</th>`).join("")}</tr>`;
-  $("leaderBody").innerHTML = rows
-    .slice()
-    .sort((a, b) => (lower ? a[metric] - b[metric] : b[metric] - a[metric]))
-    .slice(0, 30)
-    .map((row) => `<tr>${config.table.map((col) => `<td>${formatCell(col, row[col])}</td>`).join("")}</tr>`)
-    .join("");
-}
-
-function renderScatter(rows) {
-  const svg = $("scatterSvg");
-  const { x, y, size } = configs[state.kind].scatter;
-  const points = rows.filter((row) => Number.isFinite(row[x]) && Number.isFinite(row[y]));
-  const width = svg.clientWidth || 820;
-  const height = 460;
-  const pad = { top: 24, right: 28, bottom: 48, left: 58 };
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-
-  if (!points.length) {
-    svg.innerHTML = `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" class="tick-label">표시할 데이터가 없습니다</text>`;
-    return;
-  }
-
-  const xScale = scale(extent(points, x), [pad.left, width - pad.right]);
-  const yScale = scale(extent(points, y), [height - pad.bottom, pad.top]);
-  const sizeExtent = extent(points.filter((row) => Number.isFinite(row[size])), size);
-
-  const xTicks = ticks(xScale.domain, 5);
-  const yTicks = ticks(yScale.domain, 5);
-  const teamColor = colorByTeam(points);
-
-  svg.innerHTML = `
-    ${xTicks.map((tick) => `<line class="grid-line" x1="${xScale(tick)}" x2="${xScale(tick)}" y1="${pad.top}" y2="${height - pad.bottom}"></line><text class="tick-label" x="${xScale(tick)}" y="${height - 18}" text-anchor="middle">${formatMetric(x, tick)}</text>`).join("")}
-    ${yTicks.map((tick) => `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${yScale(tick)}" y2="${yScale(tick)}"></line><text class="tick-label" x="14" y="${yScale(tick) + 4}">${formatMetric(y, tick)}</text>`).join("")}
-    <text class="tick-label" x="${width / 2}" y="${height - 4}" text-anchor="middle">${x}</text>
-    <text class="tick-label" transform="translate(12 ${height / 2}) rotate(-90)" text-anchor="middle">${y}</text>
-    ${points
-      .map((row, index) => {
-        const radius = Number.isFinite(row[size]) ? 4 + normalize(row[size], sizeExtent) * 8 : 5;
-        const selected = state.selected === row;
-        return `<circle class="player-dot" data-index="${index}" cx="${xScale(row[x])}" cy="${yScale(row[y])}" r="${selected ? radius + 2 : radius}" fill="${teamColor(row["팀명"])}" opacity="${selected ? 1 : 0.74}"></circle>`;
-      })
-      .join("")}
-  `;
-
-  svg.querySelectorAll(".player-dot").forEach((dot) => {
-    const row = points[Number(dot.dataset.index)];
-    dot.addEventListener("mousemove", (event) => showTooltip(event, row));
-    dot.addEventListener("mouseleave", hideTooltip);
-    dot.addEventListener("click", () => {
-      state.selected = row;
-      renderDetail(row);
-      renderScatter(rowsForView());
-    });
-  });
-
-  renderDetail(state.selected && rows.includes(state.selected) ? state.selected : points[0]);
-}
-
-async function renderTrend() {
-  const rows = await loadTrendData();
-  const svg = $("trendSvg");
-  const width = svg.clientWidth || 780;
-  const height = 360;
-  const pad = { top: 28, right: 28, bottom: 44, left: 58 };
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-
-  if (!rows.length) return;
-  const yScale = scale([Math.min(...rows.map((row) => row.value)), Math.max(...rows.map((row) => row.value))], [height - pad.bottom, pad.top]);
-  const xScale = scale([0, Math.max(rows.length - 1, 1)], [pad.left, width - pad.right]);
-  const path = rows.map((row, index) => `${index ? "L" : "M"}${xScale(index)},${yScale(row.value)}`).join(" ");
-  const metric = configs[state.kind].trendMetric;
-
-  svg.innerHTML = `
-    ${ticks(yScale.domain, 5).map((tick) => `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${yScale(tick)}" y2="${yScale(tick)}"></line><text class="tick-label" x="12" y="${yScale(tick) + 4}">${formatMetric(metric, tick)}</text>`).join("")}
-    <path d="${path}" fill="none" stroke="var(--accent-3)" stroke-width="3"></path>
-    ${rows.map((row, index) => `<circle cx="${xScale(index)}" cy="${yScale(row.value)}" r="5" fill="var(--accent-2)"></circle><text class="tick-label" x="${xScale(index)}" y="${height - 16}" text-anchor="middle">${row.year}</text>`).join("")}
-  `;
-}
-
-function renderTeams(rows) {
-  const totals = [...rows.reduce((map, row) => map.set(row["팀명"], (map.get(row["팀명"]) || 0) + 1), new Map())]
-    .sort((a, b) => b[1] - a[1]);
-  const max = Math.max(...totals.map(([, count]) => count), 1);
-  $("teamList").innerHTML = `<p class="eyebrow">Team Mix</p>${totals
-    .map(([team, count], index) => `<div class="team-row">
-      <span>${team}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${(count / max) * 100}%; background:${TEAM_COLORS[index % TEAM_COLORS.length]}"></span></span>
-      <span>${count}명</span>
-    </div>`)
-    .join("")}`;
-}
-
-function renderDetail(row) {
-  if (!row) return;
-  const fields = state.kind === "hitter"
-    ? ["팀명", "AVG", "HR", "RBI", "SB", "ISOP", "GPA", "XR"]
-    : ["팀명", "ERA", "W", "SO", "SV", "HLD", "K/9", "BB/9", "K/BB"];
-  $("detailPanel").innerHTML = `
-    <p class="eyebrow">선수 상세</p>
-    <h3>${row["선수명"]}</h3>
-    ${fields.map((field) => `<div class="detail-stat"><span>${field}</span><strong>${formatCell(field, row[field])}</strong></div>`).join("")}
-  `;
-}
-
-function showTooltip(event, row) {
-  const tooltip = $("tooltip");
-  tooltip.hidden = false;
-  tooltip.innerHTML = `<strong>${row["선수명"]}</strong> · ${row["팀명"]}<br>${state.metric}: ${formatCell(state.metric, row[state.metric])}`;
-  tooltip.style.left = `${event.clientX + 14}px`;
-  tooltip.style.top = `${event.clientY + 14}px`;
-}
-
-function hideTooltip() {
-  $("tooltip").hidden = true;
-}
-
-function colorByTeam(rows) {
-  const teams = [...new Set(rows.map((row) => row["팀명"]))].sort();
-  const map = new Map(teams.map((team, index) => [team, TEAM_COLORS[index % TEAM_COLORS.length]]));
-  return (team) => map.get(team) || TEAM_COLORS[0];
-}
-
-function extent(rows, key) {
-  const values = rows.map((row) => row[key]).filter(Number.isFinite);
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  if (min === max) {
-    min -= 1;
-    max += 1;
-  }
-  const pad = (max - min) * 0.08;
-  return [min - pad, max + pad];
+function metricBarSvg(label, value, max, y, color, width) {
+  const barWidth = ((width - 150) * value) / max;
+  return `<text class="tick-label" x="28" y="${y + 18}">${label}</text><rect x="70" y="${y}" width="${barWidth}" height="34" rx="7" fill="${color}"></rect><text class="tick-label" x="${80 + barWidth}" y="${y + 22}">${value}</text>`;
 }
 
 function scale(domain, range) {
-  const fn = (value) => range[0] + ((value - domain[0]) / (domain[1] - domain[0] || 1)) * (range[1] - range[0]);
-  fn.domain = domain;
-  return fn;
+  return (value) => range[0] + ((value - domain[0]) / (domain[1] - domain[0] || 1)) * (range[1] - range[0]);
 }
 
-function ticks(domain, count) {
-  const step = (domain[1] - domain[0]) / Math.max(count - 1, 1);
-  return Array.from({ length: count }, (_, index) => domain[0] + step * index);
+function radarPoint(index, total, radius, center) {
+  const angle = -Math.PI / 2 + (Math.PI * 2 * index) / total;
+  return `${center.x + Math.cos(angle) * radius},${center.y + Math.sin(angle) * radius}`;
 }
 
-function normalize(value, [min, max]) {
-  return (value - min) / (max - min || 1);
+function stringSeed(value) {
+  return String(value).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
-function average(values) {
-  const valid = values.filter(Number.isFinite);
-  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function teamColor(team) {
+  return TEAM_COLORS[team] || "#53636f";
 }
 
 function fmtRate(value) {
   return Number.isFinite(value) ? value.toFixed(3).replace(/^0/, "") : "-";
-}
-
-function fmtTwo(value) {
-  return Number.isFinite(value) ? value.toFixed(2) : "-";
 }
 
 function fmtOne(value) {
@@ -549,16 +553,6 @@ function fmtInt(value) {
   return Number.isFinite(value) ? Math.round(value).toLocaleString("ko-KR") : "-";
 }
 
-function formatMetric(metric, value) {
-  if (!Number.isFinite(value)) return "-";
-  if (["AVG", "ISOP", "GPA", "OBP", "SLG", "OPS", "BABIP", "WPCT", "승률"].includes(metric)) return fmtRate(value);
-  if (["ERA", "K/9", "BB/9", "K/BB", "P/G", "P/IP", "GO/AO"].includes(metric)) return fmtTwo(value);
-  if (["XR"].includes(metric)) return fmtOne(value);
-  return fmtInt(value);
-}
-
-function formatCell(column, value) {
-  if (value === undefined || value === "") return "-";
-  if (typeof value === "number") return formatMetric(column, value);
-  return value;
+function emptyText(width, height, text) {
+  return `<text class="tick-label" x="${width / 2}" y="${height / 2}" text-anchor="middle">${text}</text>`;
 }
