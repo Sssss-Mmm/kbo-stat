@@ -1,0 +1,68 @@
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.standings-table thead {
+  background-color: #34495e;
+  color: white;
+}
+
+.standings-table th {
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #bdc3c7;
+}
+
+.standings-table td {
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #ecf0f1;
+}
+
+.standings-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.standings-table tbody tr:hover {
+  background-color: #f0f0f0;
+}
+
+.standings-table .team-name {
+  font-weight: 500;
+  text-align: left;
+  color: #2c3e50;
+}
+
+.standings-table .rank-1 {
+  background-color: #fff3cd;
+}
+
+.standings-table .rank-2 {
+  background-color: #f0f0f0;
+}
+
+.standings-table .rank-3 {
+  background-color: #ffe4e1;
+}
+
+.standings-table .win {
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.standings-table .loss {
+  color: #e74c3c;
+  font-weight: 500;
+}
+
+.standings-table .draw {
+  color: #95a5a6;
+}
+
+.standings-table .winrate {
+  font-weight: 500;
+  color: #3498db;
+}

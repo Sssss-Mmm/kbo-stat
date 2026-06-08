@@ -1,0 +1,68 @@
+.schedule-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-filters {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.schedule-filters h2 {
+  font-size: 24px;
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 8px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.filter-group input {
+  flex: 1;
+  max-width: 300px;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 20px;
+}
+
+.schedule-table thead {
+  background-color: #34495e;
+  color: white;
+}
+
+.schedule-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #bdc3c7;
+}
+
+.schedule-table td {
+  padding: 12px;
+  border: 1px solid #ecf0f1;
+}
+
+.schedule-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.schedule-table tbody tr:hover {
+  background-color: #f0f0f0;
+}

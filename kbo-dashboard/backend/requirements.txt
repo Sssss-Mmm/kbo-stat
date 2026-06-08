@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+requests
+beautifulsoup4
+python-dotenv
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+alembic
