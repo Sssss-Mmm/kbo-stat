@@ -131,8 +131,9 @@ class Pitcher(Base):
     wins = Column(Integer)  # 승
     losses = Column(Integer)  # 패
     saves = Column(Integer)  # 세이브
+    holds = Column(Integer)  # 홀드
     era = Column(Numeric(5, 2))  # 평균자책점
-    innings_pitched = Column(Numeric(5, 1))  # 이닝
+    innings_pitched = Column(String(10))  # 이닝 (예: "159 2/3")
     hits_allowed = Column(Integer)  # 피안타
     runs_allowed = Column(Integer)  # 피득점
     earned_runs = Column(Integer)  # 자책점
@@ -268,3 +269,21 @@ class GameTimeYearly(Base):
     type = Column(String(20))
     average_time = Column(String(10))
     average_minutes = Column(Integer)
+
+
+class ScheduleGame(Base):
+    """경기 일정/결과 (kbo_schedule, 비정규 저장 - 팀명 문자열)"""
+    __tablename__ = "schedule_games"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    date = Column(String(20), index=True)
+    weekday = Column(String(5))
+    time = Column(String(10))
+    away_team = Column(String(50), index=True)
+    home_team = Column(String(50), index=True)
+    away_score = Column(Integer)
+    home_score = Column(Integer)
+    status = Column(String(20))
+    ballpark = Column(String(50))
+    game_id = Column(String(40))
