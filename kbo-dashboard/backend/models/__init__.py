@@ -146,3 +146,125 @@ class Pitcher(Base):
 
     def __repr__(self):
         return f"<Pitcher {self.player_name} {self.era}>"
+
+
+# ---------------------------------------------------------------------------
+# 분석용 도메인 (CSV에서 파생된 비정규 데이터: team 은 FK 대신 팀명 문자열)
+# ---------------------------------------------------------------------------
+
+
+class TeamRankHistory(Base):
+    """일자별 팀 순위 스냅샷 (kbo_team_rank_history)"""
+    __tablename__ = "team_rank_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    date = Column(String(20), index=True)  # YYYY-MM-DD
+    rank = Column(Integer)
+    team = Column(String(50), index=True)
+    games = Column(Integer)
+    wins = Column(Integer)
+    losses = Column(Integer)
+    draws = Column(Integer)
+    win_rate = Column(Numeric(5, 3))
+    games_behind = Column(Numeric(5, 1))
+    last_10_games = Column(String(100))
+    streak = Column(String(50))
+    home_record = Column(String(50))
+    away_record = Column(String(50))
+
+
+class TeamGame(Base):
+    """팀별 경기 단위 결과 (kbo_team_games)"""
+    __tablename__ = "team_games"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    date = Column(String(20))
+    month = Column(String(2))
+    game_id = Column(String(40))
+    team = Column(String(50), index=True)
+    opponent = Column(String(50))
+    home_away = Column(String(10))
+    ballpark = Column(String(50))
+    runs_for = Column(Integer)
+    runs_against = Column(Integer)
+    run_diff = Column(Integer)
+    result = Column(String(5))
+    win = Column(Integer)
+    loss = Column(Integer)
+    draw = Column(Integer)
+
+
+class TeamMonthly(Base):
+    """팀별 월간 집계 (kbo_team_monthly)"""
+    __tablename__ = "team_monthly"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    month = Column(String(2))
+    team = Column(String(50), index=True)
+    games = Column(Integer)
+    wins = Column(Integer)
+    losses = Column(Integer)
+    draws = Column(Integer)
+    runs_for = Column(Integer)
+    runs_against = Column(Integer)
+    run_diff = Column(Integer)
+    win_rate = Column(Numeric(5, 3))
+
+
+class HitterMetric(Base):
+    """타자 파생 지표 OBP/SLG/OPS/WARProxy (kbo_hitter_metrics)"""
+    __tablename__ = "hitter_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    rank = Column(Integer)
+    player = Column(String(100), index=True)
+    team = Column(String(50), index=True)
+    pa = Column(Integer)
+    avg = Column(Numeric(5, 3))
+    obp = Column(Numeric(5, 3))
+    slg = Column(Numeric(5, 3))
+    hr = Column(Integer)
+    rbi = Column(Integer)
+    xr = Column(Numeric(6, 1))
+    war_proxy = Column(Numeric(6, 3))
+    ops = Column(Numeric(5, 3))
+
+
+class Attendance(Base):
+    """팀별 관중 (kbo_attendance, month=0 은 시즌 누계)"""
+    __tablename__ = "attendance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    month = Column(Integer, index=True)
+    team = Column(String(50), index=True)
+    attendance = Column(Integer)
+    updated_at = Column(String(40))
+
+
+class GameTimeTeam(Base):
+    """팀별 평균 경기시간 (kbo_game_time_team)"""
+    __tablename__ = "game_time_team"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    team = Column(String(50), index=True)
+    regular_inning_time = Column(String(10))
+    regular_inning_minutes = Column(Integer)
+    include_extra_time = Column(String(10))
+    include_extra_minutes = Column(Integer)
+
+
+class GameTimeYearly(Base):
+    """연도별 평균 경기시간 (kbo_game_time_yearly)"""
+    __tablename__ = "game_time_yearly"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season = Column(Integer, index=True)
+    type = Column(String(20))
+    average_time = Column(String(10))
+    average_minutes = Column(Integer)

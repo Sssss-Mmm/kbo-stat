@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from database import SessionLocal, init_db
 from models import Team, Standing, Schedule, Hitter, Pitcher
+from migrate_analytics import migrate_analytics
 
 
 def get_or_create_team(db: Session, cache: dict, team_name: str) -> Team:
@@ -165,22 +166,28 @@ def main():
     print("✅ 데이터베이스 테이블 생성 완료")
     
     # 데이터 경로
-    data_path = Path(__file__).parent.parent.parent / "data" / "raw" / "kbo_official"
-    
+    data_root = Path(__file__).parent.parent.parent / "data"
+    data_path = data_root / "raw" / "kbo_official"
+    processed_path = data_root / "processed"
+
     if not data_path.exists():
         print(f"❌ 데이터 경로를 찾을 수 없습니다: {data_path}")
         return
-    
+
     db = SessionLocal()
     team_cache: dict = {}
+    seasons = range(2020, 2027)
 
     try:
-        # 2020-2026년 데이터 마이그레이션
-        for season in range(2020, 2027):
+        # 정규 도메인 (teams/standings/hitters/pitchers)
+        for season in seasons:
             migrate_standings(db, data_path, season, team_cache)
             migrate_hitters(db, data_path, season, team_cache)
             migrate_pitchers(db, data_path, season, team_cache)
-        
+
+        # 분석 도메인 (history/games/monthly/metrics/attendance/game_time)
+        migrate_analytics(db, data_path, processed_path, seasons)
+
         print("\n" + "=" * 50)
         print("✅ 모든 마이그레이션 완료!")
         print("=" * 50)
