@@ -104,16 +104,8 @@ async function loadSeason() {
   state.selectedPlayer = state.hitters[0] || null;
 }
 
-async function fetchDataFile(fileName, roots = DATA_ROOTS) {
-  for (const root of roots) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {
-      // Try the next root.
-    }
-  }
-  return null;
+async function fetchDataFile(fileName) {
+  return apiFetchCsv(fileName);
 }
 
 function render() {

@@ -41,14 +41,8 @@ async function loadData() {
   $("labNote").textContent = `${state.standings.length} teams · ${state.games.length} team-game rows · ${state.hitters.length} hitters`;
 }
 
-async function fetchDataFile(fileName, roots) {
-  for (const root of roots) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {}
-  }
-  return null;
+async function fetchDataFile(fileName) {
+  return apiFetchCsv(fileName);
 }
 
 async function answerQuestion() {

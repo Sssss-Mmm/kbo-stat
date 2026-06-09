@@ -12,18 +12,8 @@ const PROCESSED_ROOTS = [
 ];
 const VB_YEARS = Array.from({ length: 45 }, (_, index) => 2026 - index);
 
-async function fetchDataFile(fileName, roots = RAW_ROOTS) {
-  const flatRoot = roots === RAW_ROOTS || roots.includes("/data/raw/kbo_official") ? "/web" : null;
-  const candidates = flatRoot ? [...roots, flatRoot] : roots;
-  for (const root of candidates) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {
-      // Try next root.
-    }
-  }
-  return null;
+async function fetchDataFile(fileName) {
+  return apiFetchCsv(fileName);
 }
 
 function parseCsv(text) {

@@ -25,13 +25,7 @@ async function loadPlayers() {
 }
 
 async function fetchDataFile(fileName) {
-  for (const root of ROOTS) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {}
-  }
-  return null;
+  return apiFetchCsv(fileName);
 }
 
 function render() {
