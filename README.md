@@ -161,6 +161,13 @@ Full refresh including current-season hitter and pitcher leaderboards:
 python3 src/update_daily.py --year 2026 --players
 ```
 
+Load the refreshed CSVs into PostgreSQL in the same run (requires the backend
+stack and `kbo-dashboard/backend/.env` `DATABASE_URL`):
+
+```bash
+python3 src/update_daily.py --year 2026 --players --db
+```
+
 ## Cron Example
 
 Run every day at 09:00 KST inside WSL/Linux:
