@@ -12,8 +12,9 @@ DATABASE_URL = os.getenv(
     "postgresql://kbo_user:kbo_password@localhost:5432/kbo_dashboard"
 )
 
-# SQLAlchemy 엔진 생성
-engine = create_engine(DATABASE_URL, echo=True)
+# SQLAlchemy 엔진 생성 (DB_ECHO=true 일 때만 SQL 로깅)
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
+engine = create_engine(DATABASE_URL, echo=DB_ECHO)
 
 # 세션팩토리 생성
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
