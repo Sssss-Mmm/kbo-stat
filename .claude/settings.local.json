@@ -19,7 +19,18 @@
       "WebFetch(domain:mykbostats.com)",
       "WebFetch(domain:www.koreabaseball.com)",
       "WebFetch(domain:www.fangraphs.com)",
-      "Bash(/home/sssssmmm/kbo-stat/.venv/bin/pip install *)"
+      "Bash(/home/sssssmmm/kbo-stat/.venv/bin/pip install *)",
+      "Bash(git -C /home/sssssmmm/kbo-stat remote -v)",
+      "Bash(git -C /home/sssssmmm/kbo-stat branch -a)",
+      "Bash(git -C /home/sssssmmm/kbo-stat diff --stat)",
+      "Bash(git -C /home/sssssmmm/kbo-stat status --porcelain)",
+      "Bash(git diff *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(xargs ls -la)",
+      "Bash(awk '{print $5, $NF}')"
     ]
   }
 }
