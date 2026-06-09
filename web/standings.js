@@ -75,16 +75,8 @@ async function loadSeason() {
   state.teamGames = gamesText ? parseCsv(gamesText).map(normalizeRow) : [];
 }
 
-async function fetchDataFile(fileName, roots) {
-  for (const root of roots) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {
-      // Try next root.
-    }
-  }
-  return null;
+async function fetchDataFile(fileName) {
+  return apiFetchCsv(fileName);
 }
 
 function render() {

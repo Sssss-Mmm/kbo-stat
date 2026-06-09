@@ -39,14 +39,8 @@ async function loadSeason() {
   $("teamSelect").value = state.team;
 }
 
-async function fetchDataFile(fileName, roots) {
-  for (const root of roots) {
-    try {
-      const response = await fetch(`${root}/${fileName}`);
-      if (response.ok) return response.text();
-    } catch {}
-  }
-  return null;
+async function fetchDataFile(fileName) {
+  return apiFetchCsv(fileName);
 }
 
 function render() {
