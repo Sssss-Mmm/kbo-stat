@@ -1,4 +1,5 @@
 const DATA_ROOTS = ["../data/raw/kbo_official", "/data/raw/kbo_official", "./data/raw/kbo_official"];
+const PROCESSED_ROOTS = ["../data/processed", "/data/processed", "./data/processed"];
 const YEARS = Array.from({ length: 45 }, (_, index) => 2026 - index);
 const TEAM_COLORS = {
   LG: "#0b7f74",
@@ -86,12 +87,12 @@ function setupControls() {
 
 async function loadSeason() {
   const [standingsText, hittersText, scheduleText, rankHistoryText, teamGamesText, teamMonthlyText] = await Promise.all([
-    fetchDataFile(`kbo_team_rank_${state.season}.csv`),
-    fetchDataFile(`kbo_${state.season}.csv`),
-    fetchDataFile(`kbo_schedule_${state.season}.csv`),
-    fetchDataFile(`kbo_team_rank_history_${state.season}.csv`),
-    fetchDataFile(`../../processed/kbo_team_games_${state.season}.csv`),
-    fetchDataFile(`../../processed/kbo_team_monthly_${state.season}.csv`),
+    fetchDataFile(`kbo_team_rank_${state.season}.csv`, DATA_ROOTS),
+    fetchDataFile(`kbo_${state.season}.csv`, DATA_ROOTS),
+    fetchDataFile(`kbo_schedule_${state.season}.csv`, DATA_ROOTS),
+    fetchDataFile(`kbo_team_rank_history_${state.season}.csv`, DATA_ROOTS),
+    fetchDataFile(`kbo_team_games_${state.season}.csv`, PROCESSED_ROOTS),
+    fetchDataFile(`kbo_team_monthly_${state.season}.csv`, PROCESSED_ROOTS),
   ]);
 
   state.standings = standingsText ? parseCsv(standingsText).map(normalizeRow) : [];
@@ -103,8 +104,8 @@ async function loadSeason() {
   state.selectedPlayer = state.hitters[0] || null;
 }
 
-async function fetchDataFile(fileName) {
-  for (const root of DATA_ROOTS) {
+async function fetchDataFile(fileName, roots = DATA_ROOTS) {
+  for (const root of roots) {
     try {
       const response = await fetch(`${root}/${fileName}`);
       if (response.ok) return response.text();

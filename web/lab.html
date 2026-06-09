@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Lab | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>AI Baseball Lab</h1>
+          <p>&#45936;&#51060;&#53552; &#44540;&#44144;&#47484; &#54632;&#44760; &#48372;&#50668;&#51452;&#45716; &#50556;&#44396; &#48516;&#49437; &#45936;&#47784;</p>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Main pages">
+        <a class="nav-button" href="./index.html">HOME</a>
+        <a class="nav-button" href="./schedule.html">&#51068;&#51221;</a>
+        <a class="nav-button" href="./standings.html">&#54016;/&#49692;&#50948;</a>
+        <a class="nav-button" href="./batting.html">&#53440;&#51088;</a>
+        <a class="nav-button" href="./pitching.html">&#53804;&#49688;</a>
+        <a class="nav-button" href="./distance.html">&#51060;&#46041;&#44144;&#47532;</a>
+        <a class="nav-button" href="./attendance.html">&#44288;&#51473;</a>
+        <a class="nav-button" href="./gametime.html">&#44221;&#44592;&#49884;&#44036;</a>
+        <a class="nav-button active" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero standings-hero">
+        <div>
+          <p class="eyebrow">AI Analyst Demo</p>
+          <h2>&#51656;&#47928;&#51012; &#45912;&#51648;&#47732; &#49692;&#50948;, &#46301;&#49892;&#52264;, OPS, WARProxy &#44540;&#44144;&#47196; &#45813;&#54633;&#45768;&#45796;.</h2>
+        </div>
+        <div class="hero-controls ai-question-box" aria-label="AI question">
+          <label>
+            &#51656;&#47928;
+            <input id="questionInput" type="search" placeholder="왜 LG가 강하지? / MVP 후보는?" />
+          </label>
+          <button class="command-button" id="askButton">Analyze</button>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Ask Baseball</p>
+            <h2>&#51656;&#47928; &#54532;&#47532;&#49483;</h2>
+          </div>
+          <p class="muted" id="labNote">-</p>
+        </div>
+
+        <div class="quick-teams question-presets">
+          <button data-question="why-team">&#50780; LG&#44032; &#44053;&#54616;&#51648;?</button>
+          <button data-question="mvp">&#50732;&#54644; MVP &#54980;&#48372;&#45716;?</button>
+          <button data-question="hot">&#51648;&#445금; &#44032;&#51109; &#46888;&#44144;&#50868; &#54016;&#51008;?</button>
+        </div>
+
+        <div class="ai-workbench">
+          <article class="chart-panel ai-answer-card">
+            <p class="eyebrow">Answer</p>
+            <h3 id="answerTitle">-</h3>
+            <p id="answerBody" class="muted">-</p>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#44540;&#44144; &#51648;&#54364;</h3>
+                <p>&#45936;&#51060;&#53552;&#50640;&#49436; &#48148;&#47196; &#44228;&#49328;&#54620; &#50836;&#50557;</p>
+              </div>
+            </div>
+            <div id="evidenceList" class="evidence-list"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="./lab.js"></script>
+  </body>
+</html>

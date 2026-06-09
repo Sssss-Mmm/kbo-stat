@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Players | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>AI Baseball Lab</h1>
+          <p>&#49440;&#49688; &#44160;&#49353;, OPS, WARProxy, HR, RBI &#48708;&#44368;</p>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Main pages">
+        <a class="nav-button" href="./index.html">HOME</a>
+        <a class="nav-button" href="./schedule.html">&#51068;&#51221;</a>
+        <a class="nav-button" href="./standings.html">&#54016;/&#49692;&#50948;</a>
+        <a class="nav-button active" href="./batting.html">&#53440;&#51088;</a>
+        <a class="nav-button" href="./pitching.html">&#53804;&#49688;</a>
+        <a class="nav-button" href="./distance.html">&#51060;&#46041;&#44144;&#47532;</a>
+        <a class="nav-button" href="./attendance.html">&#44288;&#51473;</a>
+        <a class="nav-button" href="./gametime.html">&#44221;&#44592;&#49884;&#44036;</a>
+        <a class="nav-button" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero standings-hero">
+        <div>
+          <p class="eyebrow">Player Desk</p>
+          <h2>&#49440;&#49688;&#47484; &#52286;&#44256; &#54645;&#49900; &#51648;&#54364;&#47484; &#48708;&#44368;&#54633;&#45768;&#45796;.</h2>
+        </div>
+        <div class="hero-controls" aria-label="Player filters">
+          <label>
+            &#44160;&#49353;
+            <input id="playerSearch" type="search" placeholder="ex. 최원준, 오스틴" />
+          </label>
+          <label>
+            &#51221;&#47148;
+            <select id="sortSelect">
+              <option value="WARProxy">WARProxy</option>
+              <option value="OPS">OPS</option>
+              <option value="HR">HR</option>
+              <option value="RBI">RBI</option>
+              <option value="AVG">AVG</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Player Card</p>
+            <h2 id="playerTitle">-</h2>
+          </div>
+          <p class="muted" id="playerNote">-</p>
+        </div>
+
+        <div class="player-grid">
+          <article class="chart-panel player-card" id="playerCard"></article>
+          <article class="chart-panel wide">
+            <div class="panel-head">
+              <div>
+                <h3>&#51648;&#54364; &#54532;&#47196;&#54028;&#51068;</h3>
+                <p>AVG, OBP, SLG, OPS, WARProxy</p>
+              </div>
+            </div>
+            <div id="metricBars" class="metric-bars"></div>
+          </article>
+        </div>
+
+        <div class="standings-detail-grid">
+          <article class="chart-panel standings-table-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Top Players</h3>
+                <p>&#49440;&#53469;&#54620; &#51648;&#54364; &#44592;&#51456; &#49345;&#50948; &#49440;&#49688;</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="standings-table player-table">
+                <thead>
+                  <tr><th>#</th><th>&#49440;&#49688;</th><th>&#54016;</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th><th>HR</th><th>RBI</th><th>WARProxy</th></tr>
+                </thead>
+                <tbody id="playerRows"></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#54856;&#47088; &#54168;&#51060;&#49828;</h3>
+                <p>&#49345;&#50948; 8&#47749;</p>
+              </div>
+            </div>
+            <div id="hrBars" class="bar-list"></div>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>OPS Leaders</h3>
+                <p>&#52636;&#47336; + &#51109;&#53440;</p>
+              </div>
+            </div>
+            <div id="opsBars" class="bar-list"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="./players.js"></script>
+  </body>
+</html>

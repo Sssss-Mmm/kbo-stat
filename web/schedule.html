@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>일정 | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="vb-header">
+      <a class="vb-logo" href="./index.html">AI Baseball Lab</a>
+      <nav class="vb-nav" aria-label="Main pages">
+        <a data-page="home" href="./index.html">HOME</a>
+        <a data-page="schedule" href="./schedule.html">일정</a>
+        <a data-page="standings" href="./standings.html">팀/순위</a>
+        <a data-page="batting" href="./batting.html">타자</a>
+        <a data-page="pitching" href="./pitching.html">투수</a>
+        <a data-page="distance" href="./distance.html">이동거리</a>
+        <a data-page="attendance" href="./attendance.html">관중</a>
+        <a data-page="gametime" href="./gametime.html">경기시간</a>
+        <a data-page="lab" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+    <main class="vb-main">
+      <section class="vb-title">
+        <div>
+          <p>KBO 경기 일정</p>
+          <h1>일정</h1>
+        </div>
+        <select id="seasonSelect"></select>
+      </section>
+      <section class="vb-panel">
+        <div class="vb-panel-head">
+          <div>
+            <h2 id="scheduleTitle">경기 일정</h2>
+            <p id="scheduleNote">-</p>
+          </div>
+        </div>
+        <div id="scheduleList" class="vb-schedule-list"></div>
+      </section>
+    </main>
+    <script src="./vb-data.js"></script>
+    <script src="./schedule.js"></script>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>타자 | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="vb-header">
+      <a class="vb-logo" href="./index.html">AI Baseball Lab</a>
+      <nav class="vb-nav" aria-label="Main pages">
+        <a data-page="home" href="./index.html">HOME</a>
+        <a data-page="schedule" href="./schedule.html">일정</a>
+        <a data-page="standings" href="./standings.html">팀/순위</a>
+        <a data-page="batting" href="./batting.html">타자</a>
+        <a data-page="pitching" href="./pitching.html">투수</a>
+        <a data-page="distance" href="./distance.html">이동거리</a>
+        <a data-page="attendance" href="./attendance.html">관중</a>
+        <a data-page="gametime" href="./gametime.html">경기시간</a>
+        <a data-page="lab" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+    <main class="vb-main">
+      <section class="vb-title">
+        <div>
+          <p>KBO 타자 기록</p>
+          <h1>타자</h1>
+        </div>
+        <div class="vb-controls">
+          <select id="seasonSelect"></select>
+          <select id="sortSelect">
+            <option value="WARProxy">WARProxy</option>
+            <option value="OPS">OPS</option>
+            <option value="AVG">타율</option>
+            <option value="HR">홈런</option>
+            <option value="RBI">타점</option>
+          </select>
+        </div>
+      </section>
+      <section class="vb-panel">
+        <div class="vb-panel-head">
+          <div>
+            <h2>타자 순위</h2>
+            <p id="battingNote">-</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="vb-table">
+            <thead>
+              <tr><th>#</th><th>선수</th><th>팀</th><th>PA</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th><th>HR</th><th>RBI</th><th>WARProxy</th></tr>
+            </thead>
+            <tbody id="battingRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="./vb-data.js"></script>
+    <script src="./batting.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>이동거리 | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="vb-header">
+      <a class="vb-logo" href="./index.html">AI Baseball Lab</a>
+      <nav class="vb-nav" aria-label="Main pages">
+        <a data-page="home" href="./index.html">HOME</a>
+        <a data-page="schedule" href="./schedule.html">일정</a>
+        <a data-page="standings" href="./standings.html">팀/순위</a>
+        <a data-page="batting" href="./batting.html">타자</a>
+        <a data-page="pitching" href="./pitching.html">투수</a>
+        <a data-page="distance" href="./distance.html">이동거리</a>
+        <a data-page="attendance" href="./attendance.html">관중</a>
+        <a data-page="gametime" href="./gametime.html">경기시간</a>
+        <a data-page="lab" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+    <main class="vb-main">
+      <section class="vb-title">
+        <div>
+          <p>KBO 이동거리</p>
+          <h1>이동거리</h1>
+        </div>
+        <select id="seasonSelect"></select>
+      </section>
+      <section class="vb-panel">
+        <div class="vb-panel-head">
+          <div>
+            <h2>원정 이동 부담</h2>
+            <p>현재 데이터는 구장 좌표가 없어 실제 km가 아니라 원정 경기 수와 방문 구장 수를 보여줍니다.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="vb-table">
+            <thead><tr><th>#</th><th>팀</th><th>원정 경기</th><th>방문 구장</th><th>주요 방문 구장</th></tr></thead>
+            <tbody id="metricRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="./vb-data.js"></script>
+    <script src="./metric-page.js"></script>
+  </body>
+</html>
