@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teams | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>AI Baseball Lab</h1>
+          <p>&#54016;&#48324; &#49692;&#50948;, &#49849;&#47456;, &#46301;&#49892;&#52264;, &#54856;/&#50896;&#51221; &#48516;&#49437;</p>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Main pages">
+        <a class="nav-button" href="./index.html">HOME</a>
+        <a class="nav-button" href="./schedule.html">&#51068;&#51221;</a>
+        <a class="nav-button active" href="./standings.html">&#54016;/&#49692;&#50948;</a>
+        <a class="nav-button" href="./batting.html">&#53440;&#51088;</a>
+        <a class="nav-button" href="./pitching.html">&#53804;&#49688;</a>
+        <a class="nav-button" href="./distance.html">&#51060;&#46041;&#44144;&#47532;</a>
+        <a class="nav-button" href="./attendance.html">&#44288;&#51473;</a>
+        <a class="nav-button" href="./gametime.html">&#44221;&#44592;&#49884;&#44036;</a>
+        <a class="nav-button" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero standings-hero">
+        <div>
+          <p class="eyebrow">Team Room</p>
+          <h2>&#54016;&#51012; &#44256;&#47476;&#47732; &#50900;&#48324; &#49849;&#47456;, &#46301;&#49892;&#52264;, &#52572;&#44540; &#44221;&#44592;&#47484; &#54620;&#45576;&#50640; &#48389;&#45768;&#45796;.</h2>
+        </div>
+        <div class="hero-controls" aria-label="Team filters">
+          <label>
+            &#49884;&#51596;
+            <select id="seasonSelect"></select>
+          </label>
+          <label>
+            &#54016;
+            <select id="teamSelect"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Team Snapshot</p>
+            <h2 id="teamTitle">-</h2>
+          </div>
+          <p class="muted" id="teamNote">-</p>
+        </div>
+
+        <div class="standings-page-grid">
+          <article class="today-card primary-card">
+            <span class="card-kicker">&#54788;&#51116; &#49692;&#50948;</span>
+            <h3 id="rankCard">-</h3>
+            <p id="recordCard" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#46301;&#49892;&#52264;</span>
+            <h3 id="diffCard">-</h3>
+            <p id="runsCard" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#52572;&#44540; &#55120;&#47492;</span>
+            <h3 id="recentCard">-</h3>
+            <p id="streakCard" class="muted">-</p>
+          </article>
+        </div>
+
+        <div class="team-detail-grid">
+          <article class="chart-panel wide">
+            <div class="panel-head">
+              <div>
+                <h3>&#50900;&#48324; &#49849;&#47456;</h3>
+                <p>&#44221;&#44592; &#44208;&#44284;&#47196; &#44228;&#49328;&#54620; &#50900;&#48324; &#54168;&#51060;&#49828;</p>
+              </div>
+            </div>
+            <svg id="monthlySvg" role="img" aria-label="Monthly win rate"></svg>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#46301;&#51216; / &#49892;&#51216;</h3>
+                <p>RF, RA, DIFF</p>
+              </div>
+            </div>
+            <svg id="runsSvg" role="img" aria-label="Runs chart"></svg>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#54856; / &#50896;&#51221;</h3>
+                <p>&#51109;&#49548;&#48324; &#49849;&#47456;</p>
+              </div>
+            </div>
+            <div id="homeAwayBars" class="bar-list"></div>
+          </article>
+        </div>
+
+        <article class="chart-panel">
+          <div class="panel-head">
+            <div>
+              <h3>&#52572;&#44540; &#44221;&#44592; &#47196;&#44536;</h3>
+              <p>&#44221;&#44592;&#48324; &#46301;&#51216;, &#49892;&#51216;, &#44208;&#44284;</p>
+            </div>
+          </div>
+          <div id="gameLog" class="game-log"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="./teams.js"></script>
+  </body>
+</html>

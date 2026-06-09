@@ -161,7 +161,7 @@ function renderTable(rows) {
         <td>${fmtInt(row.RunsAgainst)}</td>
         <td><span class="diff-pill ${row.RunDiff >= 0 ? "positive" : "negative"}">${fmtSigned(row.RunDiff)}</span></td>
         <td><span class="streak-pill ${String(row[COL.streak]).includes("\uc2b9") ? "win-streak" : "loss-streak"}">${row[COL.streak]}</span></td>
-        <td><div class="mini-form">${recentTokens(row[COL.recent]).map((token) => `<span class="mini-token ${tokenClass(token)}">${token}</span>`).join("")}</div></td>
+        <td><div class="mini-form">${recentGameTokens(row).map((token) => `<span class="mini-token ${tokenClass(token)}">${token}</span>`).join("")}</div></td>
       </tr>
     `)
     .join("");
@@ -177,7 +177,7 @@ function renderRankTrend() {
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   if (dates.length < 2) {
-    svg.innerHTML = emptyText(width, height, "Two or more daily snapshots are needed");
+    renderCurrentRankChart(svg, width, height, pad);
     return;
   }
 
@@ -205,11 +205,60 @@ function renderRankTrend() {
   `;
 }
 
+function renderCurrentRankChart(svg, width, height, pad) {
+  const rows = [...state.standings].sort((a, b) => a[COL.rank] - b[COL.rank]);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  if (!rows.length) {
+    svg.innerHTML = emptyText(width, height, "No standings data");
+    return;
+  }
+
+  const chartTop = pad.top + 26;
+  const rowGap = 25;
+  const barHeight = 14;
+  const maxRank = Math.max(10, ...rows.map((row) => row[COL.rank] || 0));
+  const labelWidth = 54;
+  const valueWidth = 46;
+  const gap = 12;
+  const barX = pad.left + labelWidth;
+  const valueX = width - pad.right;
+  const barMax = Math.max(120, valueX - valueWidth - gap - barX);
+
+  svg.innerHTML = `
+    <text class="axis-label chart-note" x="${pad.left}" y="${pad.top}">현재 순위 기준 승률</text>
+    ${rows.map((row, index) => {
+      const y = chartTop + index * rowGap;
+      const rank = row[COL.rank];
+      const strength = (maxRank - rank + 1) / maxRank;
+      const barWidth = Math.max(22, barMax * strength);
+      return `
+        <text class="rank-team-label" x="${pad.left}" y="${y + 12}">${rank}. ${row[COL.team]}</text>
+        <rect class="rank-current-track" x="${barX}" y="${y}" width="${barMax}" height="${barHeight}" rx="7"></rect>
+        <rect class="rank-current-bar" x="${barX}" y="${y}" width="${barWidth}" height="${barHeight}" rx="7" fill="${teamColor(row[COL.team])}"></rect>
+        <text class="rank-value-label" x="${valueX}" y="${y + 12}" text-anchor="end">${fmtRate(row[COL.winRate])}</text>
+      `;
+    }).join("")}
+  `;
+}
+
 function renderRecentForms(rows) {
   $("recentFormList").innerHTML = rows
     .map((row) => {
-      const tokens = recentTokens(row[COL.recent]);
-      return `<div class="form-card"><div class="form-head"><strong>${row[COL.team]}</strong><span>${row[COL.recent]}</span></div><div class="tokens">${tokens.map((token) => `<span class="token ${tokenClass(token)}">${token}</span>`).join("")}</div></div>`;
+      const tokens = recentGameTokens(row);
+      return `
+        <div class="form-card">
+          <div class="form-head">
+            <strong><span class="team-dot" style="background:${teamColor(row[COL.team])}"></span>${row[COL.team]}</strong>
+            <span>${row[COL.recent]}</span>
+          </div>
+          <div class="tokens">${tokens.map((token) => `<span class="token ${tokenClass(token)}">${token}</span>`).join("")}</div>
+          <div class="form-meta">
+            <span>최근 승률 ${fmtRate(row.RecentRate)}</span>
+            <span>${row[COL.streak]}</span>
+          </div>
+        </div>
+      `;
     })
     .join("");
 }
@@ -240,6 +289,15 @@ function recentWinRate(value) {
 function recentTokens(value) {
   const record = parseRecent(value);
   return [...Array(record.wins).fill("W"), ...Array(record.draws).fill("D"), ...Array(record.losses).fill("L")].slice(0, 10);
+}
+
+function recentGameTokens(row) {
+  const games = state.teamGames
+    .filter((game) => game.Team === row[COL.team] && ["W", "L", "D"].includes(game.Result))
+    .sort((a, b) => String(a.Date).localeCompare(String(b.Date)))
+    .slice(-10)
+    .map((game) => game.Result);
+  return games.length ? games : recentTokens(row[COL.recent]);
 }
 
 function parseRecord(value) {

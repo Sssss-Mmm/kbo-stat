@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>투수 | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="vb-header">
+      <a class="vb-logo" href="./index.html">AI Baseball Lab</a>
+      <nav class="vb-nav" aria-label="Main pages">
+        <a data-page="home" href="./index.html">HOME</a>
+        <a data-page="schedule" href="./schedule.html">일정</a>
+        <a data-page="standings" href="./standings.html">팀/순위</a>
+        <a data-page="batting" href="./batting.html">타자</a>
+        <a data-page="pitching" href="./pitching.html">투수</a>
+        <a data-page="distance" href="./distance.html">이동거리</a>
+        <a data-page="attendance" href="./attendance.html">관중</a>
+        <a data-page="gametime" href="./gametime.html">경기시간</a>
+        <a data-page="lab" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+    <main class="vb-main">
+      <section class="vb-title">
+        <div>
+          <p>KBO 투수 기록</p>
+          <h1>투수</h1>
+        </div>
+        <div class="vb-controls">
+          <select id="seasonSelect"></select>
+          <select id="sortSelect">
+            <option value="ERA">ERA</option>
+            <option value="WHIP">WHIP</option>
+            <option value="SO">탈삼진</option>
+            <option value="W">승</option>
+            <option value="SV">세이브</option>
+          </select>
+        </div>
+      </section>
+      <section class="vb-panel">
+        <div class="vb-panel-head">
+          <div>
+            <h2>투수 순위</h2>
+            <p id="pitchingNote">-</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="vb-table">
+            <thead>
+              <tr><th>#</th><th>선수</th><th>팀</th><th>ERA</th><th>G</th><th>W</th><th>L</th><th>SV</th><th>HLD</th><th>IP</th><th>SO</th><th>WHIP</th></tr>
+            </thead>
+            <tbody id="pitchingRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="./vb-data.js"></script>
+    <script src="./pitching.js"></script>
+  </body>
+</html>
