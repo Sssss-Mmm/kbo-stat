@@ -108,6 +108,7 @@ def migrate_hitters(db: Session, data_path: Path, season: int, team_cache: dict)
             gdp=int(row.get('GDP', 0)) if pd.notna(row.get('GDP')) else 0,
             errors=int(row.get('E', 0)) if pd.notna(row.get('E')) else 0,
             xbh=int(row.get('XBH', 0)) if pd.notna(row.get('XBH')) else 0,
+            xr=float(row.get('XR', 0)) if pd.notna(row.get('XR')) else 0,
         )
         db.add(hitter)
     
@@ -142,12 +143,15 @@ def migrate_pitchers(db: Session, data_path: Path, season: int, team_cache: dict
             rank=row.get('순위', 0),
             player_name=row['선수명'],
             team_id=team.id,
-            games=int(row.get('경기', 0)) if pd.notna(row.get('경기')) else 0,
-            games_started=int(row.get('선발', 0)) if pd.notna(row.get('선발')) else 0,
-            wins=int(row.get('승', 0)) if pd.notna(row.get('승')) else 0,
-            losses=int(row.get('패', 0)) if pd.notna(row.get('패')) else 0,
-            saves=int(row.get('세', 0)) if pd.notna(row.get('세')) else 0,
-            era=float(row.get('평균자책점', 0)) if pd.notna(row.get('평균자책점')) else 0,
+            games=int(row.get('G', row.get('경기', 0))) if pd.notna(row.get('G', row.get('경기'))) else 0,
+            games_started=int(row.get('GS', row.get('선발', 0))) if pd.notna(row.get('GS', row.get('선발'))) else 0,
+            wins=int(row.get('W', row.get('승', 0))) if pd.notna(row.get('W', row.get('승'))) else 0,
+            losses=int(row.get('L', row.get('패', 0))) if pd.notna(row.get('L', row.get('패'))) else 0,
+            saves=int(row.get('SV', row.get('세', 0))) if pd.notna(row.get('SV', row.get('세'))) else 0,
+            holds=int(row.get('HLD', 0)) if pd.notna(row.get('HLD')) else 0,
+            era=float(row.get('ERA', row.get('평균자책점', 0))) if pd.notna(row.get('ERA', row.get('평균자책점'))) else 0,
+            innings_pitched=str(row.get('IP', '')).strip() if pd.notna(row.get('IP')) else None,
+            strikeouts=int(row.get('SO', 0)) if pd.notna(row.get('SO')) else 0,
         )
         db.add(pitcher)
     

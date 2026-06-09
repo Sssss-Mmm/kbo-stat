@@ -16,6 +16,7 @@ from models import (
     GameTimeTeam,
     GameTimeYearly,
     HitterMetric,
+    ScheduleGame,
     TeamGame,
     TeamMonthly,
     TeamRankHistory,
@@ -228,6 +229,31 @@ def migrate_game_time_yearly(db: Session, raw_dir: Path):
     print(f"✅ 연도별 경기시간 {len(rows)}행")
 
 
+def migrate_schedule(db: Session, raw_dir: Path, season: int):
+    path = raw_dir / f"kbo_schedule_{season}.csv"
+    if not path.exists():
+        return
+    df = pd.read_csv(path)
+    rows = [
+        {
+            "season": _i(r["Season"]),
+            "date": _s(r["Date"]),
+            "weekday": _s(r.get("Weekday")),
+            "time": _s(r.get("Time")),
+            "away_team": _s(r.get("away_team")),
+            "home_team": _s(r.get("home_team")),
+            "away_score": _i(r.get("away_score")),
+            "home_score": _i(r.get("home_score")),
+            "status": _s(r.get("status")),
+            "ballpark": _s(r.get("Ballpark")),
+            "game_id": _s(r.get("GameId")),
+        }
+        for _, r in df.iterrows()
+    ]
+    _load(db, ScheduleGame, rows, season=season)
+    print(f"✅ {season}년 일정 {len(rows)}행")
+
+
 def migrate_analytics(db: Session, raw_dir: Path, processed_dir: Path, seasons) -> None:
     for season in seasons:
         migrate_team_rank_history(db, raw_dir, season)
@@ -236,4 +262,5 @@ def migrate_analytics(db: Session, raw_dir: Path, processed_dir: Path, seasons) 
         migrate_hitter_metrics(db, processed_dir, season)
         migrate_attendance(db, raw_dir, season)
         migrate_game_time_team(db, raw_dir, season)
+        migrate_schedule(db, raw_dir, season)
     migrate_game_time_yearly(db, raw_dir)
