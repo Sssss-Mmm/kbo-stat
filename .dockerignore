@@ -1,0 +1,11 @@
+.git
+.claude
+.vscode
+.venv
+**/__pycache__
+**/*.pyc
+**/venv
+**/.env
+.env
+logs
+notebooks
