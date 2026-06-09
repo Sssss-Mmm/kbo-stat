@@ -35,6 +35,9 @@ const state = {
   standings: [],
   hitters: [],
   schedule: [],
+  rankHistory: [],
+  teamGames: [],
+  teamMonthly: [],
   selectedPlayer: null,
 };
 
@@ -82,15 +85,21 @@ function setupControls() {
 }
 
 async function loadSeason() {
-  const [standingsText, hittersText, scheduleText] = await Promise.all([
+  const [standingsText, hittersText, scheduleText, rankHistoryText, teamGamesText, teamMonthlyText] = await Promise.all([
     fetchDataFile(`kbo_team_rank_${state.season}.csv`),
     fetchDataFile(`kbo_${state.season}.csv`),
     fetchDataFile(`kbo_schedule_${state.season}.csv`),
+    fetchDataFile(`kbo_team_rank_history_${state.season}.csv`),
+    fetchDataFile(`../../processed/kbo_team_games_${state.season}.csv`),
+    fetchDataFile(`../../processed/kbo_team_monthly_${state.season}.csv`),
   ]);
 
   state.standings = standingsText ? parseCsv(standingsText).map(normalizeRow) : [];
   state.hitters = hittersText ? parseCsv(hittersText).map(normalizeRow) : [];
   state.schedule = scheduleText ? parseCsv(scheduleText).map(normalizeRow) : [];
+  state.rankHistory = rankHistoryText ? parseCsv(rankHistoryText).map(normalizeRow) : [];
+  state.teamGames = teamGamesText ? parseCsv(teamGamesText).map(normalizeRow) : [];
+  state.teamMonthly = teamMonthlyText ? parseCsv(teamMonthlyText).map(normalizeRow) : [];
   state.selectedPlayer = state.hitters[0] || null;
 }
 
@@ -198,6 +207,8 @@ function renderRankTrend() {
   const width = svg.clientWidth || 900;
   const height = 360;
   const pad = { top: 26, right: 42, bottom: 42, left: 44 };
+  if (renderRankHistoryTrend(svg, width, height, pad)) return;
+
   const rows = filteredStandings();
   const months = ["4M", "5M", "6M", "7M"];
   const maxRank = Math.max(10, ...state.standings.map((row) => row[COL.rank] || 0));
@@ -224,14 +235,47 @@ function renderRankTrend() {
   $("selectedTeamPill").textContent = state.team === "all" ? "\uc804\uccb4" : state.team;
 }
 
+function renderRankHistoryTrend(svg, width, height, pad) {
+  const history = state.rankHistory.filter((row) => state.team === "all" || row[COL.team] === state.team);
+  const dates = [...new Set(history.map((row) => row.Date).filter(Boolean))].sort();
+  if (dates.length < 2) return false;
+
+  const rowsByTeam = new Map();
+  history.forEach((row) => {
+    if (!rowsByTeam.has(row[COL.team])) rowsByTeam.set(row[COL.team], []);
+    rowsByTeam.get(row[COL.team]).push(row);
+  });
+
+  const maxRank = Math.max(10, ...history.map((row) => row[COL.rank] || 0));
+  const x = scale([0, dates.length - 1], [pad.left, width - pad.right]);
+  const y = scale([1, maxRank], [pad.top, height - pad.bottom]);
+  const dateIndex = new Map(dates.map((date, index) => [date, index]));
+  const ticks = Array.from({ length: Math.min(maxRank, 10) }, (_, index) => index + 1);
+
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = `
+    ${ticks.map((rank) => `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${y(rank)}" y2="${y(rank)}"></line><text class="tick-label" x="16" y="${y(rank) + 4}">${rank}</text>`).join("")}
+    ${dates.map((date, index) => `<text class="tick-label" x="${x(index)}" y="${height - 15}" text-anchor="middle">${date.slice(5)}</text>`).join("")}
+    ${[...rowsByTeam.entries()].map(([team, rows]) => {
+      const sorted = [...rows].sort((a, b) => String(a.Date).localeCompare(String(b.Date)));
+      const path = sorted.map((row, index) => `${index ? "L" : "M"}${x(dateIndex.get(row.Date))},${y(row[COL.rank])}`).join(" ");
+      const last = sorted.at(-1);
+      return `<path class="rank-line" d="${path}" stroke="${teamColor(team)}"></path>${sorted.map((row) => `<circle cx="${x(dateIndex.get(row.Date))}" cy="${y(row[COL.rank])}" r="4.5" fill="${teamColor(team)}"></circle>`).join("")}<text class="tick-label" x="${width - pad.right + 5}" y="${y(last[COL.rank]) + 4}">${team}</text>`;
+    }).join("")}
+  `;
+  $("selectedTeamPill").textContent = state.team === "all" ? "\uc804\uccb4" : state.team;
+  return true;
+}
+
 function renderMonthlyWinRate() {
   const svg = $("monthlyWinSvg");
   const width = svg.clientWidth || 440;
   const height = 320;
   const pad = { top: 28, right: 20, bottom: 36, left: 42 };
   const row = teamRow();
-  const values = row ? makeMonthlyWinRate(row) : [];
-  const labels = ["4M", "5M", "6M", "7M"];
+  const monthlyRows = teamMonthlyRows();
+  const values = monthlyRows.length ? monthlyRows.map((item) => item.WinRate || 0) : row ? makeMonthlyWinRate(row) : [];
+  const labels = monthlyRows.length ? monthlyRows.map((item) => `${item.Month}M`) : ["4M", "5M", "6M", "7M"];
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   if (!row) {
     svg.innerHTML = emptyText(width, height, "Select a team");
@@ -258,14 +302,19 @@ function renderRunDiff() {
     svg.innerHTML = emptyText(width, height, "Select a team");
     return;
   }
-  const scored = Math.round((row[COL.wins] * 5.2 + row[COL.losses] * 3.4 + row[COL.draws] * 4.1));
-  const allowed = Math.round((row[COL.losses] * 5.0 + row[COL.wins] * 3.6 + row[COL.draws] * 4.1));
+  const games = teamGameRows();
+  const scored = games.length
+    ? sum(games.map((game) => game.RunsFor))
+    : Math.round((row[COL.wins] * 5.2 + row[COL.losses] * 3.4 + row[COL.draws] * 4.1));
+  const allowed = games.length
+    ? sum(games.map((game) => game.RunsAgainst))
+    : Math.round((row[COL.losses] * 5.0 + row[COL.wins] * 3.6 + row[COL.draws] * 4.1));
   const max = Math.max(scored, allowed, 1);
   svg.innerHTML = `
     ${metricBarSvg("RS", scored, max, 70, "#0b7f74", width)}
     ${metricBarSvg("RA", allowed, max, 160, "#d05240", width)}
     <text class="big-number" x="28" y="250">+${scored - allowed}</text>
-    <text class="tick-label" x="28" y="272">run differential proxy</text>
+    <text class="tick-label" x="28" y="272">${games.length ? "run differential from game results" : "run differential proxy"}</text>
   `;
 }
 
@@ -275,14 +324,15 @@ function renderHomeAway() {
     $("homeAwayBars").innerHTML = `<p class="muted">Select one team to compare home and away records.</p>`;
     return;
   }
-  const home = parseRecord(row[COL.home]);
-  const away = parseRecord(row[COL.away]);
+  const games = teamGameRows();
+  const home = games.length ? summarizeGameRecord(games.filter((game) => game.HomeAway === "home")) : parseRecord(row[COL.home]);
+  const away = games.length ? summarizeGameRecord(games.filter((game) => game.HomeAway === "away")) : parseRecord(row[COL.away]);
   const homeRate = recordRate(home);
   const awayRate = recordRate(away);
   const max = Math.max(homeRate, awayRate, 1);
   $("homeAwayBars").innerHTML = [
-    { label: "Home", value: homeRate, record: row[COL.home], color: "#0b7f74" },
-    { label: "Away", value: awayRate, record: row[COL.away], color: "#2e65b8" },
+    { label: "Home", value: homeRate, record: formatRecord(home), color: "#0b7f74" },
+    { label: "Away", value: awayRate, record: formatRecord(away), color: "#2e65b8" },
   ]
     .map((item) => `<div class="bar-row"><strong>${item.label}</strong><span class="bar-track"><span class="bar-fill" style="width:${(item.value / max) * 100}%; background:${item.color}"></span></span><span>${fmtRate(item.value)}</span><small>${item.record}</small></div>`)
     .join("");
@@ -390,6 +440,35 @@ function teamRow() {
   return [...state.standings].sort((a, b) => a[COL.rank] - b[COL.rank])[0];
 }
 
+function activeTeam() {
+  const row = teamRow();
+  return row ? row[COL.team] : "";
+}
+
+function teamGameRows() {
+  const team = activeTeam();
+  return state.teamGames.filter((row) => row.Team === team);
+}
+
+function teamMonthlyRows() {
+  const team = activeTeam();
+  return state.teamMonthly
+    .filter((row) => row.Team === team)
+    .sort((a, b) => String(a.Month).localeCompare(String(b.Month)));
+}
+
+function summarizeGameRecord(rows) {
+  return {
+    wins: sum(rows.map((row) => row.Win)),
+    losses: sum(rows.map((row) => row.Loss)),
+    draws: sum(rows.map((row) => row.Draw)),
+  };
+}
+
+function formatRecord(record) {
+  return `${record.wins}-${record.draws}-${record.losses}`;
+}
+
 function findPlayer(query) {
   if (!query) return state.hitters[0] || null;
   return state.hitters.find((row) => row[COL.player] && row[COL.player].includes(query)) || state.hitters[0] || null;
@@ -442,6 +521,10 @@ function parseRecord(value) {
 function recordRate(record) {
   const games = record.wins + record.losses;
   return games ? record.wins / games : 0;
+}
+
+function sum(values) {
+  return values.filter(Number.isFinite).reduce((total, value) => total + value, 0);
 }
 
 function playerMetrics(player) {

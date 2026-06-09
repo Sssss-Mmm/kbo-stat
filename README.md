@@ -29,6 +29,19 @@ This updates:
 
 - `data/raw/kbo_official/kbo_team_rank_2026.csv`
 - `data/raw/kbo_official/kbo_schedule_2026.csv`
+- `data/raw/kbo_official/kbo_team_rank_history_2026.csv`
+- `data/raw/kbo_official/team_rank_snapshots/kbo_team_rank_YYYY-MM-DD.csv`
+- `data/processed/kbo_team_games_2026.csv`
+- `data/processed/kbo_team_monthly_2026.csv`
+- `data/processed/kbo_hitter_metrics_2026.csv`
+
+The history file is used by the web dashboard for real rank movement once at
+least two daily snapshots exist.
+
+The processed team game files are derived from schedule/results and power
+monthly win rate, runs scored/allowed, run differential, and home/away views.
+The hitter metrics file adds OBP, SLG, OPS, and WARProxy for player cards,
+comparison, and AI answer evidence.
 
 Full refresh including current-season hitter and pitcher leaderboards:
 

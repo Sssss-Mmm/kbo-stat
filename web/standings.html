@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Standings | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>AI Baseball Lab</h1>
+          <p>&#47588;&#51068; &#50629;&#45936;&#51060;&#53944;&#46104;&#45716; KBO &#49692;&#50948;&#54364;&#50752; &#54016; &#55120;&#47492;</p>
+        </div>
+      </div>
+
+      <nav class="top-nav" aria-label="Main pages">
+        <a class="nav-button" href="./index.html">&#54856;</a>
+        <a class="nav-button active" href="./standings.html">&#49692;&#50948;&#54364;</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero standings-hero">
+        <div>
+          <p class="eyebrow">Standings Board</p>
+          <h2>&#54788;&#51116; &#49692;&#50948;, &#52572;&#44540; &#55120;&#47492;, &#46301;&#49892;&#52264;&#47484; &#54620; &#54168;&#51060;&#51648;&#50640;&#49436; &#48389;&#45768;&#45796;.</h2>
+        </div>
+        <div class="hero-controls" aria-label="Standings filters">
+          <label>
+            &#49884;&#51596;
+            <select id="seasonSelect"></select>
+          </label>
+          <label>
+            &#44592;&#51456;
+            <select id="viewSelect">
+              <option value="overall">&#51204;&#52404;</option>
+              <option value="home">&#54856;</option>
+              <option value="away">&#50896;&#51221;</option>
+              <option value="recent">&#52572;&#44540; 10&#44221;&#44592;</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">League Table</p>
+            <h2>&#54016; &#49692;&#50948;&#54364;</h2>
+          </div>
+          <p class="muted" id="standingsNote">-</p>
+        </div>
+
+        <div class="standings-page-grid">
+          <article class="today-card primary-card">
+            <span class="card-kicker">&#49440;&#46160;</span>
+            <h3 id="leaderTeam">-</h3>
+            <p id="leaderText" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#52572;&#44540; &#49849;&#47456; 1&#50948;</span>
+            <h3 id="recentTeam">-</h3>
+            <p id="recentText" class="muted">-</p>
+          </article>
+          <article class="today-card">
+            <span class="card-kicker">&#46301;&#49892;&#52264; 1&#50948;</span>
+            <h3 id="runDiffTeam">-</h3>
+            <p id="runDiffText" class="muted">-</p>
+          </article>
+        </div>
+
+        <div class="standings-detail-grid">
+          <article class="chart-panel standings-table-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#51204;&#52404; &#49692;&#50948;</h3>
+                <p>&#49849;&#47456;, &#46301;&#49892;&#52264;, &#50672;&#49549;, &#52572;&#44540; 10&#44221;&#44592; &#55120;&#47492;</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="standings-table">
+                <thead>
+                  <tr>
+                    <th>&#49692;&#50948;</th>
+                    <th>&#54016;</th>
+                    <th>&#44221;&#44592;</th>
+                    <th>&#49849;</th>
+                    <th>&#54056;</th>
+                    <th>&#47924;</th>
+                    <th>&#49849;&#47456;</th>
+                    <th>GB</th>
+                    <th>RF</th>
+                    <th>RA</th>
+                    <th>DIFF</th>
+                    <th>&#50672;&#49549;</th>
+                    <th>&#52572;&#44540; 10</th>
+                  </tr>
+                </thead>
+                <tbody id="standingsBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#49692;&#50948; &#48320;&#54868;</h3>
+                <p>&#49828;&#45205;&#49343;&#51060; &#50420;&#51060;&#47732; &#51652;&#짜; &#51068;&#51088;&#48324; &#52628;&#51060;&#47196; &#51204;&#54872;</p>
+              </div>
+            </div>
+            <svg id="rankTrendSvg" role="img" aria-label="Rank history chart"></svg>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3>&#52572;&#44540; 10&#44221;&#44592;</h3>
+                <p>W / L / D &#55120;&#47492;</p>
+              </div>
+            </div>
+            <div id="recentFormList" class="form-list"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="./standings.js"></script>
+  </body>
+</html>
