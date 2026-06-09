@@ -15,9 +15,9 @@ async def get_standings(season: int = None, db: Session = Depends(get_db)):
     return standings_service.get_standings(db, season)
 
 
-@router.get("/standings/{team_id}")
-async def get_team_standings(team_id: str, season: int = None, db: Session = Depends(get_db)):
+@router.get("/standings/{team_name}")
+async def get_team_standings(team_name: str, season: int = None, db: Session = Depends(get_db)):
     """
-    특정 팀의 상세 순위 정보를 반환합니다.
+    특정 팀의 상세 순위 정보를 반환합니다. (팀명으로 조회)
     """
-    return standings_service.get_team_standings(db, team_id, season)
+    return standings_service.get_team_standings(db, team_name, season)

@@ -9,8 +9,7 @@ class Team(Base):
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, index=True)  # 팀명
-    season = Column(Integer, index=True)  # 시즌
+    name = Column(String(50), unique=True, index=True)  # 팀명 (시즌 무관 고유)
 
     # 관계설정
     standings = relationship("Standing", back_populates="team")

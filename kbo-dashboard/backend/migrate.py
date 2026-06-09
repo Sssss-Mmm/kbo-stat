@@ -15,27 +15,36 @@ from database import SessionLocal, init_db
 from models import Team, Standing, Schedule, Hitter, Pitcher
 
 
-def migrate_standings(db: Session, data_path: Path, season: int):
+def get_or_create_team(db: Session, cache: dict, team_name: str) -> Team:
+    """팀을 캐시/DB에서 찾거나 새로 생성합니다. (팀명은 시즌 무관 고유)"""
+    if team_name in cache:
+        return cache[team_name]
+    team = db.query(Team).filter(Team.name == team_name).first()
+    if not team:
+        team = Team(name=team_name)
+        db.add(team)
+        db.flush()
+    cache[team_name] = team
+    return team
+
+
+def migrate_standings(db: Session, data_path: Path, season: int, team_cache: dict):
     """팀 순위 데이터 마이그레이션"""
     print(f"마이그레이션: {season}년 순위표...")
-    
+
     file_path = data_path / f"kbo_team_rank_{season}.csv"
     if not file_path.exists():
         print(f"⚠️  파일 없음: {file_path}")
         return
 
     df = pd.read_csv(file_path)
-    
+
+    # 재실행 시 중복 삽입 방지: 해당 시즌 기존 행 삭제 후 적재
+    db.query(Standing).filter(Standing.season == season).delete()
+
     for _, row in df.iterrows():
-        team_name = row['팀명']
-        
-        # 팀 객체 찾기 또는 생성
-        team = db.query(Team).filter(Team.name == team_name).first()
-        if not team:
-            team = Team(name=team_name, season=season)
-            db.add(team)
-            db.flush()
-        
+        team = get_or_create_team(db, team_cache, row['팀명'])
+
         # 순위 데이터 추가
         standing = Standing(
             season=season,
@@ -58,27 +67,23 @@ def migrate_standings(db: Session, data_path: Path, season: int):
     print(f"✅ {season}년 순위표 마이그레이션 완료")
 
 
-def migrate_hitters(db: Session, data_path: Path, season: int):
+def migrate_hitters(db: Session, data_path: Path, season: int, team_cache: dict):
     """타자 통계 마이그레이션"""
     print(f"마이그레이션: {season}년 타자 통계...")
-    
+
     file_path = data_path / f"kbo_{season}.csv"
     if not file_path.exists():
         print(f"⚠️  파일 없음: {file_path}")
         return
 
     df = pd.read_csv(file_path)
-    
+
+    # 재실행 시 중복 삽입 방지
+    db.query(Hitter).filter(Hitter.season == season).delete()
+
     for _, row in df.iterrows():
-        team_name = row['팀명']
-        
-        # 팀 객체 찾기 또는 생성
-        team = db.query(Team).filter(Team.name == team_name).first()
-        if not team:
-            team = Team(name=team_name, season=season)
-            db.add(team)
-            db.flush()
-        
+        team = get_or_create_team(db, team_cache, row['팀명'])
+
         # 타자 데이터 추가
         hitter = Hitter(
             season=season,
@@ -109,29 +114,27 @@ def migrate_hitters(db: Session, data_path: Path, season: int):
     print(f"✅ {season}년 타자 통계 마이그레이션 완료")
 
 
-def migrate_pitchers(db: Session, data_path: Path, season: int):
+def migrate_pitchers(db: Session, data_path: Path, season: int, team_cache: dict):
     """투수 통계 마이그레이션"""
     print(f"마이그레이션: {season}년 투수 통계...")
-    
+
     file_path = data_path / f"kbo_pitcher_{season}.csv"
     if not file_path.exists():
         print(f"⚠️  파일 없음: {file_path}")
         return
 
     df = pd.read_csv(file_path)
-    
+
+    # 재실행 시 중복 삽입 방지
+    db.query(Pitcher).filter(Pitcher.season == season).delete()
+
     for _, row in df.iterrows():
         team_name = row.get('팀명', '')
         if not team_name:
             continue
-        
-        # 팀 객체 찾기 또는 생성
-        team = db.query(Team).filter(Team.name == team_name).first()
-        if not team:
-            team = Team(name=team_name, season=season)
-            db.add(team)
-            db.flush()
-        
+
+        team = get_or_create_team(db, team_cache, team_name)
+
         # 투수 데이터 추가
         pitcher = Pitcher(
             season=season,
@@ -169,13 +172,14 @@ def main():
         return
     
     db = SessionLocal()
-    
+    team_cache: dict = {}
+
     try:
         # 2020-2026년 데이터 마이그레이션
         for season in range(2020, 2027):
-            migrate_standings(db, data_path, season)
-            migrate_hitters(db, data_path, season)
-            migrate_pitchers(db, data_path, season)
+            migrate_standings(db, data_path, season, team_cache)
+            migrate_hitters(db, data_path, season, team_cache)
+            migrate_pitchers(db, data_path, season, team_cache)
         
         print("\n" + "=" * 50)
         print("✅ 모든 마이그레이션 완료!")

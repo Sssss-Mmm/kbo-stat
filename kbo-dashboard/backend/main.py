@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,10 +16,13 @@ try:
 except Exception as exc:
     print(f"[startup] database init skipped: {exc}")
 
+# CORS: 콤마로 구분된 CORS_ORIGINS 환경변수로 허용 출처 지정 (기본 "*").
+# 와일드카드와 credentials 동시 사용은 브라우저가 무시하므로 함께 켜지 않는다.
+cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
