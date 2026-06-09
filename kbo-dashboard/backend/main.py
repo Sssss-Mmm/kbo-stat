@@ -1,14 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import standings, schedule, players
+
 from database import init_db
+from routers import players, rag, schedule, standings
+
 
 app = FastAPI(title="KBO Dashboard API")
 
-# 데이터베이스 초기화
-init_db()
+# Database-backed routes can use PostgreSQL, but CSV-backed RAG should still
+# run when a local database is not available.
+try:
+    init_db()
+except Exception as exc:
+    print(f"[startup] database init skipped: {exc}")
 
-# CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,10 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 라우터 포함
 app.include_router(standings.router, prefix="/api", tags=["standings"])
 app.include_router(schedule.router, prefix="/api", tags=["schedule"])
 app.include_router(players.router, prefix="/api", tags=["players"])
+app.include_router(rag.router, prefix="/api", tags=["rag"])
 
 
 @app.get("/")
@@ -35,4 +40,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(app, host="0.0.0.0", port=8001)

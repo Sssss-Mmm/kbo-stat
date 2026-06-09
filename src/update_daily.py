@@ -18,6 +18,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 import build_team_game_results
+import crawl_kbo_attendance
+import crawl_kbo_game_time
 import crawl_kbo_schedule
 import crawl_kbo_team_rank
 
@@ -39,6 +41,12 @@ def update_fast(year: int) -> None:
 
     print(f"[daily] building team game result datasets for {year}")
     build_team_game_results.build(year)
+
+    print(f"[daily] updating attendance for {year}")
+    crawl_kbo_attendance.crawl(year)
+
+    print(f"[daily] updating average game time for {year}")
+    crawl_kbo_game_time.crawl(year)
 
     try:
         import build_hitter_metrics
