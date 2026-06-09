@@ -90,6 +90,12 @@ def _parse_row(row: dict, year: int, current_day: str) -> tuple[dict | None, str
     time_text = _clean_html(cells[0].get("Text", ""))
     game_html = cells[1].get("Text", "")
     game = _parse_game(game_html)
+    game_center = _clean_html(cells[2].get("Text", ""))
+    game_id = _extract_game_id(cells[2].get("Text", ""))
+    if not game_center and not game_id:
+        game["status"] = "scheduled"
+        game["away_score"] = None
+        game["home_score"] = None
 
     record = {
         "Season": year,
@@ -97,13 +103,13 @@ def _parse_row(row: dict, year: int, current_day: str) -> tuple[dict | None, str
         "Weekday": current_day[current_day.find("(") + 1 : current_day.find(")")] if "(" in current_day else "",
         "Time": time_text,
         **game,
-        "GameCenter": _clean_html(cells[2].get("Text", "")),
+        "GameCenter": game_center,
         "Highlight": _clean_html(cells[3].get("Text", "")),
         "TV": _clean_html(cells[4].get("Text", "")),
         "Radio": _clean_html(cells[5].get("Text", "")),
         "Ballpark": _clean_html(cells[6].get("Text", "")),
         "Note": _clean_html(cells[7].get("Text", "")) if len(cells) > 7 else "",
-        "GameId": _extract_game_id(cells[2].get("Text", "")),
+        "GameId": game_id,
     }
     return record, current_day
 

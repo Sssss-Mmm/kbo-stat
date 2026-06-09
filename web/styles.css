@@ -100,6 +100,8 @@ h1 {
 
 .nav-button,
 .quick-teams button {
+  display: grid;
+  place-items: center;
   min-height: 34px;
   padding: 0 12px;
   border: 0;
@@ -107,6 +109,7 @@ h1 {
   color: var(--text);
   background: transparent;
   cursor: pointer;
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -135,6 +138,10 @@ main {
   font-size: clamp(30px, 5vw, 60px);
   line-height: 1.05;
   letter-spacing: 0;
+}
+
+.standings-hero {
+  min-height: 210px;
 }
 
 .hero-controls {
@@ -204,7 +211,9 @@ h3 {
 .team-grid,
 .player-grid,
 .compare-grid,
-.story-grid {
+.story-grid,
+.standings-page-grid,
+.standings-detail-grid {
   display: grid;
   gap: 16px;
 }
@@ -229,6 +238,18 @@ h3 {
 
 .story-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.standings-page-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.standings-detail-grid {
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+}
+
+.standings-table-panel {
+  grid-row: span 2;
 }
 
 .today-card,
@@ -390,6 +411,162 @@ svg {
   background: linear-gradient(90deg, var(--accent), var(--accent-3));
 }
 
+.standings-table {
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.standings-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.standings-table td {
+  padding: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--panel-soft));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.standings-table tbody tr {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.standings-table tbody tr:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(22, 33, 46, 0.08);
+}
+
+.standings-table td:first-child {
+  border-left: 1px solid var(--line);
+  border-radius: 8px 0 0 8px;
+}
+
+.standings-table td:last-child {
+  border-right: 1px solid var(--line);
+  border-radius: 0 8px 8px 0;
+}
+
+.rank-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--ink);
+  font-weight: 850;
+}
+
+.team-cell {
+  display: grid;
+  grid-template-columns: 5px 1fr;
+  gap: 10px;
+  align-items: center;
+  min-width: 128px;
+}
+
+.team-cell strong {
+  display: block;
+  font-size: 16px;
+}
+
+.team-cell small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.team-rail {
+  width: 5px;
+  height: 34px;
+  border-radius: 999px;
+}
+
+.rate-pill,
+.diff-pill,
+.streak-pill {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 58px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.rate-pill {
+  color: var(--accent-3);
+  background: color-mix(in srgb, var(--accent-3) 10%, white);
+}
+
+.diff-pill.positive {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, white);
+}
+
+.diff-pill.negative {
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 11%, white);
+}
+
+.streak-pill.win-streak {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, white);
+}
+
+.streak-pill.loss-streak {
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 11%, white);
+}
+
+.mini-form {
+  display: flex;
+  gap: 3px;
+  min-width: 136px;
+}
+
+.mini-token {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.team-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.positive {
+  color: var(--accent);
+  font-weight: 850;
+}
+
+.negative {
+  color: var(--accent-2);
+  font-weight: 850;
+}
+
 .player-card {
   display: grid;
   align-content: start;
@@ -521,6 +698,7 @@ svg {
 
 @media (max-width: 1120px) {
   .today-grid,
+  .standings-page-grid,
   .story-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -528,11 +706,13 @@ svg {
   .team-grid,
   .player-grid,
   .compare-grid,
+  .standings-detail-grid,
   .ai-panel {
     grid-template-columns: 1fr;
   }
 
-  .wide {
+  .wide,
+  .standings-table-panel {
     grid-row: auto;
   }
 }
@@ -541,6 +721,7 @@ svg {
   .app-header,
   .hero,
   .today-grid,
+  .standings-page-grid,
   .spotlight-grid,
   .story-grid,
   .stack-grid {
