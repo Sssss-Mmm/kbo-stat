@@ -1,6 +1,38 @@
 version: '3.8'
 
 services:
+  backend:
+    build:
+      context: ..
+      dockerfile: kbo-dashboard/backend/Dockerfile
+    container_name: kbo_backend
+    environment:
+      DATABASE_URL: postgresql://kbo_user:kbo_password@postgres:5432/kbo_dashboard
+    ports:
+      - "8001:8001"
+    networks:
+      - kbo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: kbo_web
+    ports:
+      - "8000:80"
+    networks:
+      - kbo_network
+    depends_on:
+      - backend
+
   postgres:
     image: postgres:15-alpine
     container_name: kbo_dashboard_db
@@ -15,7 +47,7 @@ services:
     networks:
       - kbo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kbo_user"]
+      test: ["CMD-SHELL", "pg_isready -U kbo_user -d kbo_dashboard"]
       interval: 10s
       timeout: 5s
       retries: 5
