@@ -11,6 +11,8 @@ Usage:
 """
 
 import argparse
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -104,6 +106,20 @@ def update_players(year: int) -> None:
     build_hitter_metrics.build(year)
 
 
+def load_to_db() -> None:
+    """갱신된 CSV를 PostgreSQL로 적재한다 (백엔드 migrate.py 실행).
+
+    migrate.py는 SQLAlchemy 등 백엔드 의존성을 쓰므로 백엔드 venv의
+    파이썬으로 실행한다. 없으면 현재 인터프리터로 폴백한다.
+    """
+    backend = Path(__file__).parent.parent / "kbo-dashboard" / "backend"
+    venv_python = backend / "venv" / "bin" / "python"
+    python = str(venv_python) if venv_python.exists() else sys.executable
+
+    print(f"[daily] loading CSV into PostgreSQL via {Path(python).name}")
+    subprocess.run([python, "migrate.py"], cwd=str(backend), check=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", type=int, default=current_kbo_year())
@@ -112,6 +128,11 @@ def main() -> None:
         action="store_true",
         help="also refresh current-season hitter and pitcher CSVs",
     )
+    parser.add_argument(
+        "--db",
+        action="store_true",
+        help="load refreshed CSVs into PostgreSQL after the update",
+    )
     args = parser.parse_args()
 
     started = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -119,6 +140,8 @@ def main() -> None:
     update_fast(args.year)
     if args.players:
         update_players(args.year)
+    if args.db:
+        load_to_db()
     finished = datetime.now(ZoneInfo("Asia/Seoul"))
     print(f"[daily] finished {finished:%Y-%m-%d %H:%M:%S %Z}")
 
