@@ -35,6 +35,7 @@ const state = {
   team: "all",
   standings: [],
   hitters: [],
+  players: [],
   schedule: [],
   rankHistory: [],
   teamGames: [],
@@ -86,9 +87,10 @@ function setupControls() {
 }
 
 async function loadSeason() {
-  const [standingsText, hittersText, scheduleText, rankHistoryText, teamGamesText, teamMonthlyText] = await Promise.all([
+  const [standingsText, hittersText, registeredText, scheduleText, rankHistoryText, teamGamesText, teamMonthlyText] = await Promise.all([
     fetchDataFile(`kbo_team_rank_${state.season}.csv`, DATA_ROOTS),
     fetchDataFile(`kbo_${state.season}.csv`, DATA_ROOTS),
+    fetchDataFile("kbo_registered_players_latest.csv", DATA_ROOTS),
     fetchDataFile(`kbo_schedule_${state.season}.csv`, DATA_ROOTS),
     fetchDataFile(`kbo_team_rank_history_${state.season}.csv`, DATA_ROOTS),
     fetchDataFile(`kbo_team_games_${state.season}.csv`, PROCESSED_ROOTS),
@@ -97,11 +99,12 @@ async function loadSeason() {
 
   state.standings = standingsText ? parseCsv(standingsText).map(normalizeRow) : [];
   state.hitters = hittersText ? parseCsv(hittersText).map(normalizeRow) : [];
+  state.players = mergeRegisteredPlayers(registeredText ? parseCsv(registeredText).map(normalizeRow) : [], state.hitters);
   state.schedule = scheduleText ? parseCsv(scheduleText).map(normalizeRow) : [];
   state.rankHistory = rankHistoryText ? parseCsv(rankHistoryText).map(normalizeRow) : [];
   state.teamGames = teamGamesText ? parseCsv(teamGamesText).map(normalizeRow) : [];
   state.teamMonthly = teamMonthlyText ? parseCsv(teamMonthlyText).map(normalizeRow) : [];
-  state.selectedPlayer = state.hitters[0] || null;
+  state.selectedPlayer = state.players.find(hasHitterStats) || state.players[0] || state.hitters[0] || null;
 }
 
 async function fetchDataFile(fileName) {
@@ -125,7 +128,7 @@ function renderToday() {
   const leader = sorted[0];
   const streak = [...state.standings].sort((a, b) => streakScore(b[COL.streak]) - streakScore(a[COL.streak]))[0];
   const recent = [...state.standings].sort((a, b) => recentWinRate(b[COL.recent]) - recentWinRate(a[COL.recent]))[0];
-  const hot = [...state.hitters].sort((a, b) => playerWar(b) - playerWar(a))[0];
+  const hot = [...state.hitters].sort((a, b) => (playerWar(b) || 0) - (playerWar(a) || 0))[0];
   const hr = [...state.hitters].sort((a, b) => (b.HR || 0) - (a.HR || 0))[0];
 
   $("leaderTeam").textContent = leader ? `${leader[COL.rank]}\uc704 ${leader[COL.team]}` : "-";
@@ -332,17 +335,20 @@ function renderHomeAway() {
 }
 
 function renderPlayerSections() {
-  const player = state.selectedPlayer || state.hitters[0];
+  const player = state.selectedPlayer || state.players[0] || state.hitters[0];
   if (!player) {
     $("playerCard").innerHTML = `<p class="muted">No player data.</p>`;
     $("playerMetricBars").innerHTML = "";
     return;
   }
   const metrics = playerMetrics(player);
+  const name = playerName(player);
+  const team = playerTeam(player);
+  const meta = [team, player.Position, player.BackNo ? `${player.BackNo}\ubc88` : "", player.PitchBat].filter(Boolean).join(" · ");
   $("playerCard").innerHTML = `
     <p class="eyebrow">Player Card</p>
-    <h3>${player[COL.player]}</h3>
-    <p class="muted">${player[COL.team]} · ${state.season}</p>
+    <h3>${name}</h3>
+    <p class="muted">${meta || state.season}</p>
     <div class="stat-grid">
       <div class="stat-box"><span>WAR</span><strong>${fmtOne(metrics.war)}</strong></div>
       <div class="stat-box"><span>OPS</span><strong>${fmtRate(metrics.ops)}</strong></div>
@@ -358,11 +364,14 @@ function renderPlayerSections() {
     ["AVG", metrics.avg, maxValues.avg, fmtRate],
     ["OBP", metrics.obp, maxValues.obp, fmtRate],
     ["SLG", metrics.slg, maxValues.slg, fmtRate],
-  ].map(([label, value, max, formatter]) => `<div class="metric-row"><span>${label}</span><strong>${formatter(value)}</strong><i><b style="width:${clamp((value / max) * 100, 2, 100)}%"></b></i></div>`).join("");
+  ].map(([label, value, max, formatter]) => {
+    const width = Number.isFinite(value) ? clamp((value / max) * 100, 2, 100) : 0;
+    return `<div class="metric-row"><span>${label}</span><strong>${formatter(value)}</strong><i><b style="width:${width}%"></b></i></div>`;
+  }).join("");
 }
 
 function renderCompareOptions() {
-  const top = [...state.hitters].sort((a, b) => playerWar(b) - playerWar(a)).slice(0, 40);
+  const top = [...state.hitters].sort((a, b) => (playerWar(b) || 0) - (playerWar(a) || 0)).slice(0, 40);
   const options = top.map((player) => `<option value="${player[COL.player]}">${player[COL.player]} · ${player[COL.team]}</option>`).join("");
   $("compareA").innerHTML = options;
   $("compareB").innerHTML = options;
@@ -463,12 +472,36 @@ function formatRecord(record) {
 }
 
 function findPlayer(query) {
-  if (!query) return state.hitters[0] || null;
-  return state.hitters.find((row) => row[COL.player] && row[COL.player].includes(query)) || state.hitters[0] || null;
+  if (!query) return state.players.find(hasHitterStats) || state.players[0] || state.hitters[0] || null;
+  return state.players.find((row) => playerName(row).includes(query) || playerTeam(row).includes(query)) || state.players.find(hasHitterStats) || state.players[0] || state.hitters[0] || null;
 }
 
 function findExactPlayer(name) {
   return state.hitters.find((row) => row[COL.player] === name);
+}
+
+function mergeRegisteredPlayers(registered, hitters) {
+  if (!registered.length) return hitters;
+  const hitterByNameTeam = new Map(hitters.map((row) => [`${row[COL.player]}|${row[COL.team]}`, row]));
+  return registered.map((player) => {
+    const hitter = hitterByNameTeam.get(`${player.PlayerName}|${player.Team}`) || {};
+    return {
+      ...player,
+      ...hitter,
+      PlayerName: player.PlayerName,
+      Team: player.Team,
+      [COL.player]: player.PlayerName,
+      [COL.team]: player.Team,
+    };
+  });
+}
+
+function playerName(player) {
+  return String(player?.PlayerName || player?.Player || player?.[COL.player] || "");
+}
+
+function playerTeam(player) {
+  return String(player?.Team || player?.[COL.team] || "");
 }
 
 function makeRankHistory(row, maxRank) {
@@ -521,6 +554,9 @@ function sum(values) {
 }
 
 function playerMetrics(player) {
+  if (!hasHitterStats(player)) {
+    return { war: undefined, ops: undefined, avg: undefined, obp: undefined, slg: undefined };
+  }
   const obp = estimateObp(player);
   const slg = estimateSlg(player);
   return {
@@ -533,7 +569,11 @@ function playerMetrics(player) {
 }
 
 function playerWar(player) {
-  return Number.isFinite(player.XR) ? player.XR / 8 : 0;
+  return Number.isFinite(player.XR) ? player.XR / 8 : undefined;
+}
+
+function hasHitterStats(player) {
+  return Number.isFinite(player?.AB) || Number.isFinite(player?.PA) || Number.isFinite(player?.AVG) || Number.isFinite(player?.XR);
 }
 
 function estimateObp(player) {

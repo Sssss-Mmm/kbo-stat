@@ -32,7 +32,11 @@ function csvFileToEndpoint(fileName) {
 function rowsToCsv(rows) {
   if (!rows || !rows.length) return "";
   const headers = Object.keys(rows[0]);
-  const cell = (value) => (value === null || value === undefined ? "" : String(value));
+  const cell = (value) => {
+    if (value === null || value === undefined) return "";
+    const text = String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
   const lines = [headers.join(",")];
   for (const row of rows) {
     lines.push(headers.map((header) => cell(row[header])).join(","));
@@ -40,20 +44,48 @@ function rowsToCsv(rows) {
   return lines.join("\n");
 }
 
-// 파일명에 해당하는 API 를 호출해 CSV 텍스트를 반환. 실패 시 null.
-async function apiFetchCsv(fileName) {
-  const endpoint = csvFileToEndpoint(fileName);
-  if (!endpoint) return null;
-  for (const base of API_BASES) {
+function csvRoots(fileName) {
+  if (
+    fileName.startsWith("kbo_team_games_")
+    || fileName.startsWith("kbo_team_monthly_")
+    || fileName.startsWith("kbo_hitter_metrics_")
+  ) {
+    return ["../data/processed", "/data/processed", "/web/data/processed", "./data/processed"];
+  }
+  if (fileName.startsWith("naver_")) {
+    return ["../data/raw/naver", "/data/raw/naver", "/web/data/raw/naver", "./data/raw/naver"];
+  }
+  return ["../data/raw/kbo_official", "/data/raw/kbo_official", "/web/data/raw/kbo_official", "./data/raw/kbo_official"];
+}
+
+async function localFetchCsv(fileName) {
+  for (const root of csvRoots(fileName)) {
     try {
-      const response = await fetch(base + endpoint);
-      if (response.ok) {
-        const json = await response.json();
-        return rowsToCsv(json.data || []);
-      }
+      const response = await fetch(`${root}/${fileName}`);
+      if (response.ok) return await response.text();
     } catch {
-      // 다음 베이스 시도
+      // 다음 로컬 경로 시도
     }
   }
   return null;
+}
+
+// 파일명에 해당하는 API 를 호출해 CSV 텍스트를 반환. 실패 시 null.
+async function apiFetchCsv(fileName) {
+  const endpoint = csvFileToEndpoint(fileName);
+  if (endpoint) {
+    for (const base of API_BASES) {
+      try {
+        const response = await fetch(base + endpoint);
+        if (response.ok) {
+          const json = await response.json();
+          const csv = rowsToCsv(json.data || []);
+          if (csv) return csv;
+        }
+      } catch {
+        // 다음 베이스 시도
+      }
+    }
+  }
+  return localFetchCsv(fileName);
 }

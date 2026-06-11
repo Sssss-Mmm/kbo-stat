@@ -24,6 +24,18 @@ body {
   font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+body::after {
+  content: "데이터 출처: KBO 공식 기록실/일정/관중/경기시간, Naver Sports 경기센터 공개 응답(투구 위치). Naver pitch-zone 데이터는 공식 문서화 API가 아니며 구조가 변경될 수 있습니다.";
+  display: block;
+  width: min(1280px, calc(100% - 28px));
+  margin: 0 auto 22px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .vb-header {
   position: sticky;
   top: 0;
@@ -1040,6 +1052,165 @@ svg {
 
 .stack-grid span {
   font-size: 13px;
+}
+
+/* Unified Visual Baseball layout for legacy dashboard pages. */
+.app-header {
+  z-index: 20;
+  display: flex;
+  grid-template-columns: none;
+  gap: 18px;
+  min-height: 58px;
+  padding: 0 clamp(14px, 3vw, 36px);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.brand {
+  flex: 0 0 auto;
+  gap: 0;
+}
+
+.brand-mark,
+.brand p {
+  display: none;
+}
+
+.brand h1 {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.top-nav {
+  flex: 1 1 auto;
+  gap: 2px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.nav-button {
+  min-height: auto;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.nav-button.active,
+.nav-button:hover {
+  color: #fff;
+  background: var(--ink);
+}
+
+body > main:not(.vb-main) {
+  width: min(1280px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 26px 0 56px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+  min-height: 0;
+  padding: 16px 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero h2 {
+  max-width: 760px;
+  font-size: clamp(30px, 5vw, 52px);
+  line-height: 1.08;
+}
+
+.standings-hero {
+  min-height: 0;
+}
+
+.hero-controls {
+  display: flex;
+  gap: 8px;
+  min-width: min(420px, 100%);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.hero-controls label {
+  min-width: 150px;
+}
+
+.ai-question-box {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+}
+
+.section-band {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.section-band + .section-band {
+  margin-top: 18px;
+}
+
+.section-title,
+.panel-head {
+  margin-bottom: 14px;
+}
+
+.today-card,
+.spotlight-card,
+.chart-panel,
+.story-card,
+.ai-panel {
+  box-shadow: none;
+}
+
+.today-card,
+.spotlight-card,
+.story-card {
+  background: var(--panel-soft);
+}
+
+.primary-card {
+  background: var(--ink);
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.standings-table th,
+.standings-table td {
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font-size: 13px;
+}
+
+.standings-table th {
+  background: var(--panel-soft);
+}
+
+.standings-table td:first-child,
+.standings-table td:last-child {
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
 }
 
 @media (max-width: 1120px) {
