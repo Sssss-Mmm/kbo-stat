@@ -93,6 +93,7 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
 def update_players(year: int) -> None:
     import crawl_kbo_hitter
     import crawl_kbo_pitcher
+    import crawl_kbo_players
 
     print(f"[daily] updating hitter leaderboard for {year}")
     crawl_kbo_hitter.crawl(start=year, end=year, overwrite=True)
@@ -100,10 +101,24 @@ def update_players(year: int) -> None:
     print(f"[daily] updating pitcher leaderboard for {year}")
     crawl_kbo_pitcher.crawl(start=year, end=year, overwrite=True)
 
+    print("[daily] updating current registered player list")
+    crawl_kbo_players.crawl()
+
     import build_hitter_metrics
 
     print(f"[daily] rebuilding hitter metric dataset for {year}")
     build_hitter_metrics.build(year)
+
+
+def update_pitch_zones(target_date: str | None = None) -> None:
+    import crawl_naver_pitch_zones
+
+    if target_date:
+        day = crawl_naver_pitch_zones.parse_date(target_date)
+    else:
+        day = crawl_naver_pitch_zones.current_kst_date()
+    print(f"[daily] updating Naver pitch-zone data for {day}")
+    crawl_naver_pitch_zones.crawl(day)
 
 
 def load_to_db() -> None:
@@ -126,7 +141,22 @@ def main() -> None:
     parser.add_argument(
         "--players",
         action="store_true",
-        help="also refresh current-season hitter and pitcher CSVs",
+        help="also refresh current-season hitter, pitcher, and registered-player CSVs",
+    )
+    parser.add_argument(
+        "--registered-players",
+        action="store_true",
+        help="refresh only the current KBO registered-player list",
+    )
+    parser.add_argument(
+        "--pitch-zones",
+        action="store_true",
+        help="also collect Naver Sports pitch-level relay data for one date",
+    )
+    parser.add_argument(
+        "--pitch-date",
+        default=None,
+        help="YYYY-MM-DD date for --pitch-zones; defaults to today in KST",
     )
     parser.add_argument(
         "--db",
@@ -138,8 +168,15 @@ def main() -> None:
     started = datetime.now(ZoneInfo("Asia/Seoul"))
     print(f"[daily] started {started:%Y-%m-%d %H:%M:%S %Z}")
     update_fast(args.year)
+    if args.registered_players:
+        import crawl_kbo_players
+
+        print("[daily] updating current registered player list")
+        crawl_kbo_players.crawl()
     if args.players:
         update_players(args.year)
+    if args.pitch_zones:
+        update_pitch_zones(args.pitch_date)
     if args.db:
         load_to_db()
     finished = datetime.now(ZoneInfo("Asia/Seoul"))

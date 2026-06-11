@@ -30,7 +30,12 @@
       "Bash(git commit -m ' *)",
       "Bash(git check-ignore *)",
       "Bash(xargs ls -la)",
-      "Bash(awk '{print $5, $NF}')"
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(docker exec *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8000/web/api.js)",
+      "Bash(curl -s http://localhost:8000/web/standings.html)",
+      "Bash(curl -s http://localhost:8000/web/standings.js)",
+      "Bash(curl -s -H \"Origin: http://localhost:8000\" -D - \"http://localhost:8001/api/team-rank?season=2026\" -o /dev/null)"
     ]
   }
 }
