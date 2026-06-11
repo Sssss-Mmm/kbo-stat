@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Home from './pages/Home'
 import Standings from './pages/Standings'
 import Schedule from './pages/Schedule'
 import Players from './pages/Players'
@@ -6,14 +7,20 @@ import Zones from './pages/Zones'
 import './App.css'
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('standings')
+  const [currentPage, setCurrentPage] = useState('home')
 
   return (
     <div className="app">
       <header className="header">
         <h1>KBO Dashboard</h1>
         <nav className="nav">
-          <button 
+          <button
+            className={currentPage === 'home' ? 'active' : ''}
+            onClick={() => setCurrentPage('home')}
+          >
+            HOME
+          </button>
+          <button
             className={currentPage === 'standings' ? 'active' : ''}
             onClick={() => setCurrentPage('standings')}
           >
@@ -40,6 +47,7 @@ function App() {
         </nav>
       </header>
       <main className="main">
+        {currentPage === 'home' && <Home />}
         {currentPage === 'standings' && <Standings />}
         {currentPage === 'schedule' && <Schedule />}
         {currentPage === 'players' && <Players />}
