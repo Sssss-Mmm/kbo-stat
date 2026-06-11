@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>핫/콜드존 | AI Baseball Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .zone-layout { display: grid; grid-template-columns: minmax(320px, 380px) 1fr; gap: 20px; align-items: start; }
+      @media (max-width: 880px) { .zone-layout { grid-template-columns: 1fr; } }
+      .toggle-group { display: inline-flex; border: 1px solid var(--vb-border, #d4dae0); border-radius: 8px; overflow: hidden; }
+      .toggle-group button { border: 0; background: #fff; padding: 7px 14px; cursor: pointer; font-size: 13px; color: #4a5560; }
+      .toggle-group button.active { background: #243b6b; color: #fff; }
+      .zone-list-wrap { max-height: 640px; overflow-y: auto; }
+      .zone-list-wrap table tbody tr { cursor: pointer; }
+      .zone-list-wrap table tbody tr.selected { background: #eef2fb; }
+      .heat-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+      .heat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 360px; margin: 16px auto; }
+      .heat-cell { aspect-ratio: 1 / 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #16202c; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+      .heat-cell .cell-val { font-size: 20px; }
+      .heat-cell .cell-sub { font-size: 11px; font-weight: 500; opacity: .8; }
+      .heat-cell.empty { background: #eef1f4 !important; color: #9aa4ad; }
+      .heat-frame { position: relative; padding: 26px; }
+      .heat-frame .axis { position: absolute; font-size: 11px; color: #8893a0; }
+      .heat-frame .axis-top { top: 4px; left: 50%; transform: translateX(-50%); }
+      .heat-frame .axis-bottom { bottom: 4px; left: 50%; transform: translateX(-50%); }
+      .heat-legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7681; justify-content: center; margin-top: 8px; }
+      .heat-legend .bar { width: 160px; height: 10px; border-radius: 6px; background: linear-gradient(90deg, #3b6fd4, #f2f4f6, #d8403a); }
+      .zone-note { color: #6b7681; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <header class="vb-header">
+      <a class="vb-logo" href="./index.html">AI Baseball Lab</a>
+      <nav class="vb-nav" aria-label="Main pages">
+        <a data-page="home" href="./index.html">HOME</a>
+        <a data-page="schedule" href="./schedule.html">일정</a>
+        <a data-page="standings" href="./standings.html">팀/순위</a>
+        <a data-page="batting" href="./batting.html">타자</a>
+        <a data-page="pitching" href="./pitching.html">투수</a>
+        <a data-page="zones" href="./zones.html">핫/콜드존</a>
+        <a data-page="distance" href="./distance.html">이동거리</a>
+        <a data-page="attendance" href="./attendance.html">관중</a>
+        <a data-page="gametime" href="./gametime.html">경기시간</a>
+        <a data-page="lab" href="./lab.html">AI Lab</a>
+      </nav>
+    </header>
+    <main class="vb-main">
+      <section class="vb-title">
+        <div>
+          <p>네이버 PTS 투구 추적 기반 · 스트라이크존 3×3</p>
+          <h1>핫/콜드존</h1>
+        </div>
+        <div class="vb-controls">
+          <select id="seasonSelect"></select>
+          <div class="toggle-group" id="roleToggle">
+            <button data-role="batter" class="active">타자</button>
+            <button data-role="pitcher">투수</button>
+          </div>
+          <select id="teamSelect"></select>
+          <div class="toggle-group" id="metricToggle">
+            <button data-metric="hit" class="active">타율/피안타율</button>
+            <button data-metric="swing">스윙률</button>
+          </div>
+        </div>
+      </section>
+      <section class="vb-panel">
+        <div class="zone-layout">
+          <div>
+            <div class="vb-panel-head">
+              <div><h2 id="listTitle">타자</h2><p id="listNote">-</p></div>
+            </div>
+            <div class="table-wrap zone-list-wrap">
+              <table class="vb-table">
+                <thead>
+                  <tr><th>#</th><th>선수</th><th>팀</th><th>투구</th><th id="listMetricHead">타율</th></tr>
+                </thead>
+                <tbody id="playerRows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="heat-head">
+              <div><h2 id="heatTitle">선수를 선택하세요</h2><p class="zone-note" id="heatNote">왼쪽 목록에서 선수를 고르면 존별 기록이 표시됩니다.</p></div>
+            </div>
+            <div class="heat-frame">
+              <span class="axis axis-top">높은 코스</span>
+              <div class="heat-grid" id="heatGrid"></div>
+              <span class="axis axis-bottom">낮은 코스</span>
+            </div>
+            <div class="heat-legend"><span>낮음</span><span class="bar"></span><span>높음</span><span id="legendAvg" style="margin-left:10px;"></span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="./api.js"></script>
+    <script src="./vb-data.js"></script>
+    <script src="./zones.js"></script>
+  </body>
+</html>

@@ -13,6 +13,9 @@ COPY data /app/data
 
 WORKDIR /app/kbo-dashboard/backend
 
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8001
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# 기동 시 DB가 비어 있으면 시드한 뒤 uvicorn 실행.
+CMD ["./entrypoint.sh"]

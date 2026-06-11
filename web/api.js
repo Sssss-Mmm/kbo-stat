@@ -49,6 +49,8 @@ function csvRoots(fileName) {
     fileName.startsWith("kbo_team_games_")
     || fileName.startsWith("kbo_team_monthly_")
     || fileName.startsWith("kbo_hitter_metrics_")
+    || fileName.startsWith("kbo_batter_zones_")
+    || fileName.startsWith("kbo_pitcher_zones_")
   ) {
     return ["../data/processed", "/data/processed", "/web/data/processed", "./data/processed"];
   }

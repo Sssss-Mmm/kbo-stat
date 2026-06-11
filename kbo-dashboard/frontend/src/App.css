@@ -5,46 +5,60 @@
   flex-direction: column;
 }
 
+/* vb-header: 스티키 반투명 + 블러 */
 .header {
-  background-color: #2c3e50;
-  color: white;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 58px;
+  padding: 0 clamp(14px, 3vw, 36px);
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
 }
 
+/* 로고처럼 보이게 */
 .header h1 {
-  font-size: 28px;
-  margin-bottom: 15px;
+  flex: 0 0 auto;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
+/* vb-nav: 어두운 알약 활성 */
 .nav {
   display: flex;
-  gap: 10px;
+  gap: 2px;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .nav button {
-  padding: 10px 20px;
-  background-color: #34495e;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.nav button:hover {
-  background-color: #455a64;
-}
-
+.nav button:hover,
 .nav button.active {
-  background-color: #3498db;
+  color: #fff;
+  background: var(--ink);
 }
 
+/* vb-main: 중앙 정렬 1280 */
 .main {
   flex: 1;
-  padding: 20px;
-  max-width: 1200px;
+  width: min(1280px, calc(100% - 28px));
   margin: 0 auto;
-  width: 100%;
+  padding: 26px 0 40px;
 }
