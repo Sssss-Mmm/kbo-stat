@@ -10,6 +10,10 @@ services:
       DATABASE_URL: postgresql://kbo_user:kbo_password@postgres:5432/kbo_dashboard
     ports:
       - "8001:8001"
+    volumes:
+      # 호스트 data/ 를 마운트해 일일 크롤링 결과가 컨테이너에 바로 반영되게 한다.
+      # (빌드타임 COPY data 스냅샷을 덮어쓴다.)
+      - ../data:/app/data
     networks:
       - kbo_network
     depends_on:

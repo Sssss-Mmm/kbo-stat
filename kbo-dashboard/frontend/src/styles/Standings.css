@@ -1,47 +1,24 @@
 .standings-container {
-  background-color: white;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  box-shadow: var(--shadow);
 }
 
 .standings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #ecf0f1;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .standings-header h2 {
   font-size: 24px;
-  color: #2c3e50;
-}
-
-.standings-header select {
-  padding: 8px 12px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.loading,
-.error {
-  padding: 20px;
-  text-align: center;
-  font-size: 16px;
-  border-radius: 4px;
-}
-
-.loading {
-  background-color: #ecf0f1;
-  color: #2c3e50;
-}
-
-.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }

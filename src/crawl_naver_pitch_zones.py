@@ -33,7 +33,10 @@ IN_PLAY_RESULTS = {"H"}
 SWING_RESULTS = {"H", "F", "S", "W"}
 CALLED_STRIKE_RESULTS = {"T"}
 BALL_RESULTS = {"B"}
-HIT_WORDS = ("안타", "홈런", "2루타", "3루타")
+# At-bat outcome descriptions: hits contain one of these words, while outs,
+# errors and fielder's choices never do. Errors/FC are excluded explicitly.
+HIT_WORDS = ("안타", "루타", "홈런")
+NON_HIT_WORDS = ("실책", "야수선택")
 
 HEADERS = {
     "User-Agent": (
@@ -87,6 +90,33 @@ def fetch_relay(game_id: str, inning: int) -> dict:
     url = f"{API_BASE}/schedule/games/{game_id}/relay?inning={inning}"
     result = get_json(url, referer=referer)
     return result.get("textRelayData", {})
+
+
+def fetch_name_map(game_id: str) -> dict[str, str]:
+    """Build a playerId -> name map from the game record box scores.
+
+    The relay payload only carries player ids (and the batter name in the
+    at-bat header). The record endpoint's batter/pitcher box scores list every
+    player who appeared, with both pcode/playerCode and name, so it gives a
+    complete id->name lookup for the game.
+    """
+    referer = f"https://m.sports.naver.com/game/{game_id}/record"
+    url = f"{API_BASE}/schedule/games/{game_id}/record"
+    try:
+        record = get_json(url, referer=referer).get("recordData", {})
+    except (requests.RequestException, RuntimeError):
+        return {}
+
+    name_map: dict[str, str] = {}
+    for key in ("battersBoxscore", "pitchersBoxscore"):
+        box = record.get(key) or {}
+        for side in ("away", "home"):
+            for player in box.get(side, []) or []:
+                code = player.get("pcode") or player.get("playerCode")
+                name = player.get("name")
+                if code and name:
+                    name_map[str(code)] = name
+    return name_map
 
 
 def plate_z(pitch: dict) -> float | None:
@@ -172,6 +202,36 @@ def batter_name_from_relay(relay: dict) -> str | None:
     return match.group(1) if match else None
 
 
+def at_bat_result(relay: dict, batter_name: str | None) -> str:
+    """Return the at-bat outcome description, e.g. "좌익수 앞 1루타".
+
+    The play result is a non-pitch text event formatted "{batter} : {desc}",
+    distinct from baserunner advancement lines. We pick the line whose subject
+    is the current batter; falling back to the last non-pitch result-like line.
+    """
+    candidates = []
+    for option in relay.get("textOptions", []):
+        if not isinstance(option, dict) or option.get("ptsPitchId") or option.get("pitchNum"):
+            continue
+        text = option.get("text") or ""
+        if " : " not in text:
+            continue
+        subject, _, desc = text.partition(" : ")
+        candidates.append((subject.strip(), desc.strip()))
+
+    if batter_name:
+        for subject, desc in candidates:
+            if subject == batter_name:
+                return desc
+    return candidates[-1][1] if candidates else ""
+
+
+def is_hit_description(desc: str) -> bool:
+    if any(word in desc for word in NON_HIT_WORDS):
+        return False
+    return any(word in desc for word in HIT_WORDS)
+
+
 def merge_pitch_options(relay: dict) -> list[dict]:
     pts_by_id = {
         str(option.get("pitchId")): option
@@ -187,20 +247,38 @@ def merge_pitch_options(relay: dict) -> list[dict]:
     return rows
 
 
-def row_from_pitch(game: dict, relay: dict, text_option: dict, pitch: dict) -> dict:
+def is_home_batting(relay: dict) -> bool:
+    """relay.homeOrAway==1 means the home team is batting (pitcher is away)."""
+    value = relay.get("homeOrAway")
+    return str(value) in {"1", "home", "HOME"}
+
+
+def row_from_pitch(
+    game: dict,
+    relay: dict,
+    text_option: dict,
+    pitch: dict,
+    name_map: dict[str, str] | None = None,
+    result_text: str = "",
+) -> dict:
     state = text_option.get("currentGameState") or {}
-    players = text_option.get("currentPlayersInfo") or {}
-    away_player = players.get("away") or {}
-    home_player = players.get("home") or {}
-    batter_side = away_player if away_player.get("playerType") == "batter" else home_player
-    pitcher_side = away_player if away_player.get("playerType") == "pitcher" else home_player
+    name_map = name_map or {}
 
     x = safe_float(pitch.get("crossPlateX"))
     z = plate_z(pitch)
     bottom = safe_float(pitch.get("bottomSz"))
     top = safe_float(pitch.get("topSz"))
-    result_text = relay.get("title") or ""
     pitch_result = text_option.get("pitchResult", "")
+    in_play = pitch_result in IN_PLAY_RESULTS
+
+    away_team = game.get("awayTeamName")
+    home_team = game.get("homeTeamName")
+    batter_is_home = is_home_batting(relay)
+    batter_team = home_team if batter_is_home else away_team
+    pitcher_team = away_team if batter_is_home else home_team
+
+    batter_id = state.get("batter")
+    pitcher_id = state.get("pitcher")
 
     return {
         "Date": game.get("gameDate"),
@@ -208,13 +286,15 @@ def row_from_pitch(game: dict, relay: dict, text_option: dict, pitch: dict) -> d
         "Season": season_from_game(game),
         "Inning": pitch.get("inn") or relay.get("inn"),
         "HomeAway": relay.get("homeOrAway"),
-        "AwayTeam": game.get("awayTeamName"),
-        "HomeTeam": game.get("homeTeamName"),
-        "BatterId": state.get("batter"),
-        "PitcherId": state.get("pitcher"),
-        "BatterName": batter_name_from_relay(relay),
+        "AwayTeam": away_team,
+        "HomeTeam": home_team,
+        "BatterTeam": batter_team,
+        "PitcherTeam": pitcher_team,
+        "BatterId": batter_id,
+        "PitcherId": pitcher_id,
+        "BatterName": name_map.get(str(batter_id)) or batter_name_from_relay(relay),
         "BatterSide": pitch.get("stance"),
-        "PitcherName": pitcher_side.get("name"),
+        "PitcherName": name_map.get(str(pitcher_id)),
         "PitchNo": text_option.get("pitchNum"),
         "PitchId": text_option.get("ptsPitchId"),
         "PitchText": text_option.get("text"),
@@ -234,8 +314,8 @@ def row_from_pitch(game: dict, relay: dict, text_option: dict, pitch: dict) -> d
         "IsSwing": pitch_result in SWING_RESULTS,
         "IsBall": pitch_result in BALL_RESULTS,
         "IsCalledStrike": pitch_result in CALLED_STRIKE_RESULTS,
-        "IsInPlay": pitch_result in IN_PLAY_RESULTS,
-        "IsHit": pitch_result in IN_PLAY_RESULTS and any(word in result_text for word in HIT_WORDS),
+        "IsInPlay": in_play,
+        "IsHit": in_play and is_hit_description(result_text),
     }
 
 
@@ -246,14 +326,19 @@ def crawl_date(game_date: date, pause_seconds: float = 0.15) -> pd.DataFrame:
         game_id = game.get("gameId")
         if not game_id or game.get("statusCode") not in {"RESULT", "ENDED", "STARTED"}:
             continue
+        name_map = fetch_name_map(game_id)
         for inning in range(1, 13):
             relay = fetch_relay(game_id, inning)
             relays = relay.get("textRelays", [])
             if not relays and inning > 9:
                 break
             for text_relay in relays:
+                batter_name = batter_name_from_relay(text_relay)
+                result_text = at_bat_result(text_relay, batter_name)
                 for text_option, pitch in merge_pitch_options(text_relay):
-                    rows.append(row_from_pitch(game, text_relay, text_option, pitch))
+                    rows.append(
+                        row_from_pitch(game, text_relay, text_option, pitch, name_map, result_text)
+                    )
             time.sleep(pause_seconds)
     return pd.DataFrame(rows)
 

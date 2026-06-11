@@ -23,18 +23,40 @@ TWO_DAYS_AGO="$(TZ=Asia/Seoul date -d '2 days ago' +%F)"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] start daily KBO update season=${YEAR}"
 
-echo "[official] standings/schedule/attendance/game-time"
+COMPOSE_FILE="${ROOT_DIR}/kbo-dashboard/docker-compose.yml"
+
+echo "[official] standings/schedule/attendance/game-time/players"
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "DRY_RUN: ${PYTHON_BIN} src/update_daily.py --year ${YEAR}"
+  echo "DRY_RUN: ${PYTHON_BIN} src/update_daily.py --year ${YEAR} --players"
+  echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_player_stats.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_pitch_zones.py --from-date ${TWO_DAYS_AGO} --to-date ${YESTERDAY}"
+  echo "DRY_RUN: ${PYTHON_BIN} src/build_zone_metrics.py --year ${YEAR}"
+  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} exec -T backend python migrate.py"
   exit 0
 fi
 
-"${PYTHON_BIN}" src/update_daily.py --year "${YEAR}"
+"${PYTHON_BIN}" src/update_daily.py --year "${YEAR}" --players
+
+echo "[naver-players] full-roster season stats (hitters/pitchers)"
+"${PYTHON_BIN}" src/crawl_naver_player_stats.py --year "${YEAR}"
 
 echo "[naver-pitch] refresh ${TWO_DAYS_AGO}..${YESTERDAY}"
 "${PYTHON_BIN}" src/crawl_naver_pitch_zones.py \
   --from-date "${TWO_DAYS_AGO}" \
   --to-date "${YESTERDAY}"
+
+echo "[zones] rebuild hot/cold zone datasets season=${YEAR}"
+"${PYTHON_BIN}" src/build_zone_metrics.py --year "${YEAR}"
+
+# 갱신된 CSV를 DB로 재적재(컨테이너는 data 를 bind mount 하므로 새 CSV 가 보인다).
+# 백엔드 컨테이너가 떠 있을 때만 수행. zone 데이터는 CSV 직접 서빙이라 재적재 불필요.
+echo "[db] reload database from refreshed CSVs"
+if command -v docker >/dev/null 2>&1 && \
+   docker compose -f "${COMPOSE_FILE}" ps -q backend 2>/dev/null | grep -q .; then
+  docker compose -f "${COMPOSE_FILE}" exec -T backend python migrate.py \
+    || echo "[db] migrate.py returned non-zero (continuing)"
+else
+  echo "[db] backend container not running — skipping DB reload"
+fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] finished daily KBO update date=${TODAY}"

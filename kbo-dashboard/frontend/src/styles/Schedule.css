@@ -1,33 +1,28 @@
 .schedule-container {
-  background-color: white;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  box-shadow: var(--shadow);
 }
 
 .schedule-filters {
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .schedule-filters h2 {
   font-size: 24px;
-  color: #2c3e50;
-  margin-bottom: 15px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
 }
 
 .filter-group {
   display: flex;
-  gap: 10px;
-}
-
-.filter-group select,
-.filter-group input {
-  padding: 8px 12px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 14px;
+  gap: 8px;
 }
 
 .filter-group input {
@@ -38,31 +33,24 @@
 .schedule-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
-  margin-top: 20px;
+  font-size: 13px;
+  margin-top: 8px;
 }
 
-.schedule-table thead {
-  background-color: #34495e;
-  color: white;
-}
-
-.schedule-table th {
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  border: 1px solid #bdc3c7;
-}
-
+.schedule-table th,
 .schedule-table td {
-  padding: 12px;
-  border: 1px solid #ecf0f1;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
 }
 
-.schedule-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+.schedule-table thead th {
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .schedule-table tbody tr:hover {
-  background-color: #f0f0f0;
+  background: #f3f7fc;
 }
