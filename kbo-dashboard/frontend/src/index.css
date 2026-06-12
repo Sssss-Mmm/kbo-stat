@@ -12,6 +12,40 @@
   --accent-3: #2e65b8;
   --ink: #101820;
   --shadow: 0 12px 30px rgba(22, 33, 46, 0.08);
+  /* 다크모드 토큰화용(하드코딩 제거) */
+  --header-bg: rgba(255, 255, 255, 0.94);
+  --pill-bg: #101820;
+  --pill-text: #ffffff;
+  --hover: #f3f7fc;
+  --win-bg: #e9f6ee;
+  --loss-bg: #fdecec;
+  --draw-bg: #f1f3f5;
+  --card-primary-bg: #101820; /* "현재 1위" 강조 카드(흰 글씨) */
+  --tint-base: #ffffff; /* color-mix 틴트 베이스(순위/선택 행) */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e141a;
+  --panel: #161e26;
+  --panel-soft: #1d2832;
+  --text: #e6edf3;
+  --muted: #8b97a3;
+  --line: #2a3640;
+  --accent: #14a89a;
+  --accent-2: #e2685a;
+  --accent-3: #4b86d6;
+  --ink: #e6edf3;
+  --shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+  --header-bg: rgba(18, 24, 30, 0.92);
+  --pill-bg: #2f3d49;
+  --pill-text: #ffffff;
+  --hover: #1f2b35;
+  --win-bg: #16352440;
+  --loss-bg: #3a1c1c66;
+  --draw-bg: #232d36;
+  --card-primary-bg: #0c8a7e; /* 다크: 강조 카드(accent 톤, 흰 글씨 가독) */
+  --tint-base: #161e26; /* 다크: 틴트 베이스(어두운 패널톤) */
 }
 
 * {
@@ -73,8 +107,8 @@ input:focus {
 }
 
 .toggle-group button.active {
-  background: var(--ink);
-  color: #fff;
+  background: var(--pill-bg);
+  color: var(--pill-text);
 }
 
 .loading,

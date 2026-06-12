@@ -3,7 +3,8 @@ import axios from 'axios'
 import Scatter from '../components/charts/Scatter'
 import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
-import { teamColor } from '../lib/teamColors'
+import TodayGames from '../components/TodayGames'
+import { teamColor, teamEmblem } from '../lib/teamColors'
 import '../styles/Home.css'
 
 const TEAM_COUNT = 10
@@ -33,6 +34,13 @@ function recordWinRate(s) {
   const [w, , l] = String(s).split('-').map((x) => parseInt(x, 10) || 0)
   return w + l ? w / (w + l) : 0
 }
+// "22-10" 또는 "19-0-10" -> {w, l, pct}
+function parseRecord(s) {
+  const parts = String(s || '').split('-').map((x) => parseInt(x, 10) || 0)
+  const [w, l] = parts.length === 3 ? [parts[0], parts[2]] : [parts[0] || 0, parts[1] || 0]
+  return { w, l, pct: w + l ? w / (w + l) : null }
+}
+const fmtPct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '-')
 // "81 1/3" -> 81.333
 function parseIP(s) {
   if (s === null || s === undefined) return 0
@@ -75,6 +83,39 @@ function MiniTable({ columns, rows }) {
         ))}
       </tbody>
     </table>
+  )
+}
+
+function TeamCell({ team }) {
+  return (
+    <span className="team-cell">
+      {teamEmblem(team) && <img src={teamEmblem(team)} alt="" />}
+      <b style={{ color: teamColor(team) }}>{team}</b>
+    </span>
+  )
+}
+
+function StatRows({ rows }) {
+  return (
+    <div className="stat-rows">
+      {rows.map(([k, v]) => (
+        <div className="stat-row" key={k}><span>{k}</span><strong>{v}</strong></div>
+      ))}
+    </div>
+  )
+}
+
+function HlItem({ label, player, val }) {
+  const team = player?.['팀명']
+  return (
+    <li className="hl-item">
+      <span className="hl-label">{label}</span>
+      <span className="hl-player">
+        {teamEmblem(team) && <img src={teamEmblem(team)} alt="" />}
+        {player?.['선수명'] || '-'}
+      </span>
+      <strong className="hl-val">{val}</strong>
+    </li>
   )
 }
 
@@ -167,18 +208,58 @@ function Home() {
   const hitQ = useMemo(() => d.hitters.filter((h) => (h.AB || 0) >= 50), [d.hitters])
   const pitQ = useMemo(() => d.pitchers.filter((p) => parseIP(p.IP) >= 20), [d.pitchers])
 
-  // 리그 평균(규정 충족 기준)
+  // 리그 평균(규정 충족 기준 + 전체 표본으로 비율)
   const league = useMemo(() => {
     const h = d.hitters.filter((x) => x['규정충족'])
     const p = d.pitchers.filter((x) => x['규정충족'])
+    const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0)
+    const pa = sum(d.hitters, (x) => (x.AB || 0) + (x.BB || 0) + (x.HBP || 0))
+    const ip = sum(d.pitchers, (x) => parseIP(x.IP))
     return {
       avg: mean(h.map((x) => x.AVG).filter(Number.isFinite)),
       obp: mean(h.map((x) => x.OBP).filter(Number.isFinite)),
       slg: mean(h.map((x) => x.SLG).filter(Number.isFinite)),
       ops: mean(h.map((x) => x.OPS).filter(Number.isFinite)),
+      babip: mean(h.map((x) => x.BABIP).filter(Number.isFinite)),
       era: mean(p.map((x) => x.ERA).filter(Number.isFinite)),
       whip: mean(p.map((x) => x.WHIP).filter(Number.isFinite)),
+      kPct: pa ? sum(d.hitters, (x) => x.SO) / pa : NaN,
+      bbPct: pa ? sum(d.hitters, (x) => x.BB) / pa : NaN,
+      hr9: ip ? (sum(d.pitchers, (x) => x.HR) * 9) / ip : NaN,
     }
+  }, [d])
+
+  // 시즌 하이라이트 (부문 1위)
+  const highlights = useMemo(() => {
+    const qH = d.hitters.filter((x) => x['규정충족'])
+    const qP = d.pitchers.filter((x) => x['규정충족'])
+    const top = (arr, f) => [...arr].sort((a, b) => f(b) - f(a))[0]
+    return {
+      avg: top(qH, (x) => x.AVG || 0),
+      era: [...qP].sort((a, b) => (a.ERA ?? 99) - (b.ERA ?? 99))[0],
+      hr: top(d.hitters, (x) => x.HR || 0),
+      so: top(d.pitchers, (x) => x.SO || 0),
+      sb: top(d.hitters, (x) => x.SB || 0),
+    }
+  }, [d])
+
+  // 선구안(BB/K) · 제구력(K/BB) · 선발 안정성(QS%)
+  const discipline = useMemo(() => {
+    const bbk = d.hitters
+      .filter((x) => x['규정충족'] && (x.SO || 0) > 0)
+      .map((x) => ({ name: x['선수명'], team: x['팀명'], v: (x.BB || 0) / x.SO }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 8)
+    const kbb = [...d.pitchers]
+      .filter((x) => x['규정충족'])
+      .sort((a, b) => (b['K/BB'] || 0) - (a['K/BB'] || 0))
+      .slice(0, 8)
+    const qs = d.pitchers
+      .filter((x) => (x.QS || 0) > 0 && parseIP(x.IP) >= 30)
+      .map((x) => ({ name: x['선수명'], team: x['팀명'], v: (x.QS || 0) / (x.G || 1), qs: x.QS, g: x.G }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 8)
+    return { bbk, kbb, qs }
   }, [d])
 
   // 운영 데이터 요약
@@ -210,6 +291,8 @@ function Home() {
           ))}
         </select>
       </section>
+
+      <TodayGames standings={d.standings} />
 
       {loading && <p className="loading">로딩중...</p>}
       {error && <p className="error">{error}</p>}
@@ -256,21 +339,78 @@ function Home() {
             <RankRace series={race.series} dateCount={race.dateCount} teamCount={TEAM_COUNT} />
           </section>
 
+          {/* 순위 + 홈/원정 성적 */}
           <section className="panel-grid-2">
             <article className="panel">
-              <div className="panel-head"><h3>홈 / 원정 승률</h3><p>순위순</p></div>
-              <div className="ha-list">
-                {teamAgg.homeAway.map((t) => (
-                  <div className="ha-row" key={t.team}>
-                    <span className="ha-team">{t.team}</span>
-                    <span className="ha-bar"><span className="ha-fill home" style={{ width: `${t.home * 100}%` }} /></span>
-                    <span className="ha-num">{fmtRate(t.home)}</span>
-                    <span className="ha-bar"><span className="ha-fill away" style={{ width: `${t.away * 100}%` }} /></span>
-                    <span className="ha-num">{fmtRate(t.away)}</span>
-                  </div>
-                ))}
-                <div className="ha-legend"><span><i className="dot home" />홈</span><span><i className="dot away" />원정</span></div>
-              </div>
+              <div className="panel-head"><h3>KBO 팀 순위</h3><p>{season}시즌</p></div>
+              <MiniTable
+                columns={[
+                  { key: 'rk', label: '#', render: (_, i) => i + 1 },
+                  { key: 'team', label: '팀', left: true, render: (r) => <TeamCell team={r.team} /> },
+                  { key: 'games', label: 'G' },
+                  { key: 'wins', label: '승' },
+                  { key: 'losses', label: '패' },
+                  { key: 'draws', label: '무' },
+                  { key: 'win_rate', label: '승률', render: (r) => fmtRate(r.win_rate) },
+                  { key: 'games_behind', label: '게임차', render: (r) => (r.games_behind ? fmtOne(r.games_behind) : '-') },
+                  { key: 'streak', label: '연속' },
+                ]}
+                rows={[...d.standings].sort((a, b) => a.rank - b.rank)}
+              />
+            </article>
+            <article className="panel">
+              <div className="panel-head"><h3>홈 / 원정 성적</h3><p>홈 승률 순</p></div>
+              <MiniTable
+                columns={[
+                  { key: 'rk', label: '#', render: (_, i) => i + 1 },
+                  { key: 'team', label: '팀', left: true, render: (r) => <TeamCell team={r.team} /> },
+                  { key: 'hw', label: '홈승', render: (r) => parseRecord(r.home_record).w },
+                  { key: 'hl', label: '홈패', render: (r) => parseRecord(r.home_record).l },
+                  { key: 'hp', label: '홈승률', render: (r) => fmtRate(parseRecord(r.home_record).pct) },
+                  { key: 'aw', label: '원정승', render: (r) => parseRecord(r.away_record).w },
+                  { key: 'al', label: '원정패', render: (r) => parseRecord(r.away_record).l },
+                  { key: 'ap', label: '원정승률', render: (r) => fmtRate(parseRecord(r.away_record).pct) },
+                ]}
+                rows={[...d.standings].sort((a, b) => (parseRecord(b.home_record).pct || 0) - (parseRecord(a.home_record).pct || 0))}
+              />
+            </article>
+          </section>
+
+          {/* 리그 평균 · 시즌 하이라이트 · 선발 안정성 */}
+          <section className="panel-grid-4">
+            <article className="panel">
+              <div className="panel-head"><h3>리그 타격 평균</h3></div>
+              <StatRows rows={[['AVG', fmtRate(league.avg)], ['OBP', fmtRate(league.obp)], ['SLG', fmtRate(league.slg)], ['OPS', fmtRate(league.ops)], ['BABIP', fmtRate(league.babip)]]} />
+            </article>
+            <article className="panel">
+              <div className="panel-head"><h3>리그 투구 평균</h3></div>
+              <StatRows rows={[['ERA', fmtTwo(league.era)], ['WHIP', fmtTwo(league.whip)], ['K%', fmtPct(league.kPct)], ['BB%', fmtPct(league.bbPct)], ['HR/9', fmtTwo(league.hr9)]]} />
+            </article>
+            <article className="panel">
+              <div className="panel-head"><h3>시즌 하이라이트</h3></div>
+              <ul className="hl-list">
+                <HlItem label="타율" player={highlights.avg} val={fmtRate(highlights.avg?.AVG)} />
+                <HlItem label="ERA" player={highlights.era} val={fmtTwo(highlights.era?.ERA)} />
+                <HlItem label="홈런" player={highlights.hr} val={`${highlights.hr?.HR ?? '-'}`} />
+                <HlItem label="탈삼진" player={highlights.so} val={`${highlights.so?.SO ?? '-'}`} />
+                <HlItem label="도루" player={highlights.sb} val={`${highlights.sb?.SB ?? '-'}`} />
+              </ul>
+            </article>
+            <article className="panel">
+              <div className="panel-head"><h3>선발 안정성 (QS%)</h3><p>QS / 등판</p></div>
+              <BarList items={discipline.qs.map((x) => ({ label: `${x.name} (${x.team})`, value: x.v, color: teamColor(x.team) }))} fmt={fmtPct} />
+            </article>
+          </section>
+
+          {/* 선구안 · 제구력 · 득실차 */}
+          <section className="panel-grid-3">
+            <article className="panel">
+              <div className="panel-head"><h3>타자 선구안 (BB/K)</h3><p>규정 타석 · 상위</p></div>
+              <BarList items={discipline.bbk.map((x) => ({ label: `${x.name} (${x.team})`, value: x.v, color: teamColor(x.team) }))} fmt={fmtTwo} />
+            </article>
+            <article className="panel">
+              <div className="panel-head"><h3>투수 제구력 (K/BB)</h3><p>규정 이닝 · 상위</p></div>
+              <BarList items={discipline.kbb.map((x) => ({ label: `${x['선수명']} (${x['팀명']})`, value: x['K/BB'] || 0, color: teamColor(x['팀명']) }))} fmt={fmtTwo} />
             </article>
             <article className="panel">
               <div className="panel-head"><h3>팀 득실차</h3><p>득점 − 실점</p></div>
@@ -301,6 +441,15 @@ function Home() {
               <div className="panel-head"><h3>WHIP vs ERA</h3><p>{pitQ.length}명 (20이닝+)</p></div>
               <Scatter points={pitQ.map((p) => ({ x: p.WHIP, y: p.ERA, color: teamColor(p['팀명']), label: p['선수명'] }))} xLabel="WHIP" yLabel="ERA" fmt={fmtTwo} />
             </article>
+          </section>
+
+          {/* 홈런 경쟁 */}
+          <section className="panel">
+            <div className="panel-head"><h3>홈런 경쟁</h3><p>홈런 상위 10명 · 팀 색상</p></div>
+            <BarList
+              items={[...d.hitters].sort((a, b) => (b.HR || 0) - (a.HR || 0)).slice(0, 10).map((h) => ({ label: `${h['선수명']} (${h['팀명']})`, value: h.HR || 0, color: teamColor(h['팀명']) }))}
+              fmt={fmtInt}
+            />
           </section>
 
           {/* 리더보드 */}

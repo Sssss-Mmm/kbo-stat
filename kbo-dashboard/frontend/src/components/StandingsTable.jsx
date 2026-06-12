@@ -1,4 +1,8 @@
+import { teamEmblem } from '../lib/teamColors'
 import '../styles/StandingsTable.css'
+
+const fmtRate = (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '-')
+const fmtGB = (v) => (Number.isFinite(v) ? (v === 0 ? '-' : v.toFixed(1)) : '-')
 
 function StandingsTable({ data }) {
   return (
@@ -19,13 +23,16 @@ function StandingsTable({ data }) {
         {data.map((team, index) => (
           <tr key={index} className={`rank-${index + 1}`}>
             <td>{index + 1}</td>
-            <td className="team-name">{team.team}</td>
+            <td className="team-name">
+              {teamEmblem(team.team) && <img className="team-emblem" src={teamEmblem(team.team)} alt={team.team} loading="lazy" />}
+              {team.team}
+            </td>
             <td>{team.games}</td>
             <td className="win">{team.wins}</td>
             <td className="loss">{team.losses}</td>
             <td className="draw">{team.draws}</td>
-            <td className="winrate">{team.winrate}</td>
-            <td>{team.gamesBehind}</td>
+            <td className="winrate">{fmtRate(team.win_rate)}</td>
+            <td>{fmtGB(team.games_behind)}</td>
           </tr>
         ))}
       </tbody>

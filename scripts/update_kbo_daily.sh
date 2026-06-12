@@ -59,4 +59,8 @@ else
   echo "[db] backend container not running — skipping DB reload"
 fi
 
+# 성공 마커: 기동 캐치업(start_kbo.sh)이 "오늘 이미 갱신됨"을 판정하는 데 사용.
+# set -e 라 위 단계가 실패하면 여기까지 못 오므로, 마커는 전체 성공 시에만 갱신된다.
+echo "${TODAY}" > "${LOG_DIR}/.last_update_date"
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] finished daily KBO update date=${TODAY}"
