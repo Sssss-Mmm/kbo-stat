@@ -15,7 +15,7 @@
   gap: 18px;
   min-height: 58px;
   padding: 0 clamp(14px, 3vw, 36px);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(14px);
 }
@@ -51,8 +51,27 @@
 
 .nav button:hover,
 .nav button.active {
-  color: #fff;
-  background: var(--ink);
+  color: var(--pill-text);
+  background: var(--pill-bg);
+}
+
+/* 테마 토글 */
+.theme-toggle {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--panel-soft);
 }
 
 /* vb-main: 중앙 정렬 1280 */

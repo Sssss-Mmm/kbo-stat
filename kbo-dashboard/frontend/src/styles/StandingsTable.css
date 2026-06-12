@@ -27,7 +27,7 @@
 }
 
 .standings-table tbody tr:hover {
-  background: #f3f7fc;
+  background: var(--hover);
 }
 
 .standings-table .team-name {
@@ -35,16 +35,24 @@
   color: var(--text);
 }
 
+.standings-table .team-emblem {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 7px;
+}
+
 .standings-table .rank-1 {
-  background: color-mix(in srgb, var(--accent) 8%, white);
+  background: color-mix(in srgb, var(--accent) 8%, var(--tint-base));
 }
 
 .standings-table .rank-2 {
-  background: color-mix(in srgb, var(--accent-3) 7%, white);
+  background: color-mix(in srgb, var(--accent-3) 7%, var(--tint-base));
 }
 
 .standings-table .rank-3 {
-  background: color-mix(in srgb, var(--accent-2) 7%, white);
+  background: color-mix(in srgb, var(--accent-2) 7%, var(--tint-base));
 }
 
 .standings-table .win {

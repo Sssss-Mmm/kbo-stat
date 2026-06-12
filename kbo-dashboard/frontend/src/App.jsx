@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Home from './pages/Home'
 import Standings from './pages/Standings'
 import Schedule from './pages/Schedule'
@@ -6,8 +6,20 @@ import Players from './pages/Players'
 import Zones from './pages/Zones'
 import './App.css'
 
+function getInitialTheme() {
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState('home')
+  const [theme, setTheme] = useState(getInitialTheme)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   return (
     <div className="app">
@@ -45,6 +57,14 @@ function App() {
             핫/콜드존
           </button>
         </nav>
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          aria-label="테마 전환"
+          title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
       </header>
       <main className="main">
         {currentPage === 'home' && <Home />}

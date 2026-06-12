@@ -23,34 +23,273 @@
 .filter-group {
   display: flex;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
-.filter-group input {
-  flex: 1;
-  max-width: 300px;
+/* 팀 선택 칩 */
+.team-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.schedule-table {
-  width: 100%;
-  border-collapse: collapse;
+.team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
   font-size: 13px;
-  margin-top: 8px;
-}
-
-.schedule-table th,
-.schedule-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-}
-
-.schedule-table thead th {
-  background: var(--panel-soft);
+  font-weight: 800;
   color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.team-chip .chip-emblem {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.team-chip:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.team-chip.active {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* 달력 네비게이션 */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 6px 0 14px;
+}
+
+.cal-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  min-width: 120px;
+  text-align: center;
+}
+
+.cal-nav-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cal-nav-btn:hover:not(:disabled) {
+  background: var(--panel-soft);
+}
+
+.cal-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* 달력 그리드 */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cal-wd {
+  background: var(--panel-soft);
+  text-align: center;
+  padding: 8px 0;
   font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.cal-wd.sun {
+  color: #d05240;
+}
+
+.cal-wd.sat {
+  color: #2e65b8;
+}
+
+.cal-cell {
+  background: var(--panel);
+  min-height: 96px;
+  padding: 5px 5px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-cell.empty {
+  background: var(--panel-soft);
+}
+
+.cal-cell.today {
+  background: var(--hover);
+  box-shadow: inset 0 0 0 2px var(--accent-3);
+}
+
+.cal-date {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  padding-left: 2px;
+}
+
+.cal-date.sun {
+  color: #d05240;
+}
+
+.cal-date.sat {
+  color: #2e65b8;
+}
+
+.cal-games {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* 경기 칩 (전체 보기) */
+.game-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--panel-soft);
+  border-radius: 5px;
+  padding: 2px 3px;
+  line-height: 1.3;
+}
+
+.g-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.g-emblem {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.game-chip.team .g-emblem {
+  width: 16px;
+  height: 16px;
+}
+
+.g-team:hover {
+  text-decoration: underline;
+}
+
+.g-score {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 경기 칩 (팀 필터 보기) */
+.game-chip.team {
+  justify-content: flex-start;
+  gap: 5px;
+  border-left: 3px solid var(--line);
+  padding: 3px 5px;
+}
+
+.tg-loc {
+  color: var(--muted);
+  font-weight: 800;
+  width: 14px;
+}
+
+.tg-opp {
+  font-weight: 800;
+  color: var(--text);
+  flex: 1;
+}
+
+.tg-score {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tg-res {
   font-weight: 900;
 }
 
-.schedule-table tbody tr:hover {
-  background: #f3f7fc;
+.game-chip.team.tg-win {
+  background: var(--win-bg);
+}
+.game-chip.team.tg-win .tg-res {
+  color: #1f9d57;
+}
+
+.game-chip.team.tg-loss {
+  background: var(--loss-bg);
+}
+.game-chip.team.tg-loss .tg-res {
+  color: #d05240;
+}
+
+.game-chip.team.tg-draw {
+  background: var(--draw-bg);
+}
+.game-chip.team.tg-draw .tg-res {
+  color: var(--muted);
+}
+
+.game-chip.team.tg-pending {
+  background: var(--panel-soft);
+}
+
+.loading,
+.error {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.error {
+  color: #d05240;
+}
+
+@media (max-width: 720px) {
+  .cal-cell {
+    min-height: 70px;
+  }
+  .game-chip {
+    font-size: 10px;
+  }
 }

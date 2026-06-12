@@ -15,3 +15,23 @@ export const TEAM_COLORS = {
 export function teamColor(team) {
   return TEAM_COLORS[team] || '#53636f'
 }
+
+// 팀 엠블럼: KBO 공식 엠블럼(Naver CDN 원본)을 로컬에 받아 자체 origin 에서 서빙.
+// CDN 직접 참조는 핫링크(Referer) 차단으로 403 이 나므로 public/emblems/ 로 vendoring.
+const EMBLEM = (code) => `/emblems/${code}.png`
+export const TEAM_EMBLEMS = {
+  LG: EMBLEM('LG'),
+  KT: EMBLEM('KT'),
+  삼성: EMBLEM('SS'),
+  KIA: EMBLEM('HT'),
+  한화: EMBLEM('HH'),
+  두산: EMBLEM('OB'),
+  SSG: EMBLEM('SK'),
+  NC: EMBLEM('NC'),
+  롯데: EMBLEM('LT'),
+  키움: EMBLEM('WO'),
+}
+
+export function teamEmblem(team) {
+  return TEAM_EMBLEMS[team] || null
+}

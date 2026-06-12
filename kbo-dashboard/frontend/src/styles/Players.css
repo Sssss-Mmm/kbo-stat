@@ -65,7 +65,7 @@
 }
 
 .players-table thead th:hover {
-  background: #e4eaf0;
+  background: var(--panel-soft);
 }
 
 .players-table thead th.sorted {
@@ -73,7 +73,7 @@
 }
 
 .players-table tbody tr:hover {
-  background: #f3f7fc;
+  background: var(--hover);
 }
 
 .players-table td.player {

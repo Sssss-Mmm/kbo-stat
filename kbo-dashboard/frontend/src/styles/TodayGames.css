@@ -1,0 +1,211 @@
+.today-games {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.tg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.tg-head h3 {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.tg-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.tg-nav button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tg-nav button:hover {
+  background: var(--panel-soft);
+}
+
+.tg-today {
+  font-size: 13px !important;
+}
+
+.tg-msg {
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+}
+.tg-msg.error {
+  color: #d05240;
+}
+
+/* 카드 가로 스크롤 스트립 */
+.tg-cards {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  .tg-cards {
+    grid-auto-columns: minmax(190px, 80%);
+  }
+}
+
+.tg-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  background: var(--panel-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.tg-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.tg-match {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 4px;
+}
+
+.tg-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.tg-team img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.tg-name {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.tg-ha {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.tg-team.loser {
+  opacity: 0.5;
+}
+.tg-team.won .tg-name::after {
+  content: ' W';
+  font-size: 10px;
+  color: #1f9d57;
+}
+
+.tg-center {
+  padding: 0 4px;
+  text-align: center;
+}
+
+.tg-vs {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.tg-score {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tg-score b.w {
+  color: #1f9d57;
+}
+
+/* 예상 승률 바 */
+.tg-prob-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.tg-prob-fill {
+  height: 100%;
+}
+
+.tg-prob-nums {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.tg-prob-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* 선발 투수 */
+.tg-starters {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+
+.tg-pit {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+}
+.tg-pit.away {
+  text-align: left;
+}
+.tg-pit.home {
+  text-align: right;
+}
+
+.tg-pit-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}

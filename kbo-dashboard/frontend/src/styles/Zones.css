@@ -68,8 +68,8 @@
 }
 
 .zone-list tbody tr { cursor: pointer; }
-.zone-list tbody tr:hover { background: #f3f7fc; }
-.zone-list tbody tr.selected { background: color-mix(in srgb, var(--accent-3) 10%, white); }
+.zone-list tbody tr:hover { background: var(--hover); }
+.zone-list tbody tr.selected { background: color-mix(in srgb, var(--accent-3) 10%, var(--tint-base)); }
 
 .zone-card {
   border: 1px solid var(--line);
