@@ -36,7 +36,8 @@
       "Bash(curl -s http://localhost:8000/web/standings.html)",
       "Bash(curl -s http://localhost:8000/web/standings.js)",
       "Bash(curl -s -H \"Origin: http://localhost:8000\" -D - \"http://localhost:8001/api/team-rank?season=2026\" -o /dev/null)",
-      "Bash(sed 's/.py$//')"
+      "Bash(sed 's/.py$//')",
+      "Skill(claude-api)"
     ]
   }
 }

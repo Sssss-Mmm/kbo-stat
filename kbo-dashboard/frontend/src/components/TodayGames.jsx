@@ -25,6 +25,8 @@ function TodayGames({ standings = [] }) {
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [stories, setStories] = useState({}) // gameId -> story
+  const [storyLoading, setStoryLoading] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -35,6 +37,26 @@ function TodayGames({ standings = [] }) {
       .then((r) => active && setGames(r.data.data || []))
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [date])
+
+  // AI 데일리 스토리: 경기 목록과 별개로(느릴 수 있어) 받아 gameId로 매핑.
+  useEffect(() => {
+    let active = true
+    setStories({})
+    setStoryLoading(true)
+    axios
+      .get('/api/today-story', { params: { date } })
+      .then((r) => {
+        if (!active) return
+        const map = {}
+        for (const s of r.data.data || []) map[s.gameId] = s
+        setStories(map)
+      })
+      .catch(() => active && setStories({}))
+      .finally(() => active && setStoryLoading(false))
     return () => {
       active = false
     }
@@ -135,6 +157,15 @@ function TodayGames({ standings = [] }) {
                     <span className="tg-pit home">{g.home.starter || '미정'}</span>
                   </div>
                 )}
+
+                <div className="tg-story">
+                  <span className="tg-story-tag">{done ? 'AI 리뷰' : 'AI 프리뷰'}</span>
+                  {stories[g.gameId]?.story ? (
+                    <p>{stories[g.gameId].story}</p>
+                  ) : (
+                    <p className="tg-story-skel">{storyLoading ? 'AI가 이야기를 쓰는 중...' : '—'}</p>
+                  )}
+                </div>
               </article>
             )
           })}
