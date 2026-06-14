@@ -209,3 +209,31 @@
   font-weight: 700;
   color: var(--muted);
 }
+
+/* AI 데일리 스토리 */
+.tg-story {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border, #e3e3e3);
+}
+.tg-story-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--accent, #6b4eff);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: 6px;
+}
+.tg-story p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.tg-story-skel {
+  color: var(--muted) !important;
+  font-style: italic;
+}

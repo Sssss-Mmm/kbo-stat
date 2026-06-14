@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
-from routers import analytics, player_stats, players, rag, schedule, standings, today, zones
+from routers import analytics, player_stats, players, rag, schedule, standings, story, today, zones
 
 
 app = FastAPI(title="KBO Dashboard API")
@@ -35,6 +35,7 @@ app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 app.include_router(zones.router, prefix="/api", tags=["zones"])
 app.include_router(player_stats.router, prefix="/api", tags=["player-stats"])
 app.include_router(today.router, prefix="/api", tags=["today"])
+app.include_router(story.router, prefix="/api", tags=["story"])
 
 
 @app.get("/")
