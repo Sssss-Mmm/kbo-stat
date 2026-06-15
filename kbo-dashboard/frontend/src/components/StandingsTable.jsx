@@ -1,8 +1,9 @@
+// 순위표 표 컴포넌트. data(순위 배열)를 받아 팀별 한 행씩 렌더하는 순수 표시용.
 import { teamEmblem } from '../lib/teamColors'
 import '../styles/StandingsTable.css'
 
-const fmtRate = (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '-')
-const fmtGB = (v) => (Number.isFinite(v) ? (v === 0 ? '-' : v.toFixed(1)) : '-')
+const fmtRate = (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '-')  // 승률: .xxx
+const fmtGB = (v) => (Number.isFinite(v) ? (v === 0 ? '-' : v.toFixed(1)) : '-')  // 게임차(0이면 '-')
 
 function StandingsTable({ data }) {
   return (

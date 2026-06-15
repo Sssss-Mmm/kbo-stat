@@ -1,3 +1,4 @@
+// 순위표 페이지. 시즌을 골라 /api/standings 를 조회하고 StandingsTable 로 렌더.
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import StandingsTable from '../components/StandingsTable'

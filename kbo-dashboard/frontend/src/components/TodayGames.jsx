@@ -1,3 +1,6 @@
+// 오늘의 경기 카드 섹션 (HOME 상단).
+// /api/today-games(라이브 경기/스코어/선발)와 /api/today-story(AI 프리뷰/리뷰)를
+// 따로 받아 날짜별 카드로 보여준다. 경기 전이면 시즌 성적 기반 예상 승률 막대를 표시.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { teamColor, teamEmblem } from '../lib/teamColors'

@@ -9,13 +9,15 @@ function fmtRate(value) {
   return Number.isFinite(value) ? value.toFixed(3).replace(/^0/, '') : '-'
 }
 
+// 두 RGB 색을 t(0~1)로 선형 보간.
 function lerp(a, b, t) {
   return a.map((channel, index) => Math.round(channel + (b[index] - channel) * t))
 }
 
+// 셀 값과 리그 평균의 차이를 spread로 정규화해 파랑(낮음)↔빨강(높음) 발산 색을 만든다.
 function cellColor(value, avg, metric) {
   const spread = METRIC_SPREAD[metric]
-  const t = Math.max(-1, Math.min(1, (value - avg) / spread))
+  const t = Math.max(-1, Math.min(1, (value - avg) / spread))  // -1~1 로 클램프
   const rgb = t >= 0 ? lerp(COLOR_MID, COLOR_HIGH, t) : lerp(COLOR_MID, COLOR_LOW, -t)
   return `rgb(${rgb.join(',')})`
 }
