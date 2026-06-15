@@ -98,10 +98,12 @@ FIELD_MAP = {"hitter": HITTER_FIELDS, "pitcher": PITCHER_FIELDS}
 
 
 def current_kbo_year() -> int:
+    """한국 시간 기준 현재 시즌 연도."""
     return datetime.now(ZoneInfo("Asia/Seoul")).year
 
 
 def position_from_profile(row: dict) -> str | None:
+    """profile 필드(JSON 문자열)에서 포지션을 꺼낸다(파싱 실패 시 None)."""
     raw = row.get("profile")
     if not raw:
         return None
@@ -132,6 +134,7 @@ def fetch_all(year: int, player_type: str) -> list[dict]:
 
 
 def build_frame(rows: list[dict], role: str) -> pd.DataFrame:
+    """Naver 응답을 출력 컬럼명으로 매핑해 WAR(없으면 G) 내림차순 DataFrame 으로 만든다."""
     fields = FIELD_MAP[role]
     records = []
     for row in rows:
@@ -158,6 +161,7 @@ def build_frame(rows: list[dict], role: str) -> pd.DataFrame:
 
 
 def crawl(year: int) -> None:
+    """타자/투수 전체 선수 시즌 스탯을 받아 각각 processed CSV 로 저장한다."""
     for role in ("hitter", "pitcher"):
         rows = fetch_all(year, PLAYER_TYPE[role])
         frame = build_frame(rows, role)

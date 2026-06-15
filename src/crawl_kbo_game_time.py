@@ -44,6 +44,7 @@ TEAM_ALIASES = {
 
 
 def _minutes(value: str) -> int | None:
+    """'3:21' 형식의 경기시간 문자열을 분 단위 정수로 변환."""
     text = str(value or "").strip()
     match = re.match(r"^(\d{1,2}):(\d{2})$", text)
     if not match:
@@ -52,6 +53,7 @@ def _minutes(value: str) -> int | None:
 
 
 def _parse_team_table(table, year: int) -> pd.DataFrame:
+    """팀별 평균 경기시간 표(정규이닝/연장포함 2행)를 팀 단위로 파싱한다."""
     rows = table.find_all("tr")
     teams = []
     for cell in rows[1].find_all(["td", "th"])[1:]:
@@ -77,6 +79,7 @@ def _parse_team_table(table, year: int) -> pd.DataFrame:
 
 
 def _parse_yearly_table(table, time_type: str) -> list[dict]:
+    """연도별 평균 경기시간 표를 파싱한다(연도행/값행이 2행씩 번갈아 나옴)."""
     records = []
     rows = table.find_all("tr")
     for index in range(1, len(rows), 2):
@@ -100,6 +103,7 @@ def _parse_yearly_table(table, time_type: str) -> list[dict]:
 
 
 def crawl(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """팀별 평균 경기시간과 연도별 리그 평균 두 CSV 를 저장한다."""
     response = requests.get(GAME_TIME_URL, headers=HEADERS, timeout=30)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "lxml")

@@ -31,6 +31,7 @@ HEADERS = {
 
 
 def _parse_table(html: str) -> pd.DataFrame:
+    """순위 페이지 HTML 의 첫 테이블(tData)을 헤더+행으로 DataFrame 변환."""
     soup = BeautifulSoup(html, "lxml")
     table = soup.find("table", class_="tData") or soup.find("table")
     if not table:
@@ -50,12 +51,14 @@ def _parse_table(html: str) -> pd.DataFrame:
 
 
 def fetch_current() -> pd.DataFrame:
+    """KBO 순위 페이지를 받아 현재 시즌 순위 테이블을 반환한다."""
     response = requests.get(TEAM_RANK_URL, headers=HEADERS, timeout=20)
     response.raise_for_status()
     return _parse_table(response.text)
 
 
 def crawl(year: int) -> pd.DataFrame:
+    """현재 순위표를 받아 Season 컬럼을 붙여 CSV 로 저장한다."""
     df = fetch_current()
     if df.empty:
         raise RuntimeError("No team standings table found.")

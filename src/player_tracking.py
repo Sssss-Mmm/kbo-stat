@@ -27,6 +27,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # ── 한글 폰트 ────────────────────────────────────────────────────────────────
 
 def _setup_font():
+    """그래프 한글 깨짐 방지를 위해 나눔/맑은고딕 폰트를 matplotlib 에 등록한다."""
     for path in [
         "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
         "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",
@@ -44,6 +45,7 @@ def _setup_font():
 # ── 데이터 로드 ───────────────────────────────────────────────────────────────
 
 def load_data() -> pd.DataFrame:
+    """시즌별 raw CSV 를 합쳐 이름 정제·숫자 변환 후 PA 50 이상만 남긴다."""
     files = sorted(RAW_DIR.glob("kbo_*.csv"))
     if not files:
         raise FileNotFoundError(
@@ -74,6 +76,7 @@ def load_data() -> pd.DataFrame:
 # ── 선수 검색 ─────────────────────────────────────────────────────────────────
 
 def search_player(df: pd.DataFrame, query: str):
+    """이름 일부로 선수를 찾아 시즌별 핵심 스탯을 표로 출력한다."""
     show = ["Name", "Season", "Team", "PA", "AVG", "OBP", "SLG", "wRC+", "WAR"]
     show = [c for c in show if c in df.columns]
     result = (
@@ -90,6 +93,7 @@ def search_player(df: pd.DataFrame, query: str):
 # ── 커리어 대시보드 ───────────────────────────────────────────────────────────
 
 def player_dashboard(df: pd.DataFrame, name: str):
+    """한 선수의 커리어 추이(wRC+/슬래시라인/WAR/PA/퍼센타일/요약표)를 6분할로 그려 PNG 저장."""
     p = df[df["Name"].str.contains(name, case=False, na=False)].sort_values("Season")
     if p.empty:
         print(f'"{name}" 선수를 찾을 수 없습니다. --search 로 먼저 확인하세요.')
@@ -98,6 +102,7 @@ def player_dashboard(df: pd.DataFrame, name: str):
     display_name = p["Name"].iloc[0]
     seasons = p["Season"].values
 
+    # 각 시즌 리그 내에서 해당 스탯이 상위 몇 %인지(퍼센타일) 계산.
     def pct_rank(col):
         out = []
         for _, row in p.iterrows():
@@ -182,6 +187,7 @@ def player_dashboard(df: pd.DataFrame, name: str):
 
 def compare_with_peers(df: pd.DataFrame, name: str, season: int = None,
                        top_n: int = 10, metric: str = "wRC+"):
+    """한 시즌 기준 선수와 리그 평균을 레이더 차트로 비교해 PNG 저장(스탯은 0~1 정규화)."""
     p = df[df["Name"].str.contains(name, case=False, na=False)]
     if p.empty:
         print(f'"{name}" 선수를 찾을 수 없습니다.'); return

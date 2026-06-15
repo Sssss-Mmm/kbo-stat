@@ -62,6 +62,11 @@ def update_fast(year: int) -> None:
 
 
 def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
+    """오늘자 순위표를 스냅샷으로 저장하고 연간 history CSV에 누적한다.
+
+    history는 (날짜+팀) 기준으로 같은 날 기존 행을 지우고 다시 넣어, 하루에
+    여러 번 돌려도 중복 없이 최신 스냅샷만 남도록 멱등하게 갱신한다.
+    """
     snapshot_date = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
     history_path = RAW_DIR / f"kbo_team_rank_history_{year}.csv"
     snapshot_dir = RAW_DIR / "team_rank_snapshots"
@@ -93,6 +98,7 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
 
 
 def update_players(year: int) -> None:
+    """타자/투수 리더보드 + 등록선수 명단 + 타자 파생지표를 다시 만든다(--players)."""
     import crawl_kbo_hitter
     import crawl_kbo_pitcher
     import crawl_kbo_players
@@ -113,6 +119,7 @@ def update_players(year: int) -> None:
 
 
 def update_pitch_zones(target_date: str | None = None) -> None:
+    """특정 날짜(기본: 오늘 KST)의 네이버 투구 단위 데이터를 수집한다(--pitch-zones)."""
     import crawl_naver_pitch_zones
 
     if target_date:
@@ -138,6 +145,7 @@ def load_to_db() -> None:
 
 
 def main() -> None:
+    """CLI 진입점: 옵션에 따라 fast/players/pitch-zones/db 단계를 선택 실행한다."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", type=int, default=current_kbo_year())
     parser.add_argument(

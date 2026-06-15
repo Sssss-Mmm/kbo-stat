@@ -27,6 +27,7 @@ def _clean_name(name: str) -> str:
 
 
 def load_raw() -> pd.DataFrame:
+    """data/raw 의 시즌별 kbo_*.csv 를 모두 읽어 하나로 합친다(전부 문자열로 로드)."""
     files = sorted(RAW_DIR.glob("kbo_*.csv"))
     if not files:
         raise FileNotFoundError("No raw files found. Run src/crawl.py first.")
@@ -36,6 +37,7 @@ def load_raw() -> pd.DataFrame:
 
 
 def build(min_pa: int = MIN_PA) -> pd.DataFrame:
+    """원본을 정제(이름/숫자/PA필터)하고 다음 시즌 wRC+를 타깃으로 붙여 저장한다."""
     df = load_raw()
 
     # clean player name

@@ -45,6 +45,7 @@ BTN_PAGE1 = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$ucPager$btnNo
 
 
 def _viewstate(soup: BeautifulSoup) -> dict[str, str]:
+    """ASP.NET 포스트백에 필요한 __VIEWSTATE 등 숨은 상태 입력값을 수집한다."""
     out = {}
     for name in [
         "__VIEWSTATE",
@@ -60,6 +61,7 @@ def _viewstate(soup: BeautifulSoup) -> dict[str, str]:
 
 
 def _parse_table(soup: BeautifulSoup) -> pd.DataFrame | None:
+    """기록 페이지의 데이터 테이블(tData)을 DataFrame 으로 파싱한다."""
     tbl = soup.find("table", class_="tData") or soup.find("table")
     if not tbl:
         return None
@@ -78,6 +80,7 @@ def _parse_table(soup: BeautifulSoup) -> pd.DataFrame | None:
 
 
 def _total_pages(soup: BeautifulSoup) -> int:
+    """페이저 버튼(btnNoN) 중 가장 큰 번호 = 전체 페이지 수."""
     nums = [
         int(m.group(1))
         for a in soup.find_all("a", id=True)
@@ -93,10 +96,16 @@ def _fetch_table(
     sort_col: str,
     sort_order: str,
 ) -> pd.DataFrame:
+    """한 시즌의 기록 표를 페이지네이션을 따라가며 모두 긁어 합친다.
+
+    ASP.NET 포스트백 구조라 (1) 시즌 선택 → (2) 1페이지 버튼 → (3) 이후 페이지
+    버튼 순으로 매번 갱신된 VIEWSTATE 를 들고 POST 해야 다음 페이지가 나온다.
+    """
     response = session.get(url, timeout=20)
     response.raise_for_status()
     viewstate = _viewstate(BeautifulSoup(response.text, "lxml"))
 
+    # 포스트백 폼 본문 생성기. event_target 으로 어떤 컨트롤을 누른 것처럼 보낼지 지정.
     def form(event_target: str, page: str = "1") -> dict[str, str]:
         return {
             **viewstate,
@@ -150,6 +159,7 @@ def _fetch_table(
 
 
 def _merge_basic_detail(basic: pd.DataFrame, detail: pd.DataFrame) -> pd.DataFrame:
+    """기본/상세 표를 (시즌+선수명+팀명) 기준으로 합친다(중복 컬럼은 제거)."""
     if detail.empty:
         return basic
 
@@ -158,12 +168,14 @@ def _merge_basic_detail(basic: pd.DataFrame, detail: pd.DataFrame) -> pd.DataFra
     if missing:
         raise ValueError(f"Cannot merge detail stats; missing columns: {missing}")
 
+    # 양쪽에 다 있는 순위/AVG 는 상세 쪽을 버려 _x/_y 중복을 막는다.
     duplicate_cols = [col for col in ["순위", "AVG"] if col in detail.columns]
     detail = detail.drop(columns=duplicate_cols)
     return basic.merge(detail, on=merge_keys, how="left")
 
 
 def fetch_year(session: requests.Session, year: int) -> pd.DataFrame:
+    """한 시즌의 기본 + 상세 타자 기록을 받아 하나로 합쳐 반환한다."""
     basic = _fetch_table(session, year, BASIC_URL, "HRA_RT", "DESC")
     if basic.empty:
         return basic
@@ -173,6 +185,7 @@ def fetch_year(session: requests.Session, year: int) -> pd.DataFrame:
 
 
 def crawl(start: int = 2008, end: int = 2025, overwrite: bool = False) -> None:
+    """연도 범위를 돌며 시즌별 타자 CSV 를 저장한다(기존 파일은 overwrite 시에만 갱신)."""
     session = requests.Session()
     session.headers.update(HEADERS)
 

@@ -24,6 +24,7 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _result_for(row: pd.Series, side: str) -> str:
+    """해당 팀(side: home/away) 관점의 승/패/무 → 'W'/'L'/'D'."""
     own = row[f"{side}_score"]
     opp = row["home_score"] if side == "away" else row["away_score"]
     if pd.isna(own) or pd.isna(opp):
@@ -36,6 +37,7 @@ def _result_for(row: pd.Series, side: str) -> str:
 
 
 def _team_rows(game: pd.Series) -> list[dict]:
+    """한 경기(종료된 경기)를 양 팀 각각의 관점 행 2개로 펼친다."""
     if game.get("status") != "final":
         return []
 
@@ -75,11 +77,13 @@ def _team_rows(game: pd.Series) -> list[dict]:
 
 
 def build(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """일정/결과 CSV에서 팀별 경기결과와 월간 집계 2종을 만든다."""
     schedule_path = RAW_DIR / f"kbo_schedule_{year}.csv"
     if not schedule_path.exists():
         raise FileNotFoundError(f"Missing schedule CSV: {schedule_path}")
 
     schedule = pd.read_csv(schedule_path)
+    # 종료(final)되고 점수/경기ID가 다 있는 경기만 집계 대상.
     final_games = schedule[
         (schedule["status"] == "final")
         & schedule["GameId"].notna()
