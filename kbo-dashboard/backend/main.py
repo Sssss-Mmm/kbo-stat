@@ -1,3 +1,11 @@
+"""KBO 대시보드 FastAPI 진입점.
+
+각 도메인별 라우터(순위/일정/선수/분석/존/오늘의경기/AI스토리/RAG)를 /api 하위에
+모아 붙인다. 라우터는 두 종류다:
+  - DB 기반(standings/schedule/players/analytics): PostgreSQL 조회
+  - CSV 기반(zones/player_stats/today/story/rag): data/processed CSV 직접 서빙
+그래서 DB가 없어도 CSV 라우터는 동작하도록 init_db 실패를 치명적으로 보지 않는다.
+"""
 import os
 
 from fastapi import FastAPI

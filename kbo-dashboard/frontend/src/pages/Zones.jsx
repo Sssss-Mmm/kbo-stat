@@ -1,12 +1,18 @@
+// 핫/콜드존 페이지.
+// /api/zones 의 (선수, 3×3 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
+// 오른쪽에 9분할 스트라이크존 히트맵(ZoneHeatmap)을 보여준다.
+// 지표는 타율/피안타율(hit) 또는 스윙률(swing) 중 선택, 역할은 타자/투수.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import ZoneHeatmap from '../components/ZoneHeatmap'
 import '../styles/Zones.css'
 
+// .325 처럼 앞 0을 떼고 소수 3자리로 표시.
 function fmtRate(value) {
   return Number.isFinite(value) ? value.toFixed(3).replace(/^0/, '') : '-'
 }
 
+// 역할/지표 조합에 맞는 한글 라벨.
 function metricLabel(role, metric) {
   if (metric === 'swing') return '스윙률'
   return role === 'batter' ? '타율' : '피안타율'
@@ -64,11 +70,13 @@ function Zones() {
     return [...byId.values()]
   }, [rows])
 
+  // 선수 전체 합계 기준 대표 지표(스윙률 또는 타율/피안타율).
   const overallMetric = (agg) => {
     if (metric === 'swing') return agg.pitches ? agg.swings / agg.pitches : null
     return agg.inPlay ? agg.hits / agg.inPlay : null
   }
 
+  // 히트맵 색상의 중앙값으로 쓸 리그 평균(전체 셀 합산 기준).
   const leagueAvg = useMemo(() => {
     let num = 0
     let den = 0

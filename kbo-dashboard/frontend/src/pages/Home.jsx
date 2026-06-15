@@ -1,3 +1,7 @@
+// HOME 대시보드 페이지.
+// 선택한 시즌의 순위/경기결과/타자·투수 스탯/관중/경기시간을 한 번에 받아와
+// (요약 카드, 타이틀 레이스, 리더보드, 분포 차트 등) 여러 패널로 가공해 보여준다.
+// 무거운 파생 계산은 useMemo 로 감싸 데이터(d)/시즌이 바뀔 때만 재계산한다.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import Scatter from '../components/charts/Scatter'
@@ -52,6 +56,9 @@ function parseIP(s) {
 }
 const mean = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN)
 
+// ── 작은 프레젠테이션 컴포넌트들 (순수 표시용, 자체 상태 없음) ──
+
+// 가로 막대 리스트. 최대값을 100%로 잡아 상대 길이를 그린다.
 function BarList({ items, fmt = fmtRate }) {
   const max = Math.max(...items.map((i) => i.value), 0.0001)
   return (
@@ -69,6 +76,7 @@ function BarList({ items, fmt = fmtRate }) {
   )
 }
 
+// 컬럼 정의(columns: {key,label,render})로 그리는 소형 표.
 function MiniTable({ columns, rows }) {
   return (
     <table className="mini-table">
@@ -86,6 +94,7 @@ function MiniTable({ columns, rows }) {
   )
 }
 
+// 팀 엠블럼 + 팀 색상 이름 셀.
 function TeamCell({ team }) {
   return (
     <span className="team-cell">
@@ -95,6 +104,7 @@ function TeamCell({ team }) {
   )
 }
 
+// [라벨, 값] 쌍 목록을 키-값 행으로 표시.
 function StatRows({ rows }) {
   return (
     <div className="stat-rows">
@@ -105,6 +115,7 @@ function StatRows({ rows }) {
   )
 }
 
+// 시즌 하이라이트 한 줄(부문 라벨 + 선수 + 값).
 function HlItem({ label, player, val }) {
   const team = player?.['팀명']
   return (
@@ -125,6 +136,8 @@ function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // 시즌이 바뀔 때마다 6개 API 를 병렬 호출해 한 번에 적재. active 플래그로
+  // 언마운트/시즌 재변경 시의 늦은 응답이 상태를 덮어쓰지 않게 막는다.
   useEffect(() => {
     let active = true
     const load = async () => {
