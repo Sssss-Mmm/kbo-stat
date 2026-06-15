@@ -1,3 +1,5 @@
+// 앱 루트. 라우터 없이 currentPage 상태로 5개 페이지를 전환하는 단일 SPA 셸.
+// 상단 헤더(네비게이션 + 다크/라이트 테마 토글)와 본문 페이지로 구성된다.
 import { useState, useEffect } from 'react'
 import Home from './pages/Home'
 import Standings from './pages/Standings'
@@ -6,6 +8,7 @@ import Players from './pages/Players'
 import Zones from './pages/Zones'
 import './App.css'
 
+// 초기 테마 결정: 저장된 선택 > OS 선호(prefers-color-scheme) 순.
 function getInitialTheme() {
   const saved = localStorage.getItem('theme')
   if (saved === 'light' || saved === 'dark') return saved
@@ -13,9 +16,10 @@ function getInitialTheme() {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('home')
+  const [currentPage, setCurrentPage] = useState('home')  // 현재 보이는 페이지
   const [theme, setTheme] = useState(getInitialTheme)
 
+  // 테마 변경 시 <html data-theme>에 반영하고 선택을 저장(CSS 변수로 스타일 분기).
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('theme', theme)

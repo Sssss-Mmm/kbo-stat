@@ -1,3 +1,9 @@
+"""CSV 기반 경량 RAG 서비스.
+
+외부 벡터 DB나 임베딩 없이, data/processed CSV를 문서(Evidence)로 펼친 뒤
+토큰 겹침 기반 점수로 검색하고, 질문 의도(MVP/최근뜨거운팀/특정팀)에 따라
+규칙 기반으로 답변을 합성한다. 데모/오프라인에서도 동작하는 게 목적.
+"""
 from __future__ import annotations
 
 import math
@@ -25,10 +31,11 @@ STREAK_COL = "연속"
 
 @dataclass
 class Evidence:
+    """검색 단위 문서. body는 사람이 읽는 근거 문장, payload는 구조화 값."""
     title: str
     body: str
-    source: str
-    score: float
+    source: str  # 출처 CSV 이름
+    score: float  # 검색 점수 (retrieve 시 계산)
     payload: dict[str, Any]
 
 
@@ -36,9 +43,10 @@ class RagService:
     """CSV-backed retrieval and answer synthesis for the KBO demo."""
 
     def __init__(self) -> None:
-        self._cache: dict[int, dict[str, pd.DataFrame]] = {}
+        self._cache: dict[int, dict[str, pd.DataFrame]] = {}  # 시즌별 CSV 캐시
 
     def ask(self, question: str, season: int) -> dict[str, Any]:
+        """질문 → 문서화 → 검색 → 답변 합성까지의 전체 파이프라인."""
         data = self._load(season)
         docs = self._build_documents(data)
         retrieved = self._retrieve(question, docs, limit=8)
@@ -53,6 +61,7 @@ class RagService:
         }
 
     def search(self, query: str, season: int, limit: int = 8) -> dict[str, Any]:
+        """답변 합성 없이 상위 근거 문서만 반환한다."""
         data = self._load(season)
         docs = self._build_documents(data)
         retrieved = self._retrieve(query, docs, limit=limit)
@@ -64,6 +73,7 @@ class RagService:
         }
 
     def _load(self, season: int) -> dict[str, pd.DataFrame]:
+        """시즌별 소스 CSV 4종을 읽어 캐시한다(순위/경기/월간/타자지표)."""
         if season in self._cache:
             return self._cache[season]
 
@@ -83,6 +93,7 @@ class RagService:
         return pd.read_csv(path)
 
     def _build_documents(self, data: dict[str, pd.DataFrame]) -> list[Evidence]:
+        """CSV 행들을 검색 가능한 Evidence 문서(팀 순위 + 타자 지표)로 펼친다."""
         docs: list[Evidence] = []
 
         standings = data["standings"]
@@ -154,14 +165,15 @@ class RagService:
         return docs
 
     def _retrieve(self, query: str, docs: list[Evidence], limit: int) -> list[Evidence]:
+        """토큰 겹침 + 정확매칭 보너스 + 의도 보너스로 점수화해 상위 N개를 고른다."""
         query_terms = self._terms(query)
         scored = []
         for doc in docs:
             text = f"{doc.title} {doc.body} {' '.join(map(str, doc.payload.values()))}"
             terms = self._terms(text)
-            overlap = len(query_terms & terms)
-            exact_bonus = sum(2 for term in query_terms if term and term in text.lower())
-            type_bonus = self._intent_bonus(query, doc)
+            overlap = len(query_terms & terms)  # 공통 토큰 수
+            exact_bonus = sum(2 for term in query_terms if term and term in text.lower())  # 부분문자열 매칭 가산
+            type_bonus = self._intent_bonus(query, doc)  # 질문 의도와 문서 유형 일치 가산
             score = overlap + exact_bonus + type_bonus
             if score > 0:
                 scored.append(Evidence(doc.title, doc.body, doc.source, score, doc.payload))
@@ -174,12 +186,13 @@ class RagService:
         data: dict[str, pd.DataFrame],
         evidence: list[Evidence],
     ) -> dict[str, Any]:
+        # 질문 키워드로 의도를 분기해 알맞은 규칙 기반 답변기를 고른다.
         lowered = question.lower()
         if "mvp" in lowered or "war" in lowered or "ops" in lowered:
-            return self._answer_mvp(data)
+            return self._answer_mvp(data)  # 최고 타자
         if "뜨거" in question or "최근" in question or "hot" in lowered:
-            return self._answer_hot_team(data)
-        return self._answer_team(question, data, evidence)
+            return self._answer_hot_team(data)  # 최근 가장 잘하는 팀
+        return self._answer_team(question, data, evidence)  # 기본: 특정 팀 분석
 
     def _answer_team(
         self,
@@ -187,6 +200,7 @@ class RagService:
         data: dict[str, pd.DataFrame],
         evidence: list[Evidence],
     ) -> dict[str, Any]:
+        """질문에 팀명이 있으면 그 팀, 없으면 검색 1순위(없으면 1위 팀) 분석."""
         requested_team = self._find_team_in_question(question, data["standings"])
         team_doc = None
         if requested_team:
@@ -238,6 +252,7 @@ class RagService:
         return None
 
     def _answer_mvp(self, data: dict[str, pd.DataFrame]) -> dict[str, Any]:
+        """WARProxy·OPS 상위 5명을 뽑아 MVP형 타자를 답한다."""
         hitters = data["hitters"]
         if hitters.empty:
             return {
@@ -260,6 +275,7 @@ class RagService:
         }
 
     def _answer_hot_team(self, data: dict[str, pd.DataFrame]) -> dict[str, Any]:
+        """'최근10경기' 문자열에서 승률을 계산해 가장 뜨거운 팀을 답한다."""
         standings = data["standings"]
         if standings.empty:
             return {
@@ -284,10 +300,12 @@ class RagService:
 
     @staticmethod
     def _terms(text: str) -> set[str]:
+        """영문/숫자/한글 토큰화 (2글자 이상만 사용)."""
         return {term for term in re.split(r"[^0-9A-Za-z가-힣]+", text.lower()) if len(term) >= 2}
 
     @staticmethod
     def _intent_bonus(query: str, doc: Evidence) -> int:
+        """질문 키워드가 문서 유형(team/hitter)과 맞으면 가산점."""
         payload_type = doc.payload.get("type")
         if payload_type == "team" and any(word in query for word in ["팀", "순위", "강", "왜"]):
             return 3
@@ -297,6 +315,7 @@ class RagService:
 
     @staticmethod
     def _recent_win_rate(text: str) -> float:
+        """'7승 3패' 같은 최근10경기 문자열 -> 승률(0~1)."""
         wins = re.search(r"(\d+)승", text)
         losses = re.search(r"(\d+)패", text)
         w = int(wins.group(1)) if wins else 0

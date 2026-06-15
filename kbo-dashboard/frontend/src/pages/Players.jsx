@@ -1,3 +1,6 @@
+// 선수 기록 페이지.
+// /api/player-stats 의 타자/투수 전체 스탯을 표로 보여준다. 구단 필터, 규정충족
+// 필터, 컬럼 헤더 클릭 정렬을 지원한다. 표시 컬럼/형식은 아래 COLUMNS 로 정의.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import '../styles/Players.css'
@@ -53,6 +56,7 @@ const COLUMNS = {
 // 기본 정렬: WAR 내림차순.
 const DEFAULT_SORT = { key: 'WAR', dir: 'desc' }
 
+// fmt 종류(rate/two/one/text)에 맞춰 셀 값을 문자열로 변환. 빈값은 '-'.
 function fmtValue(value, fmt) {
   if (value === null || value === undefined || value === '') return '-'
   if (fmt === 'text') return value
