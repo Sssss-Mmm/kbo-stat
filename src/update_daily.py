@@ -30,10 +30,12 @@ RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 
 
 def current_kbo_year() -> int:
+    """한국 시간 기준 현재 연도(=시즌)."""
     return datetime.now(ZoneInfo("Asia/Seoul")).year
 
 
 def update_fast(year: int) -> None:
+    """매일 바뀌는 핵심 데이터를 갱신한다(순위/일정·결과/관중/경기시간/타자지표)."""
     print(f"[daily] updating team standings for {year}")
     team_rank = crawl_kbo_team_rank.crawl(year)
     save_team_rank_snapshot(team_rank, year)

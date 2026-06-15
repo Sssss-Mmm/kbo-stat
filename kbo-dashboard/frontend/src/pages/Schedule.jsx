@@ -1,3 +1,5 @@
+// 경기일정 페이지. /api/schedule-games 를 받아 달력(월 단위)로 보여준다.
+// 팀 칩으로 특정 팀만 필터하면 그 팀 관점(vs/@ 상대, 승패)으로 칩이 바뀐다.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'

@@ -113,6 +113,7 @@ function Players() {
     [rows]
   )
 
+  // 구단/규정충족 필터 적용 후 정렬. 빈값은 항상 뒤로, 숫자는 수치 비교, 그 외 한글 로케일 비교.
   const visibleRows = useMemo(() => {
     let list = rows
     if (team !== 'all') list = list.filter((r) => r['팀명'] === team)
@@ -132,6 +133,7 @@ function Players() {
     })
   }, [rows, team, qualifiedOnly, sort])
 
+  // 같은 컬럼 재클릭이면 방향 토글, 새 컬럼이면 내림차순으로 시작.
   const toggleSort = (key) => {
     setSort((prev) =>
       prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }
