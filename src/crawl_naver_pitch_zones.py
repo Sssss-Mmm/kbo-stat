@@ -63,6 +63,7 @@ def date_range(start: date, end: date) -> list[date]:
 
 
 def get_json(url: str, referer: str | None = None) -> dict:
+    """네이버 스포츠 API 를 호출해 success 확인 후 result 부분만 반환한다."""
     headers = dict(HEADERS)
     if referer:
         headers["Referer"] = referer
@@ -75,6 +76,7 @@ def get_json(url: str, referer: str | None = None) -> dict:
 
 
 def fetch_games(game_date: date) -> list[dict]:
+    """해당 날짜의 KBO 경기 목록을 가져온다."""
     day = game_date.isoformat()
     url = (
         f"{API_BASE}/schedule/games?fields=all&fromDate={day}&toDate={day}"
@@ -86,6 +88,7 @@ def fetch_games(game_date: date) -> list[dict]:
 
 
 def fetch_relay(game_id: str, inning: int) -> dict:
+    """한 경기·한 이닝의 문자중계(투구 단위 이벤트) 데이터를 가져온다."""
     referer = f"https://m.sports.naver.com/game/{game_id}/relay"
     url = f"{API_BASE}/schedule/games/{game_id}/relay?inning={inning}"
     result = get_json(url, referer=referer)
@@ -152,6 +155,10 @@ def plate_z(pitch: dict) -> float | None:
 
 
 def zone_bucket(x: float | None, z: float | None, bottom: float | None, top: float | None) -> str:
+    """투구의 좌우(x)·높이(z)와 타자별 존 상/하단으로 'row-col' 9분할 존을 정한다.
+
+    존을 벗어나면 L-out/R-out, low-out/high-out 으로 표기한다. row 3=상단, col 1=좌.
+    """
     if x is None or z is None or bottom is None or top is None or top <= bottom:
         return "unknown"
 
@@ -184,6 +191,7 @@ def safe_float(value) -> float | None:
 
 
 def season_from_game(game: dict) -> int | None:
+    """경기 정보에서 시즌 연도를 구한다(seasonYear 없으면 경기일 앞 4자리)."""
     season = game.get("seasonYear")
     if season:
         return int(season)
@@ -194,6 +202,7 @@ def season_from_game(game: dict) -> int | None:
 
 
 def batter_name_from_relay(relay: dict) -> str | None:
+    """타석 헤더나 제목('N번타자 이름')에서 타자명을 뽑는다(name_map 보조용)."""
     play_time = relay.get("playTimeAtBat") or {}
     if play_time.get("batterName"):
         return play_time["batterName"]
@@ -227,12 +236,14 @@ def at_bat_result(relay: dict, batter_name: str | None) -> str:
 
 
 def is_hit_description(desc: str) -> bool:
+    """타석 결과 설명이 안타인지 판정한다(실책/야수선택은 안타 아님)."""
     if any(word in desc for word in NON_HIT_WORDS):
         return False
     return any(word in desc for word in HIT_WORDS)
 
 
 def merge_pitch_options(relay: dict) -> list[dict]:
+    """문자중계의 투구 이벤트(textOptions)에 PTS 추적값(ptsOptions)을 짝지어 준다."""
     pts_by_id = {
         str(option.get("pitchId")): option
         for option in relay.get("ptsOptions", [])
@@ -261,6 +272,7 @@ def row_from_pitch(
     name_map: dict[str, str] | None = None,
     result_text: str = "",
 ) -> dict:
+    """투구 1개를 한 행(좌표/존/구속/스윙·볼·인플레이·안타 플래그 등)으로 정규화한다."""
     state = text_option.get("currentGameState") or {}
     name_map = name_map or {}
 
@@ -320,6 +332,7 @@ def row_from_pitch(
 
 
 def crawl_date(game_date: date, pause_seconds: float = 0.15) -> pd.DataFrame:
+    """하루치 모든 경기를 이닝별로 돌며 투구 단위 행들을 수집한다."""
     games = fetch_games(game_date)
     rows = []
     for game in games:
@@ -344,6 +357,7 @@ def crawl_date(game_date: date, pause_seconds: float = 0.15) -> pd.DataFrame:
 
 
 def build_zone_summary(pitches: pd.DataFrame) -> pd.DataFrame:
+    """투구 행을 (타자, 존) 단위로 집계한 1차 존 요약을 만든다(좌표 미상 제외)."""
     if pitches.empty:
         return pd.DataFrame()
     usable = pitches[pitches["Zone"] != "unknown"].copy()
@@ -370,6 +384,7 @@ def build_zone_summary(pitches: pd.DataFrame) -> pd.DataFrame:
 
 
 def crawl(start: date, end: date | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """날짜 범위의 투구 데이터를 모아 투구 CSV + 존 요약 CSV 로 저장한다."""
     end = end or start
     frames = []
     for day in date_range(start, end):

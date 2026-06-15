@@ -40,6 +40,7 @@ HEADERS = {
 # ── 로그인 ────────────────────────────────────────────────────────────────────
 
 def login(user_id: str, user_pw: str) -> requests.Session:
+    """스탯티즈에 로그인해 인증된 세션을 반환한다(쿠키/실제 페이지로 성공 확인)."""
     s = requests.Session()
     s.headers.update(HEADERS)
 
@@ -68,6 +69,7 @@ def login(user_id: str, user_pw: str) -> requests.Session:
 # ── 페이지 파싱 ───────────────────────────────────────────────────────────────
 
 def _parse_table(html: str) -> pd.DataFrame | None:
+    """페이지에서 선수 데이터 테이블(가장 행이 많은 표)을 골라 파싱한다."""
     soup = BeautifulSoup(html, "lxml")
     tables = soup.find_all("table")
     # 선수 데이터가 있는 테이블: 행이 가장 많은 것
@@ -160,6 +162,7 @@ def probe(session: requests.Session):
 
 
 def crawl(session: requests.Session, start: int, end: int, delay: float = 2.0):
+    """연도 범위를 돌며 시즌별 스탯티즈 CSV 를 저장한다(이미 있으면 건너뜀)."""
     for year in range(start, end + 1):
         out = RAW_DIR / f"statiz_{year}.csv"
         if out.exists():

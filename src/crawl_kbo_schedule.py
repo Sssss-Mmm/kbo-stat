@@ -39,11 +39,13 @@ REGULAR_SEASON = "0,9,6"
 
 
 def _clean_html(value: str) -> str:
+    """셀에 담긴 HTML 조각에서 순수 텍스트만 뽑아낸다."""
     soup = BeautifulSoup(value or "", "lxml")
     return soup.get_text(" ", strip=True)
 
 
 def _parse_game(value: str) -> dict:
+    """경기 셀 HTML 에서 양 팀/스코어/상태(scheduled|final)를 파싱한다."""
     soup = BeautifulSoup(value or "", "lxml")
     all_spans = [span.get_text(strip=True) for span in soup.find_all("span")]
     teams = [all_spans[0], all_spans[-1]] if len(all_spans) >= 2 else []
@@ -67,15 +69,22 @@ def _parse_game(value: str) -> dict:
 
 
 def _extract_game_id(value: str) -> str:
+    """게임센터 링크 HTML 에서 gameId 쿼리값을 추출한다."""
     match = re.search(r"gameId=([^&'\" ]+)", value or "")
     return match.group(1) if match else ""
 
 
 def _parse_row(row: dict, year: int, current_day: str) -> tuple[dict | None, str]:
+    """일정 응답의 한 행을 경기 레코드로 변환한다.
+
+    날짜는 그 날의 첫 경기 행에만 들어있고 이후 행은 비어 있으므로, 마지막으로
+    본 날짜(current_day)를 이어받아 같은 날의 나머지 경기에 적용한다.
+    """
     cells = row.get("row", [])
     if not cells:
         return None, current_day
 
+    # 날짜 셀(MM.DD)이 있으면 갱신하고 그 셀을 떼어낸다(다음 행들은 날짜 없음).
     first_text = _clean_html(cells[0].get("Text", ""))
     has_day = bool(re.match(r"\d{2}\.\d{2}", first_text))
     if has_day:
@@ -115,6 +124,7 @@ def _parse_row(row: dict, year: int, current_day: str) -> tuple[dict | None, str
 
 
 def fetch_schedule(year: int, month: str = "", team_id: str = "") -> pd.DataFrame:
+    """정규시즌 일정 API 를 호출해 행들을 경기 레코드 DataFrame 으로 만든다."""
     response = requests.post(
         SCHEDULE_URL,
         headers=HEADERS,
@@ -140,6 +150,7 @@ def fetch_schedule(year: int, month: str = "", team_id: str = "") -> pd.DataFram
 
 
 def crawl(year: int) -> pd.DataFrame:
+    """해당 시즌 정규시즌 일정 전체를 받아 CSV 로 저장한다."""
     df = fetch_schedule(year)
     if df.empty:
         raise RuntimeError("No schedule rows found.")

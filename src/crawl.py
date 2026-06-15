@@ -38,6 +38,7 @@ USER_AGENTS = [
 
 
 def _extract_from_html(html: str) -> list[dict]:
+    """Next.js 의 __NEXT_DATA__ JSON 에서 kbo/data 쿼리 결과(레코드 배열)를 꺼낸다."""
     soup = BeautifulSoup(html, "lxml")
     script = soup.find("script", id="__NEXT_DATA__")
     if not script:
@@ -51,6 +52,7 @@ def _extract_from_html(html: str) -> list[dict]:
 
 
 def _build_session(ua: str) -> requests.Session:
+    """주어진 User-Agent 로 브라우저처럼 보이는 requests 세션을 만든다."""
     s = requests.Session()
     s.headers.update({
         "User-Agent": ua,
@@ -64,6 +66,7 @@ def _build_session(ua: str) -> requests.Session:
 
 
 def fetch_season_requests(season: int, qual: str = "y", max_retries: int = 3) -> pd.DataFrame:
+    """requests 로 한 시즌을 받는다. 403 등 실패 시 UA/대기를 바꿔 재시도한다."""
     params = {"type": "0", "season": str(season), "qual": qual}
     for attempt in range(max_retries):
         ua = random.choice(USER_AGENTS)
@@ -90,6 +93,7 @@ def fetch_season_requests(season: int, qual: str = "y", max_retries: int = 3) ->
 
 
 def fetch_season_selenium(season: int, qual: str = "y") -> pd.DataFrame:
+    """requests 가 막힐 때 헤드리스 크롬으로 페이지를 띄워 같은 JSON 을 긁어온다."""
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
@@ -125,6 +129,7 @@ def fetch_season_selenium(season: int, qual: str = "y") -> pd.DataFrame:
 
 
 def fetch_season(season: int, qual: str = "y", use_selenium: bool = False) -> pd.DataFrame:
+    """한 시즌 수집. 기본은 requests, 실패하면 Selenium 으로 자동 폴백한다."""
     if use_selenium:
         return fetch_season_selenium(season, qual)
     try:
@@ -136,6 +141,7 @@ def fetch_season(season: int, qual: str = "y", use_selenium: bool = False) -> pd
 
 def crawl(start: int = 2002, end: int = 2025, qual: str = "y",
           delay: float = 3.0, use_selenium: bool = False):
+    """연도 범위를 돌며 시즌별 CSV 를 저장한다(이미 있으면 건너뜀)."""
     for season in range(start, end + 1):
         out_path = RAW_DIR / f"kbo_{season}.csv"
         if out_path.exists():

@@ -57,10 +57,15 @@ BTN_SELECT = "ctl00$ctl00$ctl00$cphContents$cphContents$cphContents$btnCalendarS
 
 
 def current_kst_date() -> str:
+    """한국 시간 기준 오늘 날짜(YYYY-MM-DD)."""
     return datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d")
 
 
 def form_fields(soup: BeautifulSoup) -> dict[str, str]:
+    """ASP.NET 폼의 모든 입력값(VIEWSTATE 등 포함)을 dict 로 수집한다.
+
+    팀/날짜를 바꿔 다시 POST 하려면 숨은 상태값까지 그대로 돌려줘야 하기 때문.
+    """
     form = soup.find("form")
     if not form:
         raise RuntimeError("Register form not found.")
@@ -82,6 +87,7 @@ def form_fields(soup: BeautifulSoup) -> dict[str, str]:
 
 
 def fetch_team(session: requests.Session, team_code: str, target_date: str | None = None) -> BeautifulSoup:
+    """폼 상태값을 받아 팀/날짜를 채워 다시 POST 하고, 등록선수 페이지를 반환한다."""
     response = session.get(REGISTER_URL, timeout=30)
     response.raise_for_status()
     data = form_fields(BeautifulSoup(response.text, "lxml"))
@@ -96,11 +102,13 @@ def fetch_team(session: requests.Session, team_code: str, target_date: str | Non
 
 
 def parse_player_id(href: str) -> str:
+    """선수 상세 링크에서 KBO playerId 를 추출한다."""
     match = re.search(r"playerId=(\d+)", href or "")
     return match.group(1) if match else ""
 
 
 def parse_body_size(value: str) -> tuple[str, str]:
+    """'183cm, 88kg' 문자열에서 (키, 몸무게) 를 분리한다."""
     match = re.search(r"(\d+)cm,\s*(\d+)kg", value or "")
     if not match:
         return "", ""
@@ -108,6 +116,7 @@ def parse_body_size(value: str) -> tuple[str, str]:
 
 
 def parse_team_soup(soup: BeautifulSoup, team_code: str, target_date: str | None) -> list[dict]:
+    """한 팀 등록선수 페이지에서 포지션별 표를 돌며 선수 행들을 만든다."""
     rows = []
     roster_date_tag = soup.select_one(".date-txt")
     roster_date = target_date or (roster_date_tag.get_text(strip=True)[:10].replace(".", "-") if roster_date_tag else "")
@@ -153,6 +162,7 @@ def parse_team_soup(soup: BeautifulSoup, team_code: str, target_date: str | None
 
 
 def crawl(target_date: str | None = None) -> pd.DataFrame:
+    """10개 구단 등록선수를 모아 날짜별 + latest CSV 두 개로 저장한다."""
     session = requests.Session()
     session.headers.update(HEADERS)
 

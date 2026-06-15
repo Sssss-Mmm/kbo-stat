@@ -34,6 +34,7 @@ HEADERS = {
 
 
 def fetch_crowd(month: int = 0) -> dict:
+    """관중 API 응답(JSON)을 받는다. month=0 은 시즌 누계."""
     response = requests.post(
         CROWD_URL,
         headers=HEADERS,
@@ -45,6 +46,7 @@ def fetch_crowd(month: int = 0) -> dict:
 
 
 def _payload_to_rows(payload: dict, year: int, month: int) -> list[dict]:
+    """API 응답의 팀 목록(categories)과 값(data)을 팀별 관중 행으로 zip 한다."""
     teams = [team.strip() for team in payload.get("categories", "").split(",") if team.strip()]
     values = payload.get("data", [{}])[0].get("data", [])
     updated_at = payload.get("date", "")
@@ -63,11 +65,13 @@ def _payload_to_rows(payload: dict, year: int, month: int) -> list[dict]:
 
 
 def crawl(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """시즌 누계와 3~11월 월별 관중 두 CSV 를 저장한다."""
     total_payload = fetch_crowd(0)
     total = pd.DataFrame(_payload_to_rows(total_payload, year, 0))
     if total.empty:
         raise RuntimeError("No attendance rows found.")
 
+    # 정규시즌이 걸친 3~11월을 월별로 수집.
     monthly_rows = []
     for month in range(3, 12):
         payload = fetch_crowd(month)

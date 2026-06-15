@@ -35,10 +35,12 @@ ZONE_CELL = re.compile(r"^[1-3]-[1-3]$")
 
 
 def current_kbo_year() -> int:
+    """한국 시간 기준 현재 시즌 연도."""
     return datetime.now(ZoneInfo("Asia/Seoul")).year
 
 
 def load_pitches(season: int) -> pd.DataFrame:
+    """일자별 네이버 투구 CSV를 모두 합쳐 해당 시즌만 추리고 중복 투구를 제거한다."""
     files = sorted(glob.glob(str(RAW_DIR / "naver_kbo_pitches_*.csv")))
     if not files:
         return pd.DataFrame()
@@ -65,6 +67,7 @@ def ensure_teams(pitches: pd.DataFrame) -> pd.DataFrame:
 
 def summarize(pitches: pd.DataFrame, id_col: str, name_col: str, team_col: str,
               extra_keys: list[str]) -> pd.DataFrame:
+    """(선수, 존) 단위로 투구를 집계하고 스윙률/인플레이 안타율을 계산한다."""
     group_cols = ["Season", id_col, name_col, team_col, *extra_keys, "Zone"]
     summary = (
         pitches.groupby(group_cols, dropna=False)
@@ -90,12 +93,14 @@ def summarize(pitches: pd.DataFrame, id_col: str, name_col: str, team_col: str,
 
 
 def build(season: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """투구 데이터에서 타자/투수의 3×3 존별 핫/콜드 데이터셋 2종을 만든다."""
     pitches = load_pitches(season)
     if pitches.empty:
         print(f"[zones] no pitch data for {season}")
         return pd.DataFrame(), pd.DataFrame()
 
     pitches = ensure_teams(pitches)
+    # 스트라이크존 안쪽 9칸(1-1~3-3)만 남긴다(볼/존밖 제외).
     pitches = pitches[pitches["Zone"].astype(str).str.match(ZONE_CELL)].copy()
     if pitches.empty:
         print(f"[zones] no in-zone pitches for {season}")
