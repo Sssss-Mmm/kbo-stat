@@ -1,4 +1,5 @@
 .env
+kbo-dashboard/.env
 data/raw/
 data/processed/
 logs/
