@@ -7,7 +7,7 @@ services:
       dockerfile: kbo-dashboard/backend/Dockerfile
     container_name: kbo_backend
     environment:
-      DATABASE_URL: postgresql://kbo_user:kbo_password@postgres:5432/kbo_dashboard
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
     ports:
       - "8001:8001"
     volumes:
@@ -41,9 +41,9 @@ services:
     image: postgres:15-alpine
     container_name: kbo_dashboard_db
     environment:
-      POSTGRES_USER: kbo_user
-      POSTGRES_PASSWORD: kbo_password
-      POSTGRES_DB: kbo_dashboard
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5433:5432"
     volumes:
@@ -60,8 +60,8 @@ services:
     image: dpage/pgadmin4:latest
     container_name: kbo_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
     networks:
