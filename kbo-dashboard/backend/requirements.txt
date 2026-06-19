@@ -8,4 +8,4 @@ numpy
 sqlalchemy
 psycopg2-binary
 alembic
-anthropic
+openai

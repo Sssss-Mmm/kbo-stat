@@ -1,10 +1,10 @@
 """AI 데일리 경기 스토리(프리뷰/리뷰) 생성 서비스.
 
 today.py 의 라이브 경기 카드 + 순위/최근 흐름/선발 시즌 성적을 조립해
-Claude Opus 4.8 단일 호출로 경기별 내러티브를 만든다. RAG/에이전트가 아니라
+OpenAI API 단일 호출로 경기별 내러티브를 만든다. RAG/에이전트가 아니라
 "데이터를 골라 글로 쓰는" 단순 텍스트 생성 작업이라 단일 호출이면 충분하다.
 
-ANTHROPIC_API_KEY 가 없으면 mock 폴백으로 동작해 프런트 흐름을 확인할 수 있다.
+OPENAI_API_KEY 가 없으면 mock 폴백으로 동작해 프런트 흐름을 확인할 수 있다.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw" / "kbo_official"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
-MODEL = "claude-opus-4-8"
+MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 
 # 네이버 홈/원정 팀 코드 -> CSV(팀명/Team) 표기. today.py HOME_STADIUM 과 동일 코드 체계.
 CODE_TO_TEAM = {
@@ -60,7 +60,7 @@ class StoryService:
             "date": date,
             "season": season,
             "model": MODEL,
-            "ai_enabled": bool(os.getenv("ANTHROPIC_API_KEY")),
+            "ai_enabled": bool(os.getenv("OPENAI_API_KEY")),
             "count": len(stories),
             "data": stories,
         }
@@ -180,22 +180,24 @@ class StoryService:
             "IP": r.get("IP"),
         }
 
-    # ── Claude 호출 (or mock) ─────────────────────────────────────────────
+    # ── OpenAI 호출 (or mock) ─────────────────────────────────────────────
     def _generate(self, context: dict[str, Any], kind: str) -> str:
-        if not os.getenv("ANTHROPIC_API_KEY"):
+        if not os.getenv("OPENAI_API_KEY"):
             return self._mock(context, kind)
 
-        import anthropic  # 키가 있을 때만 import (의존성 선택적)
+        from openai import OpenAI  # 키가 있을 때만 import (의존성 선택적)
 
-        client = anthropic.Anthropic()
+        client = OpenAI()
         user_prompt = self._render_prompt(context, kind)
-        resp = client.messages.create(
+        resp = client.chat.completions.create(
             model=MODEL,
             max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
         )
-        return next((b.text for b in resp.content if b.type == "text"), "").strip()
+        return (resp.choices[0].message.content or "").strip()
 
     @staticmethod
     def _render_prompt(context: dict[str, Any], kind: str) -> str:
@@ -219,7 +221,7 @@ class StoryService:
             return (
                 f"[mock] {context['matchup']} 경기는 {home['name']} {home['score']} : "
                 f"{away['score']} {away['name']}로 마무리됐다. "
-                f"(ANTHROPIC_API_KEY를 설정하면 실제 AI 리뷰가 생성됩니다.)"
+                f"(OPENAI_API_KEY를 설정하면 실제 AI 리뷰가 생성됩니다.)"
             )
         return (
             f"[mock] {context['stadium']} {context['time']}, "
@@ -227,7 +229,7 @@ class StoryService:
             f"{home['name']}(현재 {h_team.get('rank', '?')}위) 의 맞대결. "
             f"선발은 {(away.get('starter') or {}).get('name', '미정')} 대 "
             f"{(home.get('starter') or {}).get('name', '미정')}. "
-            f"(ANTHROPIC_API_KEY를 설정하면 실제 AI 프리뷰가 생성됩니다.)"
+            f"(OPENAI_API_KEY를 설정하면 실제 AI 프리뷰가 생성됩니다.)"
         )
 
     # ── CSV 로딩/유틸 ────────────────────────────────────────────────────
