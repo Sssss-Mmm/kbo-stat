@@ -1,131 +1,234 @@
-# KBO Dashboard ⚾
+# KBO Stat
 
-> KBO(한국 프로야구) 데이터를 직접 수집·정제·시각화하는 풀스택 데이터 대시보드.
-> 매일 자동으로 갱신되는 데이터 파이프라인 위에 React 대시보드와 FastAPI 백엔드를 올린 개인 프로젝트입니다.
+KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하는 야구 데이터 프로젝트입니다.
 
-**Stack** · Python (크롤러 / ETL) · FastAPI · PostgreSQL · React + Vite · Docker · cron
+현재 프로젝트는 두 가지 화면을 함께 가지고 있습니다.
 
----
+- `web/`: Docker에서 기본으로 서빙되는 정적 대시보드
+- `kbo-dashboard/frontend/`: React + Vite 개발용 대시보드
 
-## 한눈에 보기
-
-여러 공개 소스(KBO 공식, 네이버 스포츠, Statiz)에서 데이터를 수집해 하나의 DB로 정규화하고,
-매일 새벽 자동 갱신되는 파이프라인을 거쳐 대시보드로 보여줍니다.
-
-```
- 데이터 소스                  수집/정제(Python)            저장          서비스
-┌──────────────┐         ┌─────────────────────┐    ┌──────────┐   ┌──────────────┐
-│ KBO 공식 사이트 │         │  crawl_*.py (크롤러)   │    │          │   │ FastAPI       │
-│ 네이버 스포츠   │  ──►    │  build_*.py (ETL)     │──► │ Postgres │──►│ REST API      │──► React Dashboard
-│ Statiz        │         │  update_daily.py      │    │  / CSV   │   │ (8001)        │     (Vite)
-└──────────────┘         └─────────────────────┘    └──────────┘   └──────────────┘
-                                  ▲
-                          매일 02:00 KST cron 자동 실행
-```
+백엔드는 `kbo-dashboard/backend`의 FastAPI가 담당하고, 데이터는 `data/` 아래 CSV와 PostgreSQL을 함께 사용합니다.
 
 ## 주요 기능
 
-| 기능 | 설명 |
-| --- | --- |
-| 🏠 **오늘의 경기** | 네이버 일정 API를 온디맨드로 프록시해 예고 선발·스코어·경기 상태를 실시간 표시. **log5 + 홈 어드밴티지**로 홈팀 승리 확률 추정 |
-| 📊 **팀 순위** | 승·패·승률·게임차·최근 10경기, 시즌 순위 변동을 보여주는 **순위 레이스 차트** |
-| 📅 **경기 일정** | 시즌 전체 일정/결과 |
-| 🧑 **선수 기록** | 타자·투수 리더보드를 **산점도(Scatter) / 비스웜(Beeswarm)** 차트로 탐색 |
-| 🔥 **핫/콜드존** | 네이버 경기센터의 투구 추적 데이터를 모아 만든 타자·투수별 **3×3 스트라이크존 히트맵** |
-| 🤖 **AI 분석 데모** | CSV 기반 경량 RAG — 질문에 대해 관련 통계 근거(evidence)를 검색·합성해 답변 |
-
-> 다크/라이트 테마 토글, 팀별 컬러·엠블럼 등 디테일도 직접 구현했습니다.
-
-## 기술적으로 신경 쓴 점
-
-- **다중 소스 크롤링 정규화** — KBO 공식, 네이버, Statiz의 서로 다른 응답 구조와 팀 코드(예: 잠실 = LG/두산 공용)를 하나의 스키마로 통합.
-- **라이브 vs 배치 데이터 분리** — 하루에도 바뀌는 예고 선발·스코어는 요청 시점에 직접 호출(60초 캐시)하고, 안정적인 통계는 일일 CSV 배치로 처리.
-- **자동화된 일일 파이프라인** — `flock` 락으로 중복 실행을 막는 cron 스크립트가 매일 데이터를 갱신하고, 경기 지연/연장을 고려해 투구 데이터는 직전 2일치를 다시 수집.
-- **DB 단일화 리팩터링** — 초기 정적 CSV 직접 읽기 방식에서 PostgreSQL + FastAPI 백엔드 API 호출로 전환해 데이터 소스를 일원화.
-- **경량 RAG** — 외부 LLM 의존 없이 키워드 오버랩 기반 검색 + 템플릿 합성으로 근거 기반 답변을 생성하는 데모.
+- 오늘의 KBO: 오늘 경기, 순위, 최근 흐름, 주요 선수 카드
+- 순위표: 팀 순위, 승률, 게임차, 최근 10경기 흐름
+- 경기 일정: KBO 일정/결과 데이터 조회
+- 팀 분석: 순위 변화, 월별 승률, 득점/실점, 홈/원정 비교
+- 선수 분석: 타자/투수 기록, 등록 선수 명단, 검색
+- 핫/콜드존: 네이버 경기센터 투구 데이터를 활용한 존 분석 기반 데이터
+- AI 스토리: OpenAI API를 이용한 경기 프리뷰/리뷰 생성
+- RAG 데모: 수집된 야구 데이터를 근거로 질문에 답하는 분석 API
 
 ## 기술 스택
 
-| 영역 | 사용 기술 |
+| 영역 | 기술 |
 | --- | --- |
-| 데이터 수집/정제 | Python, pandas, requests, BeautifulSoup |
+| 데이터 수집 | Python, pandas, requests, BeautifulSoup |
 | 백엔드 | FastAPI, SQLAlchemy, PostgreSQL |
-| 프런트엔드 | React 18, Vite, axios, 직접 구현한 SVG 차트 |
-| 인프라 | Docker, docker-compose, nginx, cron |
+| 프론트 | Vanilla JS, React, Vite |
+| 시각화 | SVG, CSS, 자체 차트 컴포넌트 |
+| 인프라 | Docker, nginx, cron |
+| AI | OpenAI API |
 
 ## 프로젝트 구조
 
-```
+```text
 kbo-stat/
-├── src/                     # 데이터 수집·정제 파이프라인 (Python)
-│   ├── crawl_*.py           #   소스별 크롤러 (KBO/네이버/Statiz)
-│   ├── build_*.py           #   ETL — 지표·존·경기결과 데이터셋 생성
-│   └── update_daily.py      #   일일 업데이트 엔트리포인트
-├── kbo-dashboard/           # 메인 풀스택 앱
-│   ├── backend/             #   FastAPI (routers / services / models / migrations)
-│   └── frontend/            #   React + Vite 대시보드
-├── scripts/                 # 배포·일일 cron 스크립트
-├── web/                     # 초기 vanilla JS 프로토타입 (레거시, nginx 클린 URL)
-└── data/                    # raw / processed CSV
+├── data/
+│   ├── raw/                  # 원천 CSV
+│   └── processed/            # 가공 CSV
+├── src/
+│   ├── crawl_*.py            # KBO/네이버/Statiz 크롤러
+│   ├── build_*.py            # 가공 데이터 생성
+│   └── update_daily.py       # 일일 업데이트 엔트리포인트
+├── scripts/
+│   └── update_kbo_daily.sh   # cron 자동 업데이트 스크립트
+├── web/                      # Docker 기본 웹 화면
+│   ├── index.html
+│   ├── *.js
+│   ├── styles.css
+│   ├── Dockerfile
+│   └── nginx.conf
+└── kbo-dashboard/
+    ├── backend/              # FastAPI API 서버
+    ├── frontend/             # React + Vite 개발용 프론트
+    └── docker-compose.yml
 ```
 
 ## 빠른 실행
 
-### 1) 데이터 갱신
+Docker 기준 실행이 가장 쉽습니다.
 
 ```bash
-python3 src/update_daily.py --year 2026                 # 순위·일정 (빠른 갱신)
-python3 src/update_daily.py --year 2026 --players        # 타자·투수 리더보드 포함
-python3 src/update_daily.py --year 2026 --pitch-zones    # 핫/콜드존 투구 데이터 포함
+cd kbo-dashboard
+cp .env.example .env
+docker compose up -d --build
 ```
 
-### 2) 백엔드
+접속 주소:
+
+- 웹: `http://127.0.0.1:8000/web/`
+- 백엔드 API: `http://127.0.0.1:8001`
+- API 문서: `http://127.0.0.1:8001/docs`
+- pgAdmin: `http://127.0.0.1:5050`
+- PostgreSQL: `localhost:5433`
+
+`docker-compose` v1에서 `ContainerConfig` 오류가 나면 v2 명령을 사용하세요.
+
+```bash
+docker compose up -d --build
+```
+
+기존 컨테이너 이름 충돌이 나면 아래처럼 정리 후 다시 실행합니다.
+
+```bash
+docker rm -f kbo_web kbo_backend kbo_dashboard_db kbo_pgadmin
+cd kbo-dashboard
+docker compose up -d --build
+```
+
+## 환경 변수
+
+Docker compose는 `kbo-dashboard/.env`를 사용합니다.
+
+```bash
+cd kbo-dashboard
+cp .env.example .env
+```
+
+예시:
+
+```env
+DB_USER=kbo_user
+DB_PASSWORD=CHANGE_ME
+DB_NAME=kbo_dashboard
+
+PGADMIN_EMAIL=admin@example.com
+PGADMIN_PASSWORD=CHANGE_ME
+
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+`OPENAI_API_KEY`가 없으면 AI 스토리 기능은 mock 응답으로 동작합니다.
+
+## 데이터 갱신
+
+기본 갱신은 순위, 일정, 결과, 관중, 경기시간, 타자 파생지표를 업데이트합니다.
+
+```bash
+python3 src/update_daily.py --year 2026
+```
+
+선수 리더보드와 현재 등록 선수 명단까지 갱신:
+
+```bash
+python3 src/update_daily.py --year 2026 --players
+```
+
+등록 선수 명단만 갱신:
+
+```bash
+python3 src/update_daily.py --registered-players
+```
+
+네이버 투구 존 데이터 갱신:
+
+```bash
+python3 src/update_daily.py --pitch-zones --pitch-date 2026-06-21
+```
+
+CSV 갱신 후 PostgreSQL까지 적재:
+
+```bash
+python3 src/update_daily.py --year 2026 --players --db
+```
+
+## 자동 업데이트
+
+`scripts/update_kbo_daily.sh`를 cron에 등록해 매일 자동 갱신할 수 있습니다.
+
+```cron
+30 1 * * * cd /home/sssssmmm/kbo-stat && PYTHON_BIN=/usr/bin/python3 scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
+```
+
+스크립트는 `flock`으로 중복 실행을 방지합니다.
+
+## 백엔드 로컬 실행
 
 ```bash
 cd kbo-dashboard/backend
-venv/bin/python main.py          # http://127.0.0.1:8001
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python migrate.py
+python main.py
 ```
 
+서버:
+
+```text
+http://127.0.0.1:8001
+```
+
+대표 API:
+
 ```bash
-# 예시: RAG 질의
+curl http://127.0.0.1:8001/health
+curl http://127.0.0.1:8001/api/standings
+curl http://127.0.0.1:8001/api/schedule-games
+curl "http://127.0.0.1:8001/api/player-stats?role=hitter&season=2026"
+```
+
+RAG 질의:
+
+```bash
 curl -X POST http://127.0.0.1:8001/api/rag/ask \
   -H "Content-Type: application/json" \
   -d '{"question":"왜 한화가 강하지?","season":2026}'
 ```
 
-### 3) 프런트엔드
+## React 프론트 로컬 실행
+
+React 앱은 Docker 기본 화면이 아니라 개발용 프론트입니다.
 
 ```bash
 cd kbo-dashboard/frontend
 npm install
-npm run dev                       # Vite 개발 서버 (백엔드 8001로 프록시)
+npm run dev
 ```
 
-### Docker
+접속:
 
-```bash
-cd kbo-dashboard
-docker-compose up -d              # postgres + backend + frontend
+```text
+http://127.0.0.1:3000
 ```
 
-## 자동 업데이트 (cron)
+Vite 개발 서버는 `/api` 요청을 `http://localhost:8001`로 프록시합니다.
 
-매일 새벽 2시(KST) KBO 공식 데이터와 네이버 투구 데이터를 함께 갱신합니다.
+## 데이터 출처
 
-```cron
-0 2 * * * cd /home/sssssmmm/kbo-stat && scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
-```
+이 프로젝트는 학습 및 포트폴리오 목적으로 만들어졌습니다.
 
-`logs/update_kbo_daily.lock` 기반 `flock`으로 중복 실행을 방지합니다.
+- KBO 공식 사이트
+- 네이버 스포츠
+- Statiz
 
-## 데이터 출처 안내
+일부 데이터는 공식 문서화된 공개 API가 아니라 웹 페이지와 내부 응답 구조를 기반으로 수집합니다. 출처의 구조가 바뀌면 크롤러가 동작하지 않을 수 있으며, 모든 데이터의 권리는 각 원 출처에 있습니다.
 
-네이버 경기센터의 투구 위치·일정 데이터는 공식 문서화된 API가 아니라 네이버 스포츠가 사용하는
-공개 응답을 기반으로 합니다. 응답 구조가 바뀔 수 있으며, 모든 데이터의 저작권은 각 출처에 있습니다.
-본 프로젝트는 학습·포트폴리오 목적의 비상업적 프로젝트입니다.
+## 현재 주의할 점
 
-## 향후 개선 아이디어
+- Docker의 기본 `web` 서비스는 `web/` 정적 대시보드를 서빙합니다.
+- `kbo-dashboard/frontend` React 앱은 별도 개발 서버로 실행해야 합니다.
+- 선수 기록 API는 데이터 파일 종류에 따라 리더보드 선수만 보일 수 있습니다.
+- 전체 등록 선수 명단은 `src/update_daily.py --registered-players` 또는 `--players`로 갱신합니다.
+- CSV를 갱신해도 DB 기반 API에는 바로 반영되지 않을 수 있으므로 필요하면 `--db`를 함께 실행하세요.
 
-- 순위표 컬럼 정렬 / 선수 검색·팀 필터 / CSV 다운로드
-- 홈 미니 캘린더
-- 구종(pitch type) 분석 데이터 수집 및 시각화
+## 앞으로 할 일
+
+- Docker 기본 프론트를 React 앱으로 통일
+- 등록 선수 API 정식 추가
+- 핫/콜드존 가공 파이프라인 정리
+- 선수 비교, 팀 비교, AI 분석 챗봇 고도화
+- README와 요구사항 정의서 기준 기능 체크리스트 동기화
