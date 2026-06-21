@@ -1,166 +1,144 @@
 # KBO Dashboard
 
-KBO(한국 야구위원회) 리그 데이터를 시각화하는 대시보드입니다.
+`kbo-dashboard`는 KBO Stat 프로젝트의 백엔드, React 개발용 프론트, Docker 실행 구성을 담고 있습니다.
 
-## 프로젝트 구조
+상위 루트 README가 전체 프로젝트 기준 문서이고, 이 문서는 대시보드 실행에 필요한 내용만 정리합니다.
 
-```
+## 구성
+
+```text
 kbo-dashboard/
-├── backend/                    # FastAPI
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── migrate.py              # CSV → DB 마이그레이션
-│   ├── database/               # DB 연결 설정
-│   │   └── __init__.py
-│   ├── models/                 # SQLAlchemy ORM 모델
-│   │   └── __init__.py
-│   ├── routers/
-│   │   ├── standings.py        # GET /api/standings
-│   │   ├── schedule.py         # GET /api/schedule
-│   │   └── players.py          # GET /api/players
-│   └── services/
-│       ├── standings_service.py
-│       ├── schedule_service.py
-│       └── player_service.py
-│
-└── frontend/                   # React + Vite
-    └── src/
-        ├── pages/
-        │   ├── Standings.jsx
-        │   └── Schedule.jsx
-        └── components/
-            └── StandingsTable.jsx
+├── backend/
+│   ├── main.py               # FastAPI 앱
+│   ├── migrate.py            # CSV -> PostgreSQL 적재
+│   ├── migrate_analytics.py  # 분석용 CSV -> PostgreSQL 적재
+│   ├── routers/              # API 라우터
+│   ├── services/             # 비즈니스 로직
+│   ├── models/               # SQLAlchemy 모델
+│   └── requirements.txt
+├── frontend/                 # React + Vite 개발용 프론트
+└── docker-compose.yml
 ```
 
-## 데이터 흐름
-
-```
-PostgreSQL 데이터베이스
-        ↓
-  service (ORM 쿼리)
-        ↓
-  router (REST API)
-        ↓
-  React 프론트엔드
-```
-
-## 설치 및 실행
-
-### 1. PostgreSQL 시작 (Docker)
+## Docker 실행
 
 ```bash
-docker-compose up -d
-```
-
-PostgreSQL: `localhost:5432`
-PgAdmin: `http://localhost:5050` (admin@example.com / admin)
-
-### 2. Backend 설정
-
-```bash
-cd backend
-
-# 환경변수 설정
+cd kbo-dashboard
 cp .env.example .env
+docker compose up -d --build
+```
 
-# 패키지 설치
+서비스:
+
+| 서비스 | 주소 |
+| --- | --- |
+| 웹 | `http://127.0.0.1:8000/web/` |
+| FastAPI | `http://127.0.0.1:8001` |
+| API 문서 | `http://127.0.0.1:8001/docs` |
+| pgAdmin | `http://127.0.0.1:5050` |
+| PostgreSQL | `localhost:5433` |
+
+현재 Docker의 `web` 서비스는 `frontend/` React 앱이 아니라 상위 루트의 `web/` 정적 대시보드를 서빙합니다.
+
+## 환경 변수
+
+`kbo-dashboard/.env`:
+
+```env
+DB_USER=kbo_user
+DB_PASSWORD=CHANGE_ME
+DB_NAME=kbo_dashboard
+
+PGADMIN_EMAIL=admin@example.com
+PGADMIN_PASSWORD=CHANGE_ME
+
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+`OPENAI_API_KEY`가 없으면 AI 스토리 기능은 mock 응답으로 동작합니다.
+
+## Backend 로컬 실행
+
+```bash
+cd kbo-dashboard/backend
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-
-# CSV 데이터를 DB로 마이그레이션
 python migrate.py
-
-# 서버 실행
 python main.py
 ```
 
-서버는 `http://localhost:8000`에서 실행됩니다.
-API 문서: `http://localhost:8000/docs`
-
-### 3. Frontend 설정
+기본 포트는 `8001`입니다.
 
 ```bash
-cd frontend
+curl http://127.0.0.1:8001/health
+```
 
-# 환경변수 설정
-cp .env.example .env
+## Frontend 로컬 실행
 
+React/Vite 프론트는 개발 서버로 따로 실행합니다.
+
+```bash
+cd kbo-dashboard/frontend
 npm install
 npm run dev
 ```
 
-프론트엔드는 `http://localhost:3000`에서 실행됩니다.
+접속:
 
-## 데이터베이스 스키마
+```text
+http://127.0.0.1:3000
+```
 
-### 테이블
+`frontend/vite.config.js`에서 `/api` 요청을 `http://localhost:8001`로 프록시합니다.
 
-- **teams**: 팀 정보
-- **standings**: 팀 순위
-- **schedules**: 경기 일정
-- **hitters**: 타자 통계
-- **pitchers**: 투수 통계
+## 주요 API
 
-## API 엔드포인트
+| API | 설명 |
+| --- | --- |
+| `GET /api/standings` | DB 기반 팀 순위 |
+| `GET /api/schedule` | DB 기반 경기 일정 |
+| `GET /api/players/hitters` | DB 기반 타자 리더보드 |
+| `GET /api/players/pitchers` | DB 기반 투수 리더보드 |
+| `GET /api/team-rank` | CSV/분석 화면용 순위 |
+| `GET /api/schedule-games` | CSV/분석 화면용 일정 |
+| `GET /api/hitter-metrics` | 타자 파생 지표 |
+| `GET /api/player-stats` | 네이버 선수 기록 CSV 기반 API |
+| `GET /api/zones` | 핫/콜드존 데이터 |
+| `POST /api/rag/ask` | 데이터 기반 RAG 질의 |
+| `GET /api/today-story` | OpenAI 기반 오늘 경기 스토리 |
 
-### 순위표
-- `GET /api/standings` - 현재 시즌 순위표
-- `GET /api/standings?season=2024` - 특정 시즌 순위표
-- `GET /api/standings/KT?season=2024` - 팀별 순위 정보
+## 데이터 적재
 
-### 경기 일정
-- `GET /api/schedule?season=2024` - 시즌 경기 일정
-- `GET /api/schedule?season=2024&team=KT` - 팀별 경기 일정
-- `GET /api/schedule/2024-06-01` - 날짜별 경기 일정
-
-### 선수 정보
-- `GET /api/players/hitters?season=2024&limit=50` - 타자 순위
-- `GET /api/players/pitchers?season=2024&limit=50` - 투수 순위
-- `GET /api/players/search/선수명?season=2024` - 선수 검색
-- `GET /api/players/team/KT?season=2024&player_type=hitter` - 팀별 선수
-
-## 기술 스택
-
-### Backend
-- FastAPI
-- SQLAlchemy ORM
-- PostgreSQL
-- Uvicorn
-
-### Frontend
-- React 18
-- Vite
-- Axios
-
-## 마이그레이션
-
-CSV 데이터를 데이터베이스로 변환:
+CSV를 PostgreSQL에 적재:
 
 ```bash
-cd backend
+cd kbo-dashboard/backend
+source venv/bin/activate
 python migrate.py
 ```
 
-이 명령은:
-1. PostgreSQL 테이블 생성
-2. `data/raw/kbo_official/` 폴더의 CSV 파일 읽기
-3. 데이터 파싱 및 DB 저장
+상위 루트에서 데이터 갱신 후 DB까지 반영:
 
-## 개발 가이드
+```bash
+cd ../..
+python3 src/update_daily.py --year 2026 --players --db
+```
 
-### 새로운 API 엔드포인트 추가
+## 문제 해결
 
-1. **모델 생성** (`models/__init__.py`)
-2. **서비스 작성** (`services/`)
-3. **라우터 구현** (`routers/`)
-4. **main.py에 라우터 등록**
+컨테이너 이름 충돌:
 
-### CSV 데이터 포함 경로
+```bash
+docker rm -f kbo_web kbo_backend kbo_dashboard_db kbo_pgadmin
+docker compose up -d --build
+```
 
-- 타자 데이터: `/data/raw/kbo_official/kbo_YYYY.csv`
-- 투수 데이터: `/data/raw/kbo_official/kbo_pitcher_YYYY.csv`
-- 팀 순위: `/data/raw/kbo_official/kbo_team_rank_YYYY.csv`
-- 경기 일정: `/data/raw/kbo_official/kbo_schedule_YYYY.csv`
+`docker-compose` v1의 `ContainerConfig` 오류:
 
-## 라이선스
+```bash
+docker compose up -d --build
+```
 
-MIT
+DB 접속 오류가 나면 `.env`의 `DB_USER`, `DB_PASSWORD`, `DB_NAME`과 `docker-compose.yml`의 healthcheck 값이 같은지 확인하세요.
