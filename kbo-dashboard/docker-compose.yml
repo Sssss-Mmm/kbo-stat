@@ -39,6 +39,18 @@ services:
     depends_on:
       - backend
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: kbo_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - kbo_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: kbo_dashboard_db
