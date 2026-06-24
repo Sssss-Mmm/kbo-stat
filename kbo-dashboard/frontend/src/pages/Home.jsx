@@ -32,18 +32,14 @@ function recentWinRate(s) {
   const l = parseInt((s.match(/(\d+)패/) || [])[1] || 0, 10)
   return w + l ? w / (w + l) : 0
 }
-// "19-0-10" (승-무-패) -> 승률
-function recordWinRate(s) {
-  if (!s) return 0
-  const [w, , l] = String(s).split('-').map((x) => parseInt(x, 10) || 0)
-  return w + l ? w / (w + l) : 0
-}
 // "22-10" 또는 "19-0-10" -> {w, l, pct}
 function parseRecord(s) {
   const parts = String(s || '').split('-').map((x) => parseInt(x, 10) || 0)
   const [w, l] = parts.length === 3 ? [parts[0], parts[2]] : [parts[0] || 0, parts[1] || 0]
   return { w, l, pct: w + l ? w / (w + l) : null }
 }
+// "19-0-10" (승-무-패) -> 승률
+const recordWinRate = (s) => parseRecord(s).pct || 0
 const fmtPct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '-')
 // "81 1/3" -> 81.333
 function parseIP(s) {

@@ -202,12 +202,13 @@ class RagService:
     ) -> dict[str, Any]:
         """질문에 팀명이 있으면 그 팀, 없으면 검색 1순위(없으면 1위 팀) 분석."""
         requested_team = self._find_team_in_question(question, data["standings"])
+        docs = self._build_documents(data)
         team_doc = None
         if requested_team:
             team_doc = next(
                 (
                     item
-                    for item in self._build_documents(data)
+                    for item in docs
                     if item.payload.get("type") == "team"
                     and item.payload.get("team") == requested_team
                 ),
@@ -216,8 +217,7 @@ class RagService:
         if not team_doc:
             team_doc = next((item for item in evidence if item.payload.get("type") == "team"), None)
         if not team_doc and not data["standings"].empty:
-            row = data["standings"].sort_values(RANK_COL).iloc[0]
-            team_doc = self._build_documents(data)[0]
+            team_doc = docs[0]
         if not team_doc:
             return {
                 "title": "No team data is available.",
