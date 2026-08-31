@@ -1,0 +1,44 @@
+/* 팀 분석 페이지. 패널·표·막대 스타일은 Home.css 를 그대로 쓰고 여기선 차이만 정의. */
+.teams-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.teams-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.teams-header select {
+  padding: 6px 10px;
+  font-size: 15px;
+}
+
+.team-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.team-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-summary span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.team-summary strong {
+  font-size: 20px;
+}
+
+.team-summary .pos { color: #1a7f5a; }
+.team-summary .neg { color: #c0392b; }
