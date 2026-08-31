@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { teamColor, teamEmblem } from '../lib/teamColors'
+import { kstToday } from '../lib/season'
 import '../styles/TodayGames.css'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -23,8 +24,9 @@ function log5(a, b) {
   return d ? (a * (1 - b)) / d : 0.5
 }
 
-function TodayGames({ standings = [] }) {
-  const [date, setDate] = useState(toKey(new Date()))
+// storyEnabled=false(오프시즌·개막전)면 AI 스토리 API를 아예 호출하지 않는다(FR-12 AC3).
+function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
+  const [date, setDate] = useState(kstToday())  // 기준 날짜는 KST (NFR-15)
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -47,6 +49,7 @@ function TodayGames({ standings = [] }) {
 
   // AI 데일리 스토리: 경기 목록과 별개로(느릴 수 있어) 받아 gameId로 매핑.
   useEffect(() => {
+    if (!storyEnabled) return  // FR-12 AC3: 비활성 시즌에는 요청 자체를 보내지 않는다
     let active = true
     setStories({})
     setStoryLoading(true)
@@ -63,7 +66,7 @@ function TodayGames({ standings = [] }) {
     return () => {
       active = false
     }
-  }, [date])
+  }, [date, storyEnabled])
 
   const standMap = useMemo(() => {
     const m = {}
@@ -102,11 +105,12 @@ function TodayGames({ standings = [] }) {
         <h3>{label}</h3>
         <div className="tg-nav">
           <button onClick={() => shift(-1)} aria-label="이전 날">‹</button>
-          <button className="tg-today" onClick={() => setDate(toKey(new Date()))}>오늘</button>
+          <button className="tg-today" onClick={() => setDate(kstToday())}>오늘</button>
           <button onClick={() => shift(1)} aria-label="다음 날">›</button>
         </div>
       </div>
 
+      {note && <p className="tg-msg">{note}</p>}
       {loading && <p className="tg-msg">로딩중...</p>}
       {error && <p className="tg-msg error">{error}</p>}
       {!loading && !error && games.length === 0 && <p className="tg-msg">이 날 예정된 경기가 없습니다.</p>}
@@ -161,6 +165,7 @@ function TodayGames({ standings = [] }) {
                   </div>
                 )}
 
+                {storyEnabled && (
                 <div className="tg-story">
                   <span className="tg-story-tag">{done ? 'AI 리뷰' : 'AI 프리뷰'}</span>
                   {stories[g.gameId]?.story ? (
@@ -169,6 +174,7 @@ function TodayGames({ standings = [] }) {
                     <p className="tg-story-skel">{storyLoading ? 'AI가 이야기를 쓰는 중...' : '—'}</p>
                   )}
                 </div>
+                )}
               </article>
             )
           })}
