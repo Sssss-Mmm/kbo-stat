@@ -16,6 +16,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -119,8 +121,8 @@ def crawl(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     team_path = RAW_DIR / f"kbo_game_time_team_{year}.csv"
     yearly_path = RAW_DIR / "kbo_game_time_yearly.csv"
-    team.to_csv(team_path, index=False, encoding="utf-8-sig")
-    yearly.to_csv(yearly_path, index=False, encoding="utf-8-sig")
+    csv_guard.save_csv(team, team_path)
+    csv_guard.save_csv(yearly, yearly_path)
     print(f"saved {team_path.name} rows={len(team)}")
     print(f"saved {yearly_path.name} rows={len(yearly)}")
     return team, yearly

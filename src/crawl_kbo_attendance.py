@@ -16,6 +16,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -80,8 +82,8 @@ def crawl(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     total_path = RAW_DIR / f"kbo_attendance_{year}.csv"
     monthly_path = RAW_DIR / f"kbo_attendance_monthly_{year}.csv"
-    total.to_csv(total_path, index=False, encoding="utf-8-sig")
-    monthly.to_csv(monthly_path, index=False, encoding="utf-8-sig")
+    csv_guard.save_csv(total, total_path)
+    csv_guard.save_csv(monthly, monthly_path)
     print(f"saved {total_path.name} rows={len(total)}")
     print(f"saved {monthly_path.name} rows={len(monthly)}")
     return total, monthly

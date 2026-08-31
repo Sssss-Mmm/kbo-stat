@@ -19,6 +19,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+import csv_guard
+
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "statiz"
@@ -173,7 +175,7 @@ def crawl(session: requests.Session, start: int, end: int, delay: float = 2.0):
             if df.empty:
                 print(f"  empty {year}")
             else:
-                df.to_csv(out, index=False)
+                csv_guard.save_csv(df, out)
                 print(f"  saved {out.name}  ({len(df)} rows, {len(df.columns)} cols)")
         except Exception as e:
             print(f"  ERROR {year}: {e}")

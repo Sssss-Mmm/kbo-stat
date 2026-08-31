@@ -19,6 +19,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -200,7 +202,7 @@ def crawl(start: int = 2008, end: int = 2025, overwrite: bool = False) -> None:
             if df.empty:
                 print(f"  empty {year}")
             else:
-                df.to_csv(out, index=False, encoding="utf-8-sig")
+                csv_guard.save_csv(df, out)
                 detail_cols = [c for c in ["XBH", "GO", "AO", "GO/AO", "GW RBI", "BB/K", "P/PA", "ISOP", "XR", "GPA"] if c in df.columns]
                 print(
                     f"  saved {out.name}  players={len(df)} "

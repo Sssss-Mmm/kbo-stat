@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 import build_team_game_results
+import csv_guard
 import crawl_kbo_attendance
 import crawl_kbo_game_time
 import crawl_kbo_schedule
@@ -75,7 +76,8 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
     snapshot = df.copy()
     snapshot.insert(1, "Date", snapshot_date)
     snapshot_path = snapshot_dir / f"kbo_team_rank_{snapshot_date}.csv"
-    snapshot.to_csv(snapshot_path, index=False, encoding="utf-8-sig")
+    # 0행 스냅샷은 KBO 순위 페이지 파싱이 깨진 것 — history 를 오염시키기 전에 멈춘다.
+    csv_guard.save_csv(snapshot, snapshot_path, prefix="[daily]")
 
     if history_path.exists():
         history = pd.read_csv(history_path)
@@ -90,10 +92,8 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
         history = snapshot
 
     history = history.sort_values(["Date", "순위", "팀명"])
-    history.to_csv(history_path, index=False, encoding="utf-8-sig")
-    print(
-        f"[daily] saved team rank snapshot {snapshot_path.name} "
-        f"history_rows={len(history)}"
+    csv_guard.save_csv(
+        history, history_path, prefix="[daily]", extra=f"snapshot={snapshot_date}"
     )
 
 
