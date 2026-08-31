@@ -21,13 +21,19 @@ def already_seeded() -> bool:
 
 
 def main() -> None:
-    if already_seeded():
-        print("[seed] DB already seeded — skipping migration.")
-        return
-    print("[seed] empty DB detected — running migration...")
-    import migrate
+    # 시드는 부가 작업이다. 실패해도 API(특히 CSV 라우터)는 떠야 하므로
+    # 예외를 사유와 함께 로그로만 남기고 정상 종료한다(NFR-05 장애 격리).
+    try:
+        if already_seeded():
+            print("[seed] DB already seeded — skipping migration.")
+            return
+        print("[seed] empty DB detected — running migration...")
+        import migrate
 
-    migrate.main()
+        migrate.main()
+    except Exception as exc:
+        print(f"[seed] skipped — {type(exc).__name__}: {exc}")
+        print("[seed] DB 기반 라우터는 503 을 반환하고 CSV 기반 라우터만 동작한다.")
 
 
 if __name__ == "__main__":
