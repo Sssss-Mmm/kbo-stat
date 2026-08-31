@@ -1,4 +1,6 @@
-// 3×3 스트라이크존 히트맵. 리그 평균을 중앙값으로 한 발산(파랑→빨강) 색상.
+// 투구 존 히트맵. 격자 크기(gridN)는 데이터에서 받는다(build_zone_metrics.py 의 GRID_N).
+// 안쪽 gridN-2 칸이 스트라이크존, 바깥 테두리 한 겹이 존 밖(유인구)이라 테두리는 굵은 선으로 구분한다.
+// 리그 평균을 중앙값으로 한 발산(파랑→빨강) 색상.
 const COLOR_LOW = [59, 111, 212]
 const COLOR_MID = [242, 244, 246]
 const COLOR_HIGH = [216, 64, 58]
@@ -22,13 +24,16 @@ function cellColor(value, avg, metric) {
   return `rgb(${rgb.join(',')})`
 }
 
-function ZoneHeatmap({ cells, metric, leagueAvg }) {
+function ZoneHeatmap({ cells, metric, leagueAvg, gridN = 5 }) {
   const byZone = new Map(cells.map((cell) => [cell.Zone, cell]))
   const minSample = MIN_SAMPLE[metric]
+  const axis = Array.from({ length: gridN }, (_, i) => i + 1)
+  // 존 안쪽(스트라이크존) 칸 번호는 2 ~ gridN-1, 1 과 gridN 은 존 밖 테두리.
+  const inZone = (r, c) => r > 1 && r < gridN && c > 1 && c < gridN
 
-  // row 3=상단, 1=하단 / col 1=좌, 3=우 (투수 시점 기준).
-  const grid = [3, 2, 1].flatMap((r) =>
-    [1, 2, 3].map((c) => {
+  // row 1=상단, gridN=하단 / col 1=좌, gridN=우 (투수 시점 기준).
+  const grid = axis.flatMap((r) =>
+    axis.map((c) => {
       const cell = byZone.get(`${r}-${c}`)
       const pitches = cell?.Pitches || 0
       const inPlay = cell?.InPlay || 0
@@ -48,14 +53,14 @@ function ZoneHeatmap({ cells, metric, leagueAvg }) {
       const key = `${r}-${c}`
       if (value === null) {
         return (
-          <div key={key} className="heat-cell empty">
+          <div key={key} className={`heat-cell empty${inZone(r, c) ? ' in-zone' : ''}`}>
             <span className="val">—</span>
             <span className="sub">{pitches}구</span>
           </div>
         )
       }
       return (
-        <div key={key} className="heat-cell" style={{ background: cellColor(value, leagueAvg, metric) }}>
+        <div key={key} className={`heat-cell${inZone(r, c) ? ' in-zone' : ''}`} style={{ background: cellColor(value, leagueAvg, metric) }}>
           <span className="val">{fmtRate(value)}</span>
           <span className="sub">{sample}</span>
         </div>
@@ -66,7 +71,7 @@ function ZoneHeatmap({ cells, metric, leagueAvg }) {
   return (
     <div className="heat-frame">
       <div className="axis">높은 코스</div>
-      <div className="heat-grid">{grid}</div>
+      <div className="heat-grid" style={{ '--grid-n': gridN }}>{grid}</div>
       <div className="axis">낮은 코스</div>
       <div className="heat-legend">
         <span>낮음</span>
