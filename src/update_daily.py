@@ -130,6 +130,22 @@ def update_pitch_zones(target_date: str | None = None) -> None:
     crawl_naver_pitch_zones.crawl(day)
 
 
+def build_pitch_derived(year: int) -> None:
+    """수집된 투구 원본에서 존/구종 파생 데이터셋을 다시 만든다.
+
+    같은 원본을 두 번 읽지만 각각 1~5초라 나눠 두는 편이 낫다(한쪽이 깨져도
+    다른 쪽 산출물은 남는다). 0행이면 csv_guard 가 덮어쓰기를 막고 예외를 던진다.
+    """
+    import build_pitch_arsenal
+    import build_zone_metrics
+
+    print(f"[daily] building hot/cold zone datasets for {year}")
+    build_zone_metrics.build(year)
+
+    print(f"[daily] building pitch arsenal datasets for {year}")
+    build_pitch_arsenal.build(year)
+
+
 def load_to_db() -> None:
     """갱신된 CSV를 PostgreSQL로 적재한다 (백엔드 migrate.py 실행).
 
@@ -187,6 +203,7 @@ def main() -> None:
         update_players(args.year)
     if args.pitch_zones:
         update_pitch_zones(args.pitch_date)
+        build_pitch_derived(args.year)
     if args.db:
         load_to_db()
     finished = datetime.now(ZoneInfo("Asia/Seoul"))

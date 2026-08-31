@@ -37,6 +37,11 @@
   .zones-layout { grid-template-columns: 1fr; }
 }
 
+/* grid item 의 기본 min-width 는 auto 라 안쪽 표의 min-width 가 페이지 전체를
+   넓혀 버린다. 0 으로 눌러야 좁은 화면(375px)에서 표만 가로 스크롤된다. */
+.zone-list,
+.zone-card { min-width: 0; }
+
 .zone-list {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -133,3 +138,60 @@
 }
 
 .zones-empty { color: var(--muted); padding: 30px 0; text-align: center; }
+
+/* --- 구종 아스널 탭 --- */
+
+.ars-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.ars-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ars-count { color: var(--muted); margin-left: auto; }
+
+/* 표본이 모자란 값. 색만 죽이고 단정적으로 칠하지 않는다. */
+.ars-thin { color: var(--muted); opacity: 0.65; font-weight: 400; }
+
+/* 열이 8개라 좁은 화면(375px)에서는 표만 가로 스크롤한다. */
+.ars-scroll { overflow-x: auto; }
+.ars-scroll .mini-table { min-width: 460px; }
+
+.ars-type {
+  display: grid;
+  grid-template-columns: 52px minmax(40px, 88px);
+  align-items: center;
+  gap: 6px;
+}
+
+.ars-sub {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ars-foot,
+.ars-coverage {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.ars-coverage {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+}

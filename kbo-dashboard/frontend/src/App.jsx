@@ -86,7 +86,7 @@ function App() {
             className={currentPage === 'zones' ? 'active' : ''}
             onClick={() => setCurrentPage('zones')}
           >
-            핫/콜드존
+            투구 분석
           </button>
           <button
             className={currentPage === 'ops' ? 'active' : ''}
