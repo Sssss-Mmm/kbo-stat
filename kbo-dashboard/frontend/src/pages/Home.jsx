@@ -8,39 +8,14 @@ import Scatter from '../components/charts/Scatter'
 import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
 import TodayGames from '../components/TodayGames'
+import SeasonBanner from '../components/SeasonBanner'
 import { teamColor, teamEmblem } from '../lib/teamColors'
+import { MiniTable, BarList, TeamCell } from '../components/MiniTable'
+import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
 
 const TEAM_COUNT = 10
-const fmtRate = (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '-')
-const fmtOne = (v) => (Number.isFinite(v) ? v.toFixed(1) : '-')
-const fmtTwo = (v) => (Number.isFinite(v) ? v.toFixed(2) : '-')
-const fmtInt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('ko-KR') : '-')
 
-// "3승"/"2패"/"1무" -> 부호 점수
-function streakScore(s) {
-  if (!s) return 0
-  const n = parseInt(s, 10) || 0
-  if (s.includes('승')) return n
-  if (s.includes('패')) return -n
-  return 0
-}
-// "6승0무4패" -> 승률
-function recentWinRate(s) {
-  if (!s) return 0
-  const w = parseInt((s.match(/(\d+)승/) || [])[1] || 0, 10)
-  const l = parseInt((s.match(/(\d+)패/) || [])[1] || 0, 10)
-  return w + l ? w / (w + l) : 0
-}
-// "22-10" 또는 "19-0-10" -> {w, l, pct}
-function parseRecord(s) {
-  const parts = String(s || '').split('-').map((x) => parseInt(x, 10) || 0)
-  const [w, l] = parts.length === 3 ? [parts[0], parts[2]] : [parts[0] || 0, parts[1] || 0]
-  return { w, l, pct: w + l ? w / (w + l) : null }
-}
-// "19-0-10" (승-무-패) -> 승률
-const recordWinRate = (s) => parseRecord(s).pct || 0
-const fmtPct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '-')
 // "81 1/3" -> 81.333
 function parseIP(s) {
   if (s === null || s === undefined) return 0
@@ -53,52 +28,6 @@ function parseIP(s) {
 const mean = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN)
 
 // ── 작은 프레젠테이션 컴포넌트들 (순수 표시용, 자체 상태 없음) ──
-
-// 가로 막대 리스트. 최대값을 100%로 잡아 상대 길이를 그린다.
-function BarList({ items, fmt = fmtRate }) {
-  const max = Math.max(...items.map((i) => i.value), 0.0001)
-  return (
-    <div className="bar-list">
-      {items.map((it) => (
-        <div className="bar-row" key={it.label}>
-          <span className="bar-team">{it.label}</span>
-          <span className="bar-track">
-            <span className="bar-fill" style={{ width: `${(it.value / max) * 100}%`, background: it.color }} />
-          </span>
-          <span className="bar-val">{fmt(it.value)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// 컬럼 정의(columns: {key,label,render})로 그리는 소형 표.
-function MiniTable({ columns, rows }) {
-  return (
-    <table className="mini-table">
-      <thead>
-        <tr>{columns.map((c) => <th key={c.key} className={c.left ? 'lalign' : ''}>{c.label}</th>)}</tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i}>
-            {columns.map((c) => <td key={c.key} className={c.left ? 'lalign' : ''}>{c.render ? c.render(r, i) : r[c.key]}</td>)}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-// 팀 엠블럼 + 팀 색상 이름 셀.
-function TeamCell({ team }) {
-  return (
-    <span className="team-cell">
-      {teamEmblem(team) && <img src={teamEmblem(team)} alt="" />}
-      <b style={{ color: teamColor(team) }}>{team}</b>
-    </span>
-  )
-}
 
 // [라벨, 값] 쌍 목록을 키-값 행으로 표시.
 function StatRows({ rows }) {
@@ -126,9 +55,9 @@ function HlItem({ label, player, val }) {
   )
 }
 
-function Home() {
-  const [season, setSeason] = useState(new Date().getFullYear())
-  const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [] })
+function Home({ seasonInfo, onOpsClick }) {
+  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [], failed: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -140,16 +69,20 @@ function Home() {
       setLoading(true)
       setError(null)
       try {
-        const get = (url, params) => axios.get(url, { params }).then((r) => r.data.data || []).catch(() => [])
+        // 실패한 요청은 빈 배열로 뭉개지 않고 어느 것이 실패했는지 기록한다(NFR-06).
+        // 빈 배열은 "데이터가 없다", 실패 기록은 "못 받아왔다" — 화면에서 구분되어야 한다.
+        const failed = []
+        const get = (label, url, params) =>
+          axios.get(url, { params }).then((r) => r.data.data || []).catch(() => { failed.push(label); return [] })
         const [standings, teamGames, hitters, pitchers, attendance, gameTime] = await Promise.all([
-          get('/api/standings', { season }),
-          get('/api/team-games', { season }),
-          get('/api/player-stats', { role: 'hitter', season }),
-          get('/api/player-stats', { role: 'pitcher', season }),
-          get('/api/attendance', { season }),
-          get('/api/game-time/team', { season }),
+          get('순위', '/api/standings', { season }),
+          get('경기 결과', '/api/team-games', { season }),
+          get('타자 기록', '/api/player-stats', { role: 'hitter', season }),
+          get('투수 기록', '/api/player-stats', { role: 'pitcher', season }),
+          get('관중', '/api/attendance', { season }),
+          get('경기시간', '/api/game-time/team', { season }),
         ])
-        if (active) setD({ standings, teamGames, hitters, pitchers, attendance, gameTime })
+        if (active) setD({ standings, teamGames, hitters, pitchers, attendance, gameTime, failed })
       } catch (err) {
         if (active) setError(err.message)
       } finally {
@@ -301,7 +234,31 @@ function Home() {
         </select>
       </section>
 
-      <TodayGames standings={d.standings} />
+      {/* NFR-06: 일부 요청만 실패한 경우 나머지 패널은 그대로 두고 실패 사실만 알린다. */}
+      {d.failed?.length > 0 && (
+        <p className="error">일부 데이터를 불러오지 못했습니다: {d.failed.join(', ')}</p>
+      )}
+
+      <SeasonBanner info={seasonInfo} selected={season} />
+
+      {/* FR-12: 정규시즌·포스트시즌에만 오늘의 경기를 띄운다.
+          오프시즌·개막전에는 경기가 없으므로 안내 + 아래 최종 순위/기록으로 대신한다. */}
+      {seasonInfo.storyEnabled ? (
+        <TodayGames
+          standings={d.standings}
+          storyEnabled={seasonInfo.storyEnabled}
+          note={seasonInfo.state === 'postseason' ? 'PO 진행 중 · 포스트시즌 경기 데이터는 수집 범위 밖입니다.' : ''}
+        />
+      ) : (
+        <section className="season-notice">
+          <h3>{seasonInfo.state === 'preseason' ? `${seasonInfo.season} 시즌 개막까지 D-${seasonInfo.daysToOpening}` : '시즌 종료'}</h3>
+          <p>
+            {seasonInfo.state === 'preseason'
+              ? `개막일 ${seasonInfo.opening} · 아래는 ${seasonInfo.dataSeason} 시즌 최종 순위와 기록입니다.`
+              : `아래는 ${seasonInfo.dataSeason} 정규시즌 최종 순위와 기록입니다.`}
+          </p>
+        </section>
+      )}
 
       {loading && <p className="loading">로딩중...</p>}
       {error && <p className="error">{error}</p>}
@@ -499,11 +456,15 @@ function Home() {
               />
             </article>
             <article className="panel ops-summary">
-              <div className="panel-head"><h3>운영 요약</h3></div>
+              <div className="panel-head">
+                <h3>운영 요약</h3>
+                {/* 상세(월별 관중·연도별 경기시간)는 리그 운영 화면으로 보낸다 */}
+                {onOpsClick && <button className="panel-link" onClick={onOpsClick}>리그 운영 →</button>}
+              </div>
               <div className="ops-boxes">
                 <div className="ops-box"><span>총 관중</span><strong>{fmtInt(ops.totalAtt)}</strong></div>
                 <div className="ops-box"><span>최다 관중 팀</span><strong>{ops.topAtt?.Team || '-'}</strong></div>
-                <div className="ops-box"><span>평균 경기시간</span><strong>{ops.avgGameMin ? `${Math.floor(ops.avgGameMin / 60)}:${String(Math.round(ops.avgGameMin % 60)).padStart(2, '0')}` : '-'}</strong></div>
+                <div className="ops-box"><span>평균 경기시간</span><strong>{fmtMinutes(ops.avgGameMin)}</strong></div>
                 <div className="ops-box"><span>리그 평균 타율</span><strong>{fmtRate(league.avg)}</strong></div>
               </div>
             </article>

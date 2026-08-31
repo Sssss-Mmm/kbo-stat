@@ -81,3 +81,71 @@
   margin: 0 auto;
   padding: 26px 0 40px;
 }
+
+/* 시즌 상태 배너 (FR-12 AC2) — 모든 페이지 상단 공용 */
+.season-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.season-banner.postseason { border-left-color: var(--accent-2); }
+.season-banner.offseason { border-left-color: var(--muted); }
+.season-banner.preseason { border-left-color: var(--accent-3); }
+
+.season-banner .sb-tag {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text);
+}
+
+.season-banner .sb-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 오프시즌/개막전 안내 블록 (오늘의 KBO 자리) */
+.season-notice {
+  margin-bottom: 18px;
+  padding: 26px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+
+.season-notice h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.season-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 시즌 상태 배너 (FR-12 AC2). 정규시즌엔 차분하게, 그 외 상태에선 눈에 띄게. */
+.season-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line, #e5e7eb);
+}
+.season-banner strong { font-weight: 600; }
+.season-banner span { opacity: 0.75; }
+.season-banner.off {
+  background: color-mix(in srgb, #e0872c 12%, transparent);
+}

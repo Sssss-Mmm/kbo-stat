@@ -3,6 +3,7 @@
 // 필터, 컬럼 헤더 클릭 정렬을 지원한다. 표시 컬럼/형식은 아래 COLUMNS 로 정의.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
+import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Players.css'
 
 // 역할별 컬럼 정의. key=API 응답 필드, label=헤더, fmt=표시 형식.
@@ -67,9 +68,9 @@ function fmtValue(value, fmt) {
   return value
 }
 
-function Players() {
+function Players({ seasonInfo }) {
   const [role, setRole] = useState('hitter')
-  const [season, setSeason] = useState(new Date().getFullYear())
+  const [season, setSeason] = useState(seasonInfo.dataSeason)
   const [team, setTeam] = useState('all')
   const [qualifiedOnly, setQualifiedOnly] = useState(false)
   const [sort, setSort] = useState(DEFAULT_SORT)
@@ -144,6 +145,7 @@ function Players() {
 
   return (
     <div className="players-container">
+      <SeasonBanner info={seasonInfo} selected={season} />
       <div className="players-header">
         <h2>선수 기록</h2>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>

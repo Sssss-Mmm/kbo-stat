@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'
+import SeasonBanner from '../components/SeasonBanner'
+import { kstToday } from '../lib/season'
 import '../styles/Schedule.css'
 
 const TEAMS = Object.keys(TEAM_COLORS)
@@ -11,9 +13,16 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const pad = (n) => String(n).padStart(2, '0')
 const monthKey = (y, m) => `${y}-${m}` // m: 1-12
 
-function Schedule() {
+// 시즌 상태별 일정 안내 (FR-12): 오프시즌은 조회 전용, 포스트시즌은 PO 일정 미수집.
+const SCHEDULE_NOTE = {
+  postseason: 'PO 일정은 수집 범위 밖 · 정규시즌 일정만 표시합니다',
+  offseason: '최종 결과 조회만 가능합니다',
+  preseason: '개막 일정',
+}
+
+function Schedule({ seasonInfo }) {
   const [games, setGames] = useState([])
-  const [season, setSeason] = useState(new Date().getFullYear())
+  const [season, setSeason] = useState(seasonInfo.season)
   const [selectedTeam, setSelectedTeam] = useState('')
   const [viewKey, setViewKey] = useState('') // "YYYY-M"
   const [loading, setLoading] = useState(false)
@@ -58,9 +67,16 @@ function Schedule() {
       setViewKey('')
       return
     }
-    const now = new Date()
-    const todayKey = monthKey(now.getFullYear(), now.getMonth() + 1)
-    setViewKey(months.includes(todayKey) ? todayKey : months[months.length - 1])
+    const [ty, tm] = kstToday().split('-').map(Number)  // 오늘(KST)
+    const todayKey = monthKey(ty, tm)
+    if (months.includes(todayKey)) {
+      setViewKey(todayKey)
+      return
+    }
+    // 오늘이 일정 밖이면: 개막 전이면 첫 달, 시즌 종료 후면 마지막 달
+    const [fy, fm] = months[0].split('-').map(Number)
+    const before = ty < fy || (ty === fy && tm < fm)
+    setViewKey(before ? months[0] : months[months.length - 1])
   }, [months])
 
   // 날짜별 경기 묶음
@@ -90,8 +106,7 @@ function Schedule() {
     return out
   }, [viewKey, vy, vm])
 
-  const now = new Date()
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const todayStr = kstToday()
 
   const visibleForDay = (day) => {
     const key = `${vy}-${pad(vm)}-${pad(day)}`
@@ -104,6 +119,12 @@ function Schedule() {
 
   return (
     <div className="schedule-container">
+      {/* 일정은 활성 시즌(개막전이면 다음 시즌) 기준이라, 기본 선택일 때는 배너를 '과거 시즌'으로 표시하지 않는다 */}
+      <SeasonBanner
+        info={seasonInfo}
+        selected={season === seasonInfo.season ? seasonInfo.dataSeason : season}
+        note={SCHEDULE_NOTE[seasonInfo.state] || ''}
+      />
       <div className="schedule-filters">
         <h2>{season}시즌 경기일정</h2>
         <div className="filter-group">
@@ -201,7 +222,11 @@ function Schedule() {
         </>
       )}
 
-      {!loading && !error && !viewKey && <p className="loading">해당 시즌의 경기 일정이 없습니다.</p>}
+      {!loading && !error && !viewKey && (
+        <p className="loading">
+          {seasonInfo.state === 'preseason' ? '개막 일정이 아직 공개되지 않았습니다.' : `${season}시즌 경기 일정이 없습니다.`}
+        </p>
+      )}
     </div>
   )
 }
