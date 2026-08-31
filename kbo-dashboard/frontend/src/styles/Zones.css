@@ -195,3 +195,50 @@
   border-radius: 6px;
   background: var(--panel-soft);
 }
+
+/* --- 볼카운트 탭 --- */
+
+/* 리그 기준선. 개인 수치를 읽기 전에 비교 기준을 먼저 보게 한다. */
+.cnt-baseline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.cnt-baseline b { color: var(--text); font-weight: 800; margin-left: 4px; }
+
+.cnt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 880px) {
+  .cnt-grid { grid-template-columns: 1fr; }
+}
+
+.cnt-panel { min-width: 0; }
+.cnt-panel .ars-sub { margin-top: 0; }
+.cnt-panel .ars-toolbar { justify-content: space-between; }
+
+/* 매트릭스는 4열뿐이라 375px 에서도 들어간다. 8열짜리 아스널 표와 최소폭을
+   공유하면(460px) 좁은 화면에서 쓸데없이 가로 스크롤이 생긴다. 대신 셀은
+   줄바꿈을 막아 값과 표본 수가 두 줄로 갈라지지 않게 한다. */
+.cnt-matrix .mini-table { min-width: 260px; }
+.cnt-matrix th,
+.cnt-matrix td { white-space: nowrap; }
+
+/* 표본 수(작은 회색 숫자)와 리그 대비 차이. 본값보다 눈에 덜 띄게 둔다. */
+.cnt-n,
+.cnt-delta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
