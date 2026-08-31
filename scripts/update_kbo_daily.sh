@@ -31,6 +31,7 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_player_stats.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_pitch_zones.py --from-date ${TWO_DAYS_AGO} --to-date ${YESTERDAY}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_zone_metrics.py --year ${YEAR}"
+  echo "DRY_RUN: ${PYTHON_BIN} src/build_pitch_arsenal.py --year ${YEAR}"
   echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} up -d backend   # only if container is down"
   echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} exec -T backend python migrate.py   # exit 3/4 on failure"
   exit 0
@@ -48,6 +49,9 @@ echo "[naver-pitch] refresh ${TWO_DAYS_AGO}..${YESTERDAY}"
 
 echo "[zones] rebuild hot/cold zone datasets season=${YEAR}"
 "${PYTHON_BIN}" src/build_zone_metrics.py --year "${YEAR}"
+
+echo "[arsenal] rebuild pitch-type arsenal datasets season=${YEAR}"
+"${PYTHON_BIN}" src/build_pitch_arsenal.py --year "${YEAR}"
 
 # 갱신된 CSV를 DB로 재적재(컨테이너는 data 를 bind mount 하므로 새 CSV 가 보인다).
 # zone 데이터는 CSV 직접 서빙이라 재적재 불필요.
