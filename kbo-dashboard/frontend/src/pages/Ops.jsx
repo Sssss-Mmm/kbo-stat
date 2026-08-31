@@ -1,5 +1,5 @@
-// 리그 운영 페이지 (FR-08). 관중과 경기시간을 한 화면에 묶는다.
-// 소비 API 3개: /api/attendance, /api/game-time/team, /api/game-time/yearly.
+// 리그 운영 페이지 (FR-08). 관중과 경기시간, 팀별 이동거리를 한 화면에 묶는다.
+// 소비 API 4개: /api/attendance, /api/game-time/team, /api/game-time/yearly, /api/team-games.
 // 원 데이터가 팀×월 관중 / 팀 평균·연도 평균 경기시간까지라서, 경기 단위가 필요한 것
 // (요일별·구장별·최장 경기·분포)은 만들 수 없다. 그 사실은 화면 하단에 그대로 적는다.
 import { useState, useEffect, useMemo } from 'react'
@@ -8,14 +8,15 @@ import TrendLine from '../components/charts/TrendLine'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import SeasonBanner from '../components/SeasonBanner'
 import { teamColor } from '../lib/teamColors'
-import { fmtInt, fmtPct, fmtMinutes } from '../lib/format'
+import { fmtInt, fmtPct, fmtOne, fmtMinutes } from '../lib/format'
+import { teamTravel } from '../lib/travel'
 import '../styles/Home.css'
 import '../styles/Ops.css'
 
 function Ops({ seasonInfo }) {
   // 관중·팀별 경기시간은 2026 한 시즌뿐이라 시즌 셀렉터를 두지 않는다(연도 축은 추이 차트가 담당).
   const season = seasonInfo.dataSeason
-  const [d, setD] = useState({ attendance: [], teamTime: [], yearly: [] })
+  const [d, setD] = useState({ attendance: [], teamTime: [], yearly: [], games: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -29,12 +30,13 @@ function Ops({ seasonInfo }) {
         const get = (url, params) => axios.get(url, { params })
           .then((r) => r.data.data || [])
           .catch(() => null)
-        const [attendance, teamTime, yearly] = await Promise.all([
+        const [attendance, teamTime, yearly, games] = await Promise.all([
           get('/api/attendance', { season }),
           get('/api/game-time/team', { season }),
           get('/api/game-time/yearly'),
+          get('/api/team-games', { season }),
         ])
-        if (active) setD({ attendance, teamTime, yearly })
+        if (active) setD({ attendance, teamTime, yearly, games })
       } catch (err) {
         if (active) setError(err.message)
       } finally {
@@ -91,10 +93,13 @@ function Ops({ seasonInfo }) {
     }
   }, [d.yearly])
 
+  // 이동거리: 경기 로그(구장 포함)에서 계산한다. 정의와 좌표 출처는 lib/travel.js 주석 참고.
+  const travel = useMemo(() => teamTravel(d.games || []), [d.games])
+
   if (loading) return <div className="ops"><p className="loading">로딩중...</p></div>
   if (error) return <div className="ops"><p className="error">{error}</p></div>
   // 셋 다 실패했을 때만 페이지 전체가 에러가 된다.
-  if (!d.attendance && !d.teamTime && !d.yearly) {
+  if (!d.attendance && !d.teamTime && !d.yearly && !d.games) {
     return <div className="ops"><p className="error">운영 데이터를 불러오지 못했습니다.</p></div>
   }
 
@@ -242,6 +247,50 @@ function Ops({ seasonInfo }) {
             </div>
           </>
         ) : <Note rows={d.attendance} empty={`${season}시즌 월별 관중 데이터가 없습니다.`} />}
+      </section>
+
+      {/* 이동거리: 목표 사이트에 있는 메뉴(G-02). 네비를 늘리지 않고 운영 페이지 패널로 둔다. */}
+      <section className="panel">
+        <div className="panel-head">
+          <h3>팀별 이동거리</h3>
+          <p>{season}시즌 · 구장 간 직선거리(대권거리) 누적</p>
+        </div>
+        {travel.teams.length ? (
+          <>
+            <BarList
+              items={travel.teams.map((t) => ({ label: t.team, value: t.km, color: teamColor(t.team) }))}
+              fmt={(v) => `${fmtInt(v)}km`}
+            />
+            <div className="ops-table-wrap">
+              <MiniTable
+                columns={[
+                  { key: 'team', label: '구단', left: true, render: (r) => <TeamCell team={r.team} /> },
+                  { key: 'km', label: '총 이동거리', render: (r) => `${fmtInt(r.km)}km` },
+                  { key: 'games', label: '경기', render: (r) => fmtInt(r.games) },
+                  { key: 'moves', label: '이동', render: (r) => `${r.moves}회` },
+                  { key: 'stays', label: '연전', render: (r) => `${r.stays}회` },
+                  { key: 'perGame', label: '경기당', render: (r) => `${fmtOne(r.perGame)}km` },
+                  {
+                    key: 'longest',
+                    label: '최장 이동',
+                    left: true,
+                    render: (r) => (r.longest
+                      ? `${r.longest.from}→${r.longest.to} ${fmtInt(r.longest.km)}km (${r.longest.date.slice(5)})`
+                      : '-'),
+                  },
+                ]}
+                rows={travel.teams}
+              />
+            </div>
+            <p className="ops-travel-def">
+              <b>계산 기준</b> · 날짜순으로 <b>직전 경기 구장 → 다음 경기 구장</b>을 더합니다.
+              같은 구장 연전은 0km(표의 &lsquo;연전&rsquo;), 원정 복귀 이동도 포함합니다.
+              시즌 첫 경기 이전 이동은 직전 위치를 알 수 없어 제외합니다.
+              거리는 구장 좌표 기준 <b>직선거리</b>라 실제 도로·항공 이동보다 짧습니다(보정 계수를 곱하지 않았습니다).
+              {travel.unknownGames > 0 && ` 좌표를 모르는 구장(${travel.unknownParks.join(', ')})의 경기 ${travel.unknownGames}건(${fmtPct(travel.ratioUnknown)})은 제외했습니다.`}
+            </p>
+          </>
+        ) : <Note rows={d.games} empty={`${season}시즌 경기 로그가 없어 이동거리를 계산할 수 없습니다.`} />}
       </section>
 
       <p className="ops-limits">

@@ -57,3 +57,15 @@
   border: 1px dashed var(--line);
   border-radius: 10px;
 }
+
+/* 이동거리 계산 기준 안내. 숫자 정의가 안 보이면 숫자를 못 믿는다. */
+.ops-travel-def {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.ops-travel-def b {
+  color: var(--text);
+}
