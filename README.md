@@ -8,12 +8,8 @@
 
 KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하는 야구 데이터 프로젝트입니다.
 
-현재 프로젝트는 두 가지 화면을 함께 가지고 있고, **둘 다 Docker Compose가 서빙합니다.**
-
-- `kbo-dashboard/frontend/`: React + Vite 대시보드 — **주 화면**, `:3000`
-- `web/`: 1세대 정적 대시보드(레거시) — `:8000`
-
-신규 기능은 React 앱에만 추가합니다(`docs/REQUIREMENTS.md` C-04).
+화면은 `kbo-dashboard/frontend/`의 React + Vite 대시보드 하나이며 Docker Compose가 `:3000`으로 서빙합니다.
+1세대 정적 대시보드(`web/`)는 전용 화면이 모두 React로 옮겨져 제거됐습니다.
 백엔드는 `kbo-dashboard/backend`의 FastAPI가 담당하고, 데이터는 `data/` 아래 CSV와 PostgreSQL을 함께 사용합니다.
 
 ## 문서
@@ -52,7 +48,7 @@ React 앱은 네비게이션 **9개 페이지**로 구성됩니다.
 | --- | --- |
 | 데이터 수집 | Python, pandas, requests, BeautifulSoup |
 | 백엔드 | FastAPI, SQLAlchemy, PostgreSQL |
-| 프론트 | React, Vite, (레거시) Vanilla JS |
+| 프론트 | React, Vite |
 | 시각화 | SVG, CSS, 자체 차트 컴포넌트 |
 | 인프라 | Docker, nginx, cron |
 | AI | OpenAI API |
@@ -73,7 +69,6 @@ kbo-stat/
 ├── scripts/
 │   ├── start_kbo.sh          # 스택 기동 + 놓친 갱신 캐치업
 │   └── update_kbo_daily.sh   # cron 자동 업데이트 스크립트
-├── web/                      # 레거시 정적 화면 (:8000)
 └── kbo-dashboard/
     ├── backend/              # FastAPI API 서버
     ├── frontend/             # React + Vite (Docker로도 서빙, :3000)
@@ -108,7 +103,6 @@ docker compose up -d --build
 접속 주소:
 
 - **React 대시보드: `http://127.0.0.1:3000`** (주 화면)
-- 레거시 정적 화면: `http://127.0.0.1:8000/web/`
 - 백엔드 API: `http://127.0.0.1:8001`
 - API 문서: `http://127.0.0.1:8001/docs`
 - pgAdmin: `http://127.0.0.1:5050`
@@ -119,7 +113,7 @@ docker compose up -d --build
 기존 컨테이너 이름 충돌이 나면 아래처럼 정리 후 다시 실행합니다.
 
 ```bash
-docker rm -f kbo_web kbo_frontend kbo_backend kbo_dashboard_db kbo_pgadmin
+docker rm -f kbo_frontend kbo_backend kbo_dashboard_db kbo_pgadmin
 cd kbo-dashboard
 docker compose up -d --build
 ```
@@ -299,24 +293,24 @@ Vite 개발 서버는 `/api` 요청을 `http://localhost:8001`로 프록시합�
 
 ## 현재 주의할 점
 
-- **프론트가 둘입니다.** `:3000`(React, 주 화면)과 `:8000`(레거시 `web/`)이 동시에 뜹니다.
-  `web/`은 목표 사이트의 구현체가 아니라 이 프로젝트의 1세대 정적 프론트이고, React 앱이 대부분의 화면에서 앞서 있습니다.
-  `web/distance.html`은 이름과 달리 이동거리를 계산하지 않습니다(원정 경기 수와 방문 구장 개수만 셉니다).
+- **백엔드 코드는 이미지에 COPY됩니다.** 소스 볼륨 마운트가 아니라서 `docker compose restart backend`로는
+  코드 변경이 반영되지 않습니다. `docker compose up -d --build backend`를 쓰세요.
 - CSV를 갱신해도 DB 기반 API에는 바로 반영되지 않습니다. 필요하면 `--db` 또는 `migrate.py`를 함께 실행하세요.
 - 시즌 셀렉터는 최근 10년을 나열하지만 **팀 순위 CSV는 2026 시즌만** 있습니다.
   과거 45시즌(1982~2026)에 있는 것은 팀 순위가 아니라 **선수 리더보드**(`data/raw/kbo_official/kbo_{연도}.csv`)입니다.
   `migrate.py`도 2020~2026 7시즌만 적재합니다.
 - 선수 기록 API는 데이터 파일 종류에 따라 리더보드 선수만 보일 수 있습니다.
   전체 등록 선수 명단은 `python3 src/update_daily.py --registered-players`(또는 `--players`)로 갱신합니다.
-- 백엔드 엔드포인트 25개 중 14개는 아직 React 화면에서 쓰이지 않습니다(사유는 `docs/REQUIREMENTS.md` 5절).
+- 백엔드 엔드포인트 25개 중 12개는 아직 React 화면에서 쓰이지 않습니다(대부분 클라이언트 필터 방식을 택해 중복이 된 서버측 검색·필터입니다. 사유는 `docs/REQUIREMENTS.md` 5절).
 
 ## 앞으로 할 일
 
 `docs/PLAN.md` 6절 로드맵과 `docs/REQUIREMENTS.md` 8절 미달 항목이 정본입니다. 요약하면:
 
-- **시즌 상태별 화면 동작**(FR-12) — 비시즌·포스트시즌에 각 화면이 무엇을 보여줄지. v1 완료를 막는 `필수` 항목
-- **부분 실패 UI 확산**(NFR-06) — 현재 `Teams.jsx`만 API 실패와 빈 데이터를 구분. 나머지 페이지로 확장
-- **RAG 질의 화면**(PLAN T5) — 백엔드는 완성, React 화면이 없음
-- **Docker 기본 프론트 일원화 + `web/` 삭제**(PLAN T3) — 위 화면들이 옮겨진 뒤
-- **미사용 엔드포인트 정리**(PLAN T9), **선수/팀 비교**(FR-10), **갱신 실패 알림**(PLAN T7 잔여)
-- 미측정 항목: 화면 로딩 시간(NFR-02), 모바일 반응형(NFR-11), DB 복구 소요 시간(NFR-17), 파서 자체 점검(NFR-18)
+v1 `필수` 항목은 전부 충족됐습니다. 남은 것은 `권장`·`선택` 등급입니다.
+
+- **RAG 의도 분기 확장**(PLAN T11) — 지금은 키워드 3갈래뿐이라 "왜 한화가 강하지?" 같은 인과형 질문과
+  홈/원정·투수·월별 질문에 답하지 못합니다. 근거 없는 단정은 막았지만 답변 범위 자체가 좁습니다
+- **선수/팀 비교**(FR-10), **미사용 엔드포인트 정리**(PLAN T9), **갱신 실패 알림**(PLAN T7 잔여)
+- **과거 시즌 확장** — `migrate.py`가 2020~2026만 적재합니다
+- 미측정 항목: 화면 로딩 시간(NFR-02), DB 복구 소요 시간(NFR-17), 파서 자체 점검(NFR-18)
