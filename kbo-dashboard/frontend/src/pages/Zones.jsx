@@ -1,8 +1,11 @@
-// 투구 분석 페이지. 같은 투구 원본에서 나온 두 화면을 탭으로 묶는다.
-//   존 히트맵  — 코스별 강약 (/api/zones)
+// 투구 분석 페이지. 같은 투구 원본에서 나온 세 화면을 탭으로 묶는다.
+//   존 히트맵   — 코스별 강약 (/api/zones)
 //   구종 아스널 — 구종별 배합·구속·결과 (/api/pitch-arsenal, PitchArsenal.jsx)
-// 둘 다 "이 타자를 어떻게 잡나"라는 같은 질문에 답하고 선수 선택 UI 도 같아서,
+//   볼카운트    — 카운트가 타석을 어떻게 바꾸나 (/api/count-baseball, PitchCount.jsx)
+// 셋 다 "이 타자를 어떻게 잡나"라는 같은 질문에 답하고 선수 선택 UI 도 같아서,
 // 네비 항목을 늘리는 대신 한 페이지 안에 둔다.
+// 볼카운트 탭은 타자 기준 데이터만 있어서 타자/투수 토글을 감춘다
+// (투수 쪽 카운트별 배합은 구종 아스널 탭이 이미 낸다).
 //
 // (존 히트맵) /api/zones 의 (선수, 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
 // 오른쪽에 존 히트맵(ZoneHeatmap)을 보여준다. 격자 크기는 하드코딩하지 않고
@@ -12,6 +15,7 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import ZoneHeatmap from '../components/ZoneHeatmap'
 import PitchArsenal from '../components/PitchArsenal'
+import PitchCount from '../components/PitchCount'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
@@ -28,7 +32,7 @@ function metricLabel(role, metric) {
 }
 
 function Zones({ seasonInfo }) {
-  const [view, setView] = useState('zone') // zone | arsenal
+  const [view, setView] = useState('zone') // zone | arsenal | count
   const [role, setRole] = useState('batter') // batter | pitcher
   const [season, setSeason] = useState(seasonInfo.dataSeason)
   const [metric, setMetric] = useState('hit') // hit | swing
@@ -133,16 +137,19 @@ function Zones({ seasonInfo }) {
         <div className="toggle-group">
           <button className={view === 'zone' ? 'active' : ''} onClick={() => setView('zone')}>존 히트맵</button>
           <button className={view === 'arsenal' ? 'active' : ''} onClick={() => setView('arsenal')}>구종 아스널</button>
+          <button className={view === 'count' ? 'active' : ''} onClick={() => setView('count')}>볼카운트</button>
         </div>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
           {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
             <option key={year} value={year}>{year}시즌</option>
           ))}
         </select>
-        <div className="toggle-group">
-          <button className={role === 'batter' ? 'active' : ''} onClick={() => { setRole('batter'); setTeam('all') }}>타자</button>
-          <button className={role === 'pitcher' ? 'active' : ''} onClick={() => { setRole('pitcher'); setTeam('all') }}>투수</button>
-        </div>
+        {view !== 'count' && (
+          <div className="toggle-group">
+            <button className={role === 'batter' ? 'active' : ''} onClick={() => { setRole('batter'); setTeam('all') }}>타자</button>
+            <button className={role === 'pitcher' ? 'active' : ''} onClick={() => { setRole('pitcher'); setTeam('all') }}>투수</button>
+          </div>
+        )}
         {view === 'zone' && (
           <>
             <select value={team} onChange={(e) => { setTeam(e.target.value); setSelectedId(null) }}>
@@ -160,6 +167,7 @@ function Zones({ seasonInfo }) {
       </div>
 
       {view === 'arsenal' && <PitchArsenal role={role} season={season} />}
+      {view === 'count' && <PitchCount season={season} />}
 
       {view === 'zone' && loading && <p className="loading">로딩중...</p>}
       {view === 'zone' && error && <p className="error">{error}</p>}

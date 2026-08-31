@@ -131,11 +131,12 @@ def update_pitch_zones(target_date: str | None = None) -> None:
 
 
 def build_pitch_derived(year: int) -> None:
-    """수집된 투구 원본에서 존/구종 파생 데이터셋을 다시 만든다.
+    """수집된 투구 원본에서 존/구종/볼카운트 파생 데이터셋을 다시 만든다.
 
-    같은 원본을 두 번 읽지만 각각 1~5초라 나눠 두는 편이 낫다(한쪽이 깨져도
+    같은 원본을 세 번 읽지만 각각 1~5초라 나눠 두는 편이 낫다(한쪽이 깨져도
     다른 쪽 산출물은 남는다). 0행이면 csv_guard 가 덮어쓰기를 막고 예외를 던진다.
     """
+    import build_count_metrics
     import build_pitch_arsenal
     import build_zone_metrics
 
@@ -144,6 +145,9 @@ def build_pitch_derived(year: int) -> None:
 
     print(f"[daily] building pitch arsenal datasets for {year}")
     build_pitch_arsenal.build(year)
+
+    print(f"[daily] building ball/strike count dataset for {year}")
+    build_count_metrics.build(year)
 
 
 def load_to_db() -> None:
