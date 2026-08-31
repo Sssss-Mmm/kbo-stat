@@ -22,6 +22,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -183,8 +185,8 @@ def crawl(target_date: str | None = None) -> pd.DataFrame:
     roster_date = target_date or current_kst_date()
     out = RAW_DIR / f"kbo_registered_players_{roster_date}.csv"
     latest = RAW_DIR / "kbo_registered_players_latest.csv"
-    df.to_csv(out, index=False, encoding="utf-8-sig")
-    df.to_csv(latest, index=False, encoding="utf-8-sig")
+    csv_guard.save_csv(df, out)
+    csv_guard.save_csv(df, latest)
     print(f"[players] saved {out.name} rows={len(df)}")
     print(f"[players] saved {latest.name} rows={len(df)}")
     return df

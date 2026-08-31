@@ -24,6 +24,8 @@ import pandas as pd
 from pathlib import Path
 from bs4 import BeautifulSoup
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -152,7 +154,7 @@ def crawl(start: int = 2002, end: int = 2025, qual: str = "y",
             if df.empty:
                 print(f"  empty {season} — no data returned")
             else:
-                df.to_csv(out_path, index=False)
+                csv_guard.save_csv(df, out_path)
                 print(f"  saved {out_path.name}  ({len(df)} players, {len(df.columns)} cols)")
         except Exception as e:
             print(f"  ERROR {season}: {e}")

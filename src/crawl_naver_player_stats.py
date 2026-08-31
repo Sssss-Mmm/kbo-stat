@@ -29,6 +29,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 
+import csv_guard
+
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -166,8 +168,8 @@ def crawl(year: int) -> None:
         rows = fetch_all(year, PLAYER_TYPE[role])
         frame = build_frame(rows, role)
         path = PROCESSED_DIR / f"kbo_naver_{role}s_{year}.csv"
-        frame.to_csv(path, index=False, encoding="utf-8-sig")
-        print(f"[naver-players] saved {path.name} rows={len(frame)}")
+        # 0행이면 Naver 응답 스키마가 바뀐 것. 기존 CSV 를 덮어쓰지 않고 실패한다.
+        csv_guard.save_csv(frame, path, prefix="[naver-players]")
 
 
 def main() -> None:
