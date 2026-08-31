@@ -8,23 +8,43 @@
 
 KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하는 야구 데이터 프로젝트입니다.
 
-현재 프로젝트는 두 가지 화면을 함께 가지고 있습니다.
+현재 프로젝트는 두 가지 화면을 함께 가지고 있고, **둘 다 Docker Compose가 서빙합니다.**
 
-- `web/`: Docker에서 기본으로 서빙되는 정적 대시보드
-- `kbo-dashboard/frontend/`: React + Vite 개발용 대시보드
+- `kbo-dashboard/frontend/`: React + Vite 대시보드 — **주 화면**, `:3000`
+- `web/`: 1세대 정적 대시보드(레거시) — `:8000`
 
+신규 기능은 React 앱에만 추가합니다(`docs/REQUIREMENTS.md` C-04).
 백엔드는 `kbo-dashboard/backend`의 FastAPI가 담당하고, 데이터는 `data/` 아래 CSV와 PostgreSQL을 함께 사용합니다.
+
+## 문서
+
+기획·요구사항·조사 결과는 `docs/`에 있습니다.
+
+| 문서 | 내용 |
+| --- | --- |
+| [docs/PLAN.md](docs/PLAN.md) | 기획서 — 무엇을 왜 만드는가, 범위, 로드맵, 리스크 |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | 요구사항 정의서 — FR/DR/NFR을 ID 단위로, 각 항목의 수용 기준과 검증 결과 |
+| [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) | 목표 사이트 대비 격차 분석 — 무엇을 우리 데이터로 만들 수 있고 무엇이 원천적으로 불가한가 |
+| [docs/IDEAS.md](docs/IDEAS.md) | 아이디어 후보와 채택/기각 근거 |
+| [docs/BACKFILL_PITCH_DATA.md](docs/BACKFILL_PITCH_DATA.md) | 네이버 투구 데이터 백필 절차 |
 
 ## 주요 기능
 
-- 오늘의 KBO: 오늘 경기, 순위, 최근 흐름, 주요 선수 카드
-- 순위표: 팀 순위, 승률, 게임차, 최근 10경기 흐름
-- 경기 일정: KBO 일정/결과 데이터 조회
-- 팀 분석: 순위 변화, 월별 승률, 득점/실점, 홈/원정 비교
-- 선수 분석: 타자/투수 기록, 등록 선수 명단, 검색
-- 핫/콜드존: 네이버 경기센터 투구 데이터를 활용한 존 분석 기반 데이터
-- AI 스토리: OpenAI API를 이용한 경기 프리뷰/리뷰 생성
-- RAG 데모: 수집된 야구 데이터를 근거로 질문에 답하는 분석 API
+React 앱은 네비게이션 **9개 페이지**로 구성됩니다.
+
+| 페이지 | 내용 |
+| --- | --- |
+| HOME | 오늘 경기 카드(스코어·선발·**AI 프리뷰/리뷰**), 시즌 요약 6카드, 타이틀 레이스(순위 변화), 팀 순위, 홈/원정 성적, 리그 타격·투구 평균, QS%·BB/K·K/BB·팀 득실차, OPS 분포(beeswarm), 산점도 4종(ISO×AVG · OBP×SLG · BB×SO · WHIP×ERA), 홈런 경쟁, 리더 3종(OPS·ERA·도루), 운영 요약(관중·평균 경기시간), 야구 규칙 가이드 |
+| 순위표 | 12열(순위·팀·경기·승·패·무·승률·게임차·최근10·연속·홈·원정), 열 헤더 클릭 정렬, **팀명 클릭 시 팀 분석 페이지로 이동** |
+| 가을야구 | 잔여 경기·매직넘버/트래직넘버·자력 진출 여부, 5위와의 승차, 피타고리안 기대승률, 순위 곡선, 진출 경쟁팀 맞대결. **확정 산수만 — 진출 확률·시뮬레이션은 비목표** |
+| 리그 운영 | 연도별 평균 경기시간 **1982~2026(45시즌)**, 구단별 관중·경기시간, 월별 관중. 수집 안 된 항목은 화면에 그 사실을 밝힘 |
+| 질문하기 | 자연어 질문 → 수집 CSV에서 검색한 **근거 표와 함께** 답변. 근거가 없으면 그 사실을 경고로 알림 |
+| 팀 분석 | 팀 선택 후 시즌 순위 변화 라인, 월별 승/패/승률, 홈/원정 비교 |
+| 경기일정 | 월 단위 달력, 팀 칩 필터(선택 시 그 팀 관점 vs/@ 상대·승패로 전환) |
+| 선수 기록 | 타자 20열 · 투수 20열 표, 팀 필터·규정충족 필터, 헤더 클릭 정렬 |
+| 핫/콜드존 | 네이버 투구 좌표를 **5×5 격자**로 재집계한 히트맵(타자 타율 / 투수 피안타율), 존별 표본 수 함께 노출 |
+
+백엔드에만 있고 React 화면이 없는 기능:
 
 ## 기술 스택
 
@@ -32,7 +52,7 @@ KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하�
 | --- | --- |
 | 데이터 수집 | Python, pandas, requests, BeautifulSoup |
 | 백엔드 | FastAPI, SQLAlchemy, PostgreSQL |
-| 프론트 | Vanilla JS, React, Vite |
+| 프론트 | React, Vite, (레거시) Vanilla JS |
 | 시각화 | SVG, CSS, 자체 차트 컴포넌트 |
 | 인프라 | Docker, nginx, cron |
 | AI | OpenAI API |
@@ -41,31 +61,29 @@ KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하�
 
 ```text
 kbo-stat/
+├── docs/                     # 기획서·요구사항·격차 분석
 ├── data/
 │   ├── raw/                  # 원천 CSV
-│   └── processed/            # 가공 CSV
+│   └── processed/            # 가공 CSV (1차 진실)
 ├── src/
 │   ├── crawl_*.py            # KBO/네이버/Statiz 크롤러
 │   ├── build_*.py            # 가공 데이터 생성
+│   ├── csv_guard.py          # 0행 저장 거부 + 정합성 검사(V-01~08)
 │   └── update_daily.py       # 일일 업데이트 엔트리포인트
 ├── scripts/
+│   ├── start_kbo.sh          # 스택 기동 + 놓친 갱신 캐치업
 │   └── update_kbo_daily.sh   # cron 자동 업데이트 스크립트
-├── web/                      # Docker 기본 웹 화면
-│   ├── index.html
-│   ├── *.js
-│   ├── styles.css
-│   ├── Dockerfile
-│   └── nginx.conf
+├── web/                      # 레거시 정적 화면 (:8000)
 └── kbo-dashboard/
     ├── backend/              # FastAPI API 서버
-    ├── frontend/             # React + Vite 개발용 프론트
+    ├── frontend/             # React + Vite (Docker로도 서빙, :3000)
     └── docker-compose.yml
 ```
 
 ## 사전 준비물
 
 - Python 3.12+
-- Node.js 18+ (React 프론트 개발 시)
+- Node.js 18+ (React 프론트 로컬 개발 시. Docker로만 쓸 거면 불필요)
 - Docker / Docker Compose v2 (권장 실행 방식)
 - PostgreSQL (Docker 사용 시 컨테이너로 자동 제공)
 
@@ -73,64 +91,64 @@ kbo-stat/
 
 ## 빠른 실행
 
-Docker 기준 실행이 가장 쉽습니다.
+`kbo-dashboard/.env`를 먼저 만듭니다(아래 [환경 변수](#환경-변수) 참고). 그다음:
+
+```bash
+bash scripts/start_kbo.sh
+```
+
+`start_kbo.sh`는 스택을 띄우고, 오늘자 갱신이 아직 안 됐으면(PC가 02:00에 꺼져 있었던 경우 등)
+백그라운드로 캐치업 갱신을 1회 실행합니다. 캐치업이 필요 없으면 compose를 직접 써도 됩니다.
 
 ```bash
 cd kbo-dashboard
-cp .env.example .env
 docker compose up -d --build
 ```
 
 접속 주소:
 
-- 웹: `http://127.0.0.1:8000/web/`
+- **React 대시보드: `http://127.0.0.1:3000`** (주 화면)
+- 레거시 정적 화면: `http://127.0.0.1:8000/web/`
 - 백엔드 API: `http://127.0.0.1:8001`
 - API 문서: `http://127.0.0.1:8001/docs`
 - pgAdmin: `http://127.0.0.1:5050`
 - PostgreSQL: `localhost:5433`
 
-`docker-compose` v1에서 `ContainerConfig` 오류가 나면 v2 명령을 사용하세요.
-
-```bash
-docker compose up -d --build
-```
+`docker-compose` v1에서 `ContainerConfig` 오류가 나면 v2 명령(`docker compose`)을 사용하세요.
 
 기존 컨테이너 이름 충돌이 나면 아래처럼 정리 후 다시 실행합니다.
 
 ```bash
-docker rm -f kbo_web kbo_backend kbo_dashboard_db kbo_pgadmin
+docker rm -f kbo_web kbo_frontend kbo_backend kbo_dashboard_db kbo_pgadmin
 cd kbo-dashboard
 docker compose up -d --build
 ```
 
 ## 환경 변수
 
-Docker compose는 `kbo-dashboard/.env`를 사용합니다.
-
-```bash
-cd kbo-dashboard
-cp .env.example .env
-```
-
-예시:
+Docker compose는 `kbo-dashboard/.env`를 사용합니다. 이 파일은 커밋되지 않으므로 직접 만듭니다.
 
 ```env
+# PostgreSQL (필수)
 DB_USER=kbo_user
 DB_PASSWORD=CHANGE_ME
 DB_NAME=kbo_dashboard
 
+# pgAdmin (필수 — 컨테이너 기동에 사용)
 PGADMIN_EMAIL=admin@example.com
 PGADMIN_PASSWORD=CHANGE_ME
 
+# AI 스토리 (선택)
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-`OPENAI_API_KEY`가 없으면 AI 스토리 기능은 mock 응답으로 동작합니다.
+`OPENAI_API_KEY`가 없으면 AI 스토리 기능은 mock 응답으로 동작합니다(에러가 아닙니다).
 
 ## 데이터 갱신
 
 기본 갱신은 순위, 일정, 결과, 관중, 경기시간, 타자 파생지표를 업데이트합니다.
+`--year`를 생략하면 KST 기준 현재 연도를 씁니다.
 
 ```bash
 python3 src/update_daily.py --year 2026
@@ -148,7 +166,7 @@ python3 src/update_daily.py --year 2026 --players
 python3 src/update_daily.py --registered-players
 ```
 
-네이버 투구 존 데이터 갱신:
+네이버 투구 존 데이터 갱신(`--pitch-date` 생략 시 KST 오늘):
 
 ```bash
 python3 src/update_daily.py --pitch-zones --pitch-date 2026-06-21
@@ -160,15 +178,52 @@ CSV 갱신 후 PostgreSQL까지 적재:
 python3 src/update_daily.py --year 2026 --players --db
 ```
 
-## 자동 업데이트
+> 투구 존 **가공** 데이터(`kbo_*_zones_*.csv`)는 `src/build_zone_metrics.py --year 2026`이 따로 만듭니다.
+> 격자 크기는 같은 파일의 `GRID_N` 상수(현재 5)이며, 안쪽 3×3이 스트라이크존, 바깥 테두리 한 겹이 존 밖을 전부 흡수합니다.
+> 과거 날짜 대량 수집은 [docs/BACKFILL_PITCH_DATA.md](docs/BACKFILL_PITCH_DATA.md)를 따르세요.
 
-`scripts/update_kbo_daily.sh`를 cron에 등록해 매일 자동 갱신할 수 있습니다.
+모든 CSV 저장은 `src/csv_guard.py`를 경유합니다. 출처 구조가 바뀌어 파서가 빈 결과를 뱉으면
+0행 저장을 거부해 기존 CSV를 지키고, 행 수가 맞아도 값이 깨진 경우는 정합성 규칙 V-01~08로 거부합니다.
 
-```cron
-30 1 * * * cd /home/sssssmmm/kbo-stat && PYTHON_BIN=/usr/bin/python3 scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
+```bash
+python3 src/csv_guard.py        # 자체 점검 (0행 거부 · V-01~08 위반 샘플 거부 · 운영 CSV 통과)
 ```
 
-스크립트는 `flock`으로 중복 실행을 방지합니다.
+## 자동 업데이트
+
+`scripts/update_kbo_daily.sh`를 cron에 등록해 매일 **02:00 KST**에 자동 갱신합니다.
+
+```cron
+0 2 * * * cd /home/sssssmmm/kbo-stat && PYTHON_BIN=/usr/bin/python3 scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
+```
+
+스크립트가 하는 일: 공식 순위·일정·관중·경기시간·선수 → 네이버 시즌 기록 → 네이버 투구 데이터(직전 2일) →
+존 지표 재생성 → **DB 재적재**(`migrate.py`). `flock`으로 중복 실행을 막고, DB 적재가 실패하면
+exit 3/4로 종료합니다(CSV만 최신이고 DB가 낡은 채로 조용히 성공하지 않게).
+
+동작 확인만 하려면:
+
+```bash
+DRY_RUN=1 bash scripts/update_kbo_daily.sh
+```
+
+## 백업과 복구
+
+**DB는 백업 대상이 아닙니다.** `data/processed/*.csv`가 1차 진실이고, DB는 언제든 재생성 가능한 서빙용 사본입니다.
+
+- `data/`는 호스트 디렉터리이고 compose가 `../data:/app/data`로 bind mount 하므로 컨테이너를 지워도 남습니다.
+- DB 볼륨이 완전히 소실돼도 `migrate.py` 한 번이면 CSV에서 전량 복구됩니다.
+- `migrate.py`는 시즌별 delete-after-insert 방식이라 몇 번을 돌려도 결과가 같습니다(멱등).
+- 컨테이너 최초 기동 시 DB가 비어 있으면 `seed_if_empty.py`가 자동 시드합니다.
+
+```bash
+# DB 전량 복구 (컨테이너 기동 상태에서)
+cd kbo-dashboard
+docker compose exec -T backend python migrate.py
+```
+
+CSV만 갱신하고 재적재를 안 하면 화면은 옛 데이터를 보여줍니다. 수동 갱신 시에는 `--db`나 위 명령을 함께 실행하세요.
+실제 재적재로 `team-rank-history` 40 → 250행, `team-games` 630 → 1152행이 되어 CSV와 일치함을 확인했습니다.
 
 ## 백엔드 로컬 실행
 
@@ -194,6 +249,7 @@ curl http://127.0.0.1:8001/health
 curl http://127.0.0.1:8001/api/standings
 curl http://127.0.0.1:8001/api/schedule-games
 curl "http://127.0.0.1:8001/api/player-stats?role=hitter&season=2026"
+curl "http://127.0.0.1:8001/api/zones?role=batter&season=2026"
 ```
 
 RAG 질의:
@@ -204,9 +260,12 @@ curl -X POST http://127.0.0.1:8001/api/rag/ask \
   -d '{"question":"왜 한화가 강하지?","season":2026}'
 ```
 
+오류 응답은 `{"detail": "..."}` 형식입니다 — 400(파라미터 값 오류) · 404(없는 시즌·팀·선수) ·
+502(외부 출처 조회 실패) · 503(DB 연결 불가). 비시즌처럼 "아직 데이터가 없음"은 오류가 아니라 200 + 빈 배열입니다.
+
 ## React 프론트 로컬 실행
 
-React 앱은 Docker 기본 화면이 아니라 개발용 프론트입니다.
+Docker로 이미 `:3000`에 서빙되므로, 아래는 HMR이 필요한 개발 시에만 필요합니다.
 
 ```bash
 cd kbo-dashboard/frontend
@@ -220,7 +279,8 @@ npm run dev
 http://127.0.0.1:3000
 ```
 
-Vite 개발 서버는 `/api` 요청을 `http://localhost:8001`로 프록시합니다.
+Vite 개발 서버는 `/api` 요청을 `http://localhost:8001`로 프록시합니다
+(Docker 빌드본은 nginx가 `backend:8001`로 프록시).
 
 ## 데이터 출처
 
@@ -239,16 +299,24 @@ Vite 개발 서버는 `/api` 요청을 `http://localhost:8001`로 프록시합�
 
 ## 현재 주의할 점
 
-- Docker의 기본 `web` 서비스는 `web/` 정적 대시보드를 서빙합니다.
-- `kbo-dashboard/frontend` React 앱은 별도 개발 서버로 실행해야 합니다.
+- **프론트가 둘입니다.** `:3000`(React, 주 화면)과 `:8000`(레거시 `web/`)이 동시에 뜹니다.
+  `web/`은 목표 사이트의 구현체가 아니라 이 프로젝트의 1세대 정적 프론트이고, React 앱이 대부분의 화면에서 앞서 있습니다.
+  `web/distance.html`은 이름과 달리 이동거리를 계산하지 않습니다(원정 경기 수와 방문 구장 개수만 셉니다).
+- CSV를 갱신해도 DB 기반 API에는 바로 반영되지 않습니다. 필요하면 `--db` 또는 `migrate.py`를 함께 실행하세요.
+- 시즌 셀렉터는 최근 10년을 나열하지만 **팀 순위 CSV는 2026 시즌만** 있습니다.
+  과거 45시즌(1982~2026)에 있는 것은 팀 순위가 아니라 **선수 리더보드**(`data/raw/kbo_official/kbo_{연도}.csv`)입니다.
+  `migrate.py`도 2020~2026 7시즌만 적재합니다.
 - 선수 기록 API는 데이터 파일 종류에 따라 리더보드 선수만 보일 수 있습니다.
-- 전체 등록 선수 명단은 `src/update_daily.py --registered-players` 또는 `--players`로 갱신합니다.
-- CSV를 갱신해도 DB 기반 API에는 바로 반영되지 않을 수 있으므로 필요하면 `--db`를 함께 실행하세요.
+  전체 등록 선수 명단은 `python3 src/update_daily.py --registered-players`(또는 `--players`)로 갱신합니다.
+- 백엔드 엔드포인트 25개 중 14개는 아직 React 화면에서 쓰이지 않습니다(사유는 `docs/REQUIREMENTS.md` 5절).
 
 ## 앞으로 할 일
 
-- Docker 기본 프론트를 React 앱으로 통일
-- 등록 선수 API 정식 추가
-- 핫/콜드존 가공 파이프라인 정리
-- 선수 비교, 팀 비교, AI 분석 챗봇 고도화
-- README와 요구사항 정의서 기준 기능 체크리스트 동기화
+`docs/PLAN.md` 6절 로드맵과 `docs/REQUIREMENTS.md` 8절 미달 항목이 정본입니다. 요약하면:
+
+- **시즌 상태별 화면 동작**(FR-12) — 비시즌·포스트시즌에 각 화면이 무엇을 보여줄지. v1 완료를 막는 `필수` 항목
+- **부분 실패 UI 확산**(NFR-06) — 현재 `Teams.jsx`만 API 실패와 빈 데이터를 구분. 나머지 페이지로 확장
+- **RAG 질의 화면**(PLAN T5) — 백엔드는 완성, React 화면이 없음
+- **Docker 기본 프론트 일원화 + `web/` 삭제**(PLAN T3) — 위 화면들이 옮겨진 뒤
+- **미사용 엔드포인트 정리**(PLAN T9), **선수/팀 비교**(FR-10), **갱신 실패 알림**(PLAN T7 잔여)
+- 미측정 항목: 화면 로딩 시간(NFR-02), 모바일 반응형(NFR-11), DB 복구 소요 시간(NFR-17), 파서 자체 점검(NFR-18)
