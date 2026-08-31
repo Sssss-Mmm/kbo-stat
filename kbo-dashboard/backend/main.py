@@ -8,8 +8,10 @@
 """
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
 from database import init_db
 from routers import analytics, player_stats, players, rag, schedule, standings, story, today, zones
@@ -44,6 +46,12 @@ app.include_router(zones.router, prefix="/api", tags=["zones"])
 app.include_router(player_stats.router, prefix="/api", tags=["player-stats"])
 app.include_router(today.router, prefix="/api", tags=["today"])
 app.include_router(story.router, prefix="/api", tags=["story"])
+
+
+@app.exception_handler(OperationalError)
+async def db_unavailable(request: Request, exc: OperationalError):
+    """DB 연결 실패는 500이 아니라 503으로 구분해서 알린다(CSV 라우터는 계속 동작)."""
+    return JSONResponse(status_code=503, content={"detail": "database unavailable"})
 
 
 @app.get("/")
