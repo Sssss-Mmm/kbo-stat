@@ -1,3 +1,9 @@
+/* 열이 늘어나 좁은 화면에서는 가로 스크롤로 처리한다 (NFR-11) */
+.standings-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .standings-table {
   width: 100%;
   border-collapse: collapse;
@@ -12,10 +18,7 @@
 }
 
 /* 순위·팀명은 왼쪽 정렬 (web/ vb-table 컨셉) */
-.standings-table th:nth-child(1),
-.standings-table td:nth-child(1),
-.standings-table th:nth-child(2),
-.standings-table td:nth-child(2) {
+.standings-table .lalign {
   text-align: left;
 }
 
@@ -28,11 +31,6 @@
 
 .standings-table tbody tr:hover {
   background: var(--hover);
-}
-
-.standings-table .team-name {
-  font-weight: 700;
-  color: var(--text);
 }
 
 .standings-table .team-emblem {
@@ -72,4 +70,72 @@
 .standings-table .winrate {
   font-weight: 700;
   color: var(--accent-3);
+}
+
+/* 정렬 가능한 헤더: 버튼이라 키보드 포커스·엔터가 그대로 동작한다 */
+.standings-table thead th {
+  padding: 0;
+  white-space: nowrap;
+}
+
+.standings-table .sort-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.standings-table .lalign .sort-btn {
+  justify-content: flex-start;
+}
+
+.standings-table .sort-btn:hover {
+  color: var(--text);
+}
+
+.standings-table .sort-mark {
+  font-size: 9px;
+  color: var(--accent);
+  min-width: 9px;
+}
+
+/* 팀명 클릭 -> 팀 분석 페이지 */
+.standings-table .team-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.standings-table .team-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* 홈/원정: 승-패 원기록 + 승률 */
+.standings-table td {
+  white-space: nowrap;
+}
+
+.standings-table .rec-pct {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.standings-table .muted {
+  color: var(--muted);
 }
