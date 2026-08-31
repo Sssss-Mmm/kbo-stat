@@ -405,3 +405,18 @@
   color: var(--muted);
   line-height: 1.5;
 }
+
+/* 패널 헤더의 다른 화면 이동 링크 */
+.panel-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent-3);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.panel-link:hover {
+  text-decoration: underline;
+}
