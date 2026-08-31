@@ -88,11 +88,12 @@
 
 .heat-frame .axis { font-size: 12px; color: var(--muted); }
 
+/* 칸 수는 ZoneHeatmap 이 --grid-n 으로 넘긴다(값이 없으면 3칸). */
 .heat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  max-width: 340px;
+  grid-template-columns: repeat(var(--grid-n, 3), 1fr);
+  gap: 5px;
+  max-width: 420px;
   margin: 10px auto;
 }
 
@@ -108,9 +109,11 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-.heat-cell .val { font-size: 20px; }
-.heat-cell .sub { font-size: 11px; font-weight: 500; opacity: 0.85; }
+.heat-cell .val { font-size: clamp(12px, 2.2vw, 18px); }
+.heat-cell .sub { font-size: 10px; font-weight: 500; opacity: 0.85; }
 .heat-cell.empty { background: var(--panel-soft); color: #9aa4ad; }
+/* 스트라이크존 안쪽 칸은 테두리를 진하게 해 존 밖(유인구) 칸과 구분한다. */
+.heat-cell.in-zone { box-shadow: inset 0 0 0 2px rgba(22, 32, 44, 0.55); }
 
 .heat-legend {
   display: flex;

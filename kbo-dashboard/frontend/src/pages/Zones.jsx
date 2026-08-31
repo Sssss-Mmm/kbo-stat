@@ -1,10 +1,12 @@
 // 핫/콜드존 페이지.
-// /api/zones 의 (선수, 3×3 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
-// 오른쪽에 9분할 스트라이크존 히트맵(ZoneHeatmap)을 보여준다.
+// /api/zones 의 (선수, 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
+// 오른쪽에 존 히트맵(ZoneHeatmap)을 보여준다. 격자 크기는 하드코딩하지 않고
+// 응답의 Zone 라벨 최대 번호에서 읽는다(빌더의 GRID_N 만 바꾸면 화면이 따라온다).
 // 지표는 타율/피안타율(hit) 또는 스윙률(swing) 중 선택, 역할은 타자/투수.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import ZoneHeatmap from '../components/ZoneHeatmap'
+import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Zones.css'
 
 // .325 처럼 앞 0을 떼고 소수 3자리로 표시.
@@ -18,9 +20,9 @@ function metricLabel(role, metric) {
   return role === 'batter' ? '타율' : '피안타율'
 }
 
-function Zones() {
+function Zones({ seasonInfo }) {
   const [role, setRole] = useState('batter') // batter | pitcher
-  const [season, setSeason] = useState(new Date().getFullYear())
+  const [season, setSeason] = useState(seasonInfo.dataSeason)
   const [metric, setMetric] = useState('hit') // hit | swing
   const [team, setTeam] = useState('all')
   const [selectedId, setSelectedId] = useState(null)
@@ -92,6 +94,12 @@ function Zones() {
     return den ? num / den : 0
   }, [rows, metric])
 
+  // 격자 한 변의 칸 수 = 리그 전체 셀에서 본 최대 row/col 번호.
+  const gridN = useMemo(
+    () => rows.reduce((max, row) => Math.max(max, ...String(row.Zone).split('-').map(Number)), 3),
+    [rows]
+  )
+
   const teams = useMemo(
     () => [...new Set(rows.map((row) => row.Team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
     [rows]
@@ -110,6 +118,7 @@ function Zones() {
 
   return (
     <div className="zones-container">
+      <SeasonBanner info={seasonInfo} selected={season} />
       <div className="zones-header">
         <h2>핫/콜드존</h2>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
@@ -176,9 +185,10 @@ function Zones() {
                   <h3>{selectedAgg.Player} · {selectedAgg.Team}{selectedAgg.Side ? ` · ${selectedAgg.Side}타` : ''}</h3>
                   <p className="sub">
                     {role === 'batter' ? '타자' : '투수'} · {metricLabel(role, metric)} · 투수 시점 기준 ·
+                    {' '}{gridN}×{gridN}(테두리는 존 밖) ·
                     {' '}표본 {metric === 'swing' ? '3구' : '2타구'} 미만은 회색
                   </p>
-                  <ZoneHeatmap cells={selectedCells} metric={metric} leagueAvg={leagueAvg} />
+                  <ZoneHeatmap cells={selectedCells} metric={metric} leagueAvg={leagueAvg} gridN={gridN} />
                 </>
               ) : (
                 <p className="zones-empty">선수를 선택하세요.</p>
