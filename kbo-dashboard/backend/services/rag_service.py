@@ -28,6 +28,21 @@ WIN_RATE_COL = "승률"
 RECENT_COL = "최근10경기"
 STREAK_COL = "연속"
 
+# 검색된 근거가 0건일 때 쓰는 답변. 단정하지 않고, 이 답변기가 실제로 답할 수 있는 범위를 안내한다.
+# (FR-09 AC2: 출처 없는 단정 금지)
+NO_EVIDENCE_ANSWER: dict[str, Any] = {
+    "title": "이 질문에 답할 근거를 찾지 못했습니다.",
+    "summary": (
+        "수집된 순위·경기·타자 지표 CSV에서 질문과 맞는 데이터를 찾지 못했습니다. "
+        "이 답변기는 CSV에 있는 사실만 답할 수 있어, 근거 없이 단정하지 않습니다."
+    ),
+    "bullets": [
+        "팀 순위·성적 - 예) 삼성 어때?",
+        "WAR·OPS 상위 타자 - 예) MVP는 누구야?",
+        "최근 상승세 팀 - 예) 최근 가장 뜨거운 팀은?",
+    ],
+}
+
 
 @dataclass
 class Evidence:
@@ -50,7 +65,8 @@ class RagService:
         data = self._load(season)
         docs = self._build_documents(data)
         retrieved = self._retrieve(question, docs, limit=8)
-        answer = self._synthesize(question, data, retrieved)
+        # 근거가 하나도 없으면 답변을 합성하지 않는다. 무관한 질문에 단정형 문장이 나가는 걸 여기 한 곳에서 막는다.
+        answer = self._synthesize(question, data, retrieved) if retrieved else NO_EVIDENCE_ANSWER
         return {
             "status": "success",
             "season": season,
@@ -346,3 +362,34 @@ class RagService:
     @staticmethod
     def _data_sources(data: dict[str, pd.DataFrame]) -> dict[str, int]:
         return {name: len(df) for name, df in data.items()}
+
+
+if __name__ == "__main__":
+    # 근거 0건 분기 자가검증: 무관한 질문은 단정하지 않고, 매칭되는 질문은 기존대로 답해야 한다.
+    _svc = RagService()
+    _svc._cache[1900] = {
+        "standings": pd.DataFrame([{
+            TEAM_COL: "삼성", RANK_COL: 1, WINS_COL: 60, LOSSES_COL: 40,
+            DRAWS_COL: 2, WIN_RATE_COL: 0.6, RECENT_COL: "7승 3패", STREAK_COL: "3승",
+        }]),
+        "team_games": pd.DataFrame(),
+        "team_monthly": pd.DataFrame(),
+        "hitters": pd.DataFrame(),
+    }
+
+    _off = _svc.ask("김치찌개 맛집 알려줘", 1900)
+    assert _off["evidence"] == [], _off["evidence"]
+    assert _off["answer"] == NO_EVIDENCE_ANSWER, _off["answer"]
+    assert "삼성" not in _off["answer"]["title"], "근거 없이 팀을 단정하면 안 된다"
+    assert _off["status"] == "success" and set(_off) == {
+        "status", "season", "question", "answer", "evidence", "data_sources"
+    }, _off.keys()
+
+    _on = _svc.ask("삼성 어때?", 1900)
+    assert _on["evidence"], "팀명이 있으면 근거가 검색돼야 한다"
+    assert "삼성" in _on["answer"]["title"], _on["answer"]
+
+    # 공백만 있는 질문도 터지지 않고 근거 없음으로 떨어진다.
+    assert _svc.ask("   ", 1900)["answer"] == NO_EVIDENCE_ANSWER
+
+    print("rag_service selfcheck ok")
