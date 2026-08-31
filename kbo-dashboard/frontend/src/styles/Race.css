@@ -1,0 +1,208 @@
+/* 가을야구 레이스 보드. 색·간격은 index.css 변수만 쓴다(다크모드 대응). */
+.race-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.race-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.race-header h2 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.race-cut-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* NFR-11: 좁은 화면에서는 표만 가로로 흐르고 레이아웃은 깨지지 않는다 */
+.race-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.race-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-table th,
+.race-table td {
+  padding: 9px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.race-table th.lalign,
+.race-table td.lalign {
+  text-align: left;
+}
+
+.race-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--panel-soft);
+}
+
+.race-table tbody tr:hover {
+  background: var(--hover);
+}
+
+/* 진출선 안쪽 팀 */
+.race-table tr.inside td {
+  background: color-mix(in srgb, var(--accent) 7%, var(--tint-base));
+}
+
+.race-table tr.inside:hover td {
+  background: color-mix(in srgb, var(--accent) 14%, var(--tint-base));
+}
+
+.race-table td.winrate {
+  font-weight: 800;
+}
+
+.race-table td.pos { color: var(--accent); }
+.race-table td.neg { color: var(--accent-2); }
+
+.race-table td.magic b {
+  font-weight: 800;
+}
+
+.race-table td.magic .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.race-table tr.cutline td {
+  padding: 4px 10px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent-2);
+  background: var(--panel-soft);
+  border-top: 2px dashed var(--accent-2);
+  border-bottom: 2px dashed var(--accent-2);
+}
+
+.race-team {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.race-team:hover {
+  text-decoration: underline;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tag.in {
+  background: var(--win-bg);
+  color: var(--accent);
+}
+
+.tag.out {
+  background: var(--loss-bg);
+  color: var(--accent-2);
+}
+
+/* 산식·비목표 명시 문구 (AC5) */
+.race-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.matchup-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.matchup-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.matchup-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.mu-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 190px;
+  font-size: 14px;
+}
+
+.mu-vs {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mu-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.mu-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mu-game {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .race-header h2 { font-size: 20px; }
+  .mu-pair { min-width: 100%; }
+}
