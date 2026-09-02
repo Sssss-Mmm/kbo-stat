@@ -1,85 +1,81 @@
 .home {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 26px;
 }
 
+/* 페이지 머리. 이전에는 ALL-CAPS eyebrow('KBO DASHBOARD')가 제목 위에
+   붙어 있었는데 헤더 워드마크와 같은 말을 두 번 하는 라벨이라 뺐다. */
 .home-hero {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.home-hero .eyebrow {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--rule-key);
 }
 
 .home-hero h2 {
-  font-size: clamp(24px, 4vw, 40px);
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.02em;
+  font-size: clamp(22px, 3.4vw, 32px);
+  font-weight: 700;
+  color: var(--ink);
 }
 
-/* 요약 카드 */
+.home-hero .hero-sub {
+  font-size: 13px;
+  color: var(--pencil);
+}
+
+/* 요약 수치: 카드가 아니라 괘선으로 나뉜 한 줄의 칸들. */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
+  border-top: 2px solid var(--rule-key);
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet);
 }
 
 .stat-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: var(--shadow);
+  padding: 14px 18px 16px;
+  border-left: 1px solid var(--rule);
 }
 
+.stat-card:first-child {
+  border-left: 0;
+}
+
+/* '현재 1위' 칸. 반전 카드 대신 굵은 왼쪽 괘선 하나로 표시한다. */
 .stat-card.primary {
-  background: var(--card-primary-bg);
-  border-color: var(--card-primary-bg);
-}
-
-.stat-card.primary .kicker,
-.stat-card.primary h3,
-.stat-card.primary p {
-  color: #fff;
+  border-left: 2px solid var(--rule-key);
+  background: var(--field);
 }
 
 .stat-card .kicker {
   font-size: 12px;
-  font-weight: 800;
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--pencil);
 }
 
 .stat-card h3 {
-  margin: 6px 0 4px;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
+  margin: 5px 0 3px;
+  font-size: 25px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
 .stat-card p {
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--pencil);
   line-height: 1.5;
 }
 
-/* 패널 */
+/* 패널: 그림자·모서리 없이 굵은 머리 괘선으로 구역을 연다. */
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: var(--shadow);
+  padding: 14px 0 18px;
+  border-top: 2px solid var(--rule-key);
+  background: transparent;
 }
 
 .panel-head {
@@ -87,36 +83,36 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .panel-head h3 {
   font-size: 16px;
-  font-weight: 800;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .panel-head p {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--pencil);
 }
 
 .panel-grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-  gap: 14px;
+  gap: 0 32px;
 }
 
 .panel-grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  gap: 0 32px;
 }
 
 .panel-grid-4 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 14px;
+  gap: 0 32px;
 }
 
 /* 팀 셀(엠블럼 + 이름) */
@@ -125,79 +121,95 @@
   align-items: center;
   gap: 6px;
 }
+
 .team-cell img {
   width: 18px;
   height: 18px;
   object-fit: contain;
 }
 
-/* 리그 평균 스탯 박스 */
+/* 리그 평균 지표 */
 .stat-rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-.stat-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 12px;
-  background: var(--panel-soft);
-  border-radius: 7px;
-}
-.stat-row span {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--muted);
-}
-.stat-row strong {
-  font-size: 16px;
-  font-weight: 900;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
 }
 
-/* 시즌 하이라이트 리스트 */
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.stat-row:last-child {
+  border-bottom: 0;
+}
+
+.stat-row span {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--pencil);
+}
+
+.stat-row strong {
+  font-family: var(--type-num);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* 시즌 하이라이트 */
 .hl-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
+
 .hl-item {
   display: grid;
-  grid-template-columns: 48px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 4px;
-  border-bottom: 1px solid var(--line);
+  grid-template-columns: 46px 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
 }
+
 .hl-item:last-child {
   border-bottom: none;
 }
+
 .hl-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--pencil);
 }
+
 .hl-player {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
 }
+
 .hl-player img {
   width: 18px;
   height: 18px;
   object-fit: contain;
 }
+
 .hl-val {
-  font-size: 15px;
-  font-weight: 900;
-  color: var(--text);
+  font-family: var(--type-num);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 /* 차트 공통 */
@@ -208,54 +220,51 @@
 }
 
 .axis-label {
-  fill: var(--muted);
+  fill: var(--pencil);
   font-size: 11px;
 }
 
 .race-label {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 /* 막대 리스트 */
 .bar-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .bar-row {
   display: grid;
-  grid-template-columns: 116px 1fr 52px;
+  grid-template-columns: 112px 1fr 52px;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12.5px;
 }
 
 .bar-team {
-  color: var(--text);
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .bar-track {
-  background: var(--panel-soft);
-  border-radius: 5px;
-  height: 14px;
-  overflow: hidden;
+  background: var(--field);
+  height: 12px;
 }
 
 .bar-fill {
   display: block;
   height: 100%;
-  border-radius: 5px;
 }
 
 .bar-val {
   text-align: right;
-  color: var(--muted);
+  color: var(--pencil);
   font-variant-numeric: tabular-nums;
 }
 
@@ -263,7 +272,7 @@
 .ha-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .ha-row {
@@ -275,15 +284,13 @@
 }
 
 .ha-team {
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .ha-bar {
-  background: var(--panel-soft);
-  border-radius: 5px;
-  height: 12px;
-  overflow: hidden;
+  background: var(--field);
+  height: 10px;
 }
 
 .ha-fill {
@@ -291,51 +298,57 @@
   height: 100%;
 }
 
+/* 홈/원정은 색이 아니라 농도로 나눈다(먹 / 연필). */
 .ha-fill.home {
-  background: var(--accent);
+  background: var(--ink);
 }
 
 .ha-fill.away {
-  background: var(--accent-3);
+  background: var(--pencil);
 }
 
 .ha-num {
   text-align: right;
-  color: var(--muted);
+  color: var(--pencil);
   font-variant-numeric: tabular-nums;
 }
 
 .ha-legend {
   display: flex;
   gap: 14px;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--muted);
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--pencil);
 }
 
 .ha-legend .dot {
   display: inline-block;
   width: 9px;
   height: 9px;
-  border-radius: 50%;
-  margin-right: 4px;
+  margin-right: 5px;
 }
 
-.ha-legend .dot.home { background: var(--accent); }
-.ha-legend .dot.away { background: var(--accent-3); }
+.ha-legend .dot.home {
+  background: var(--ink);
+}
+
+.ha-legend .dot.away {
+  background: var(--pencil);
+}
 
 /* 미니 테이블 */
 .mini-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .mini-table th,
 .mini-table td {
-  padding: 6px 8px;
+  padding: 7px 8px;
   text-align: right;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
 }
 
 .mini-table th.lalign,
@@ -344,9 +357,10 @@
 }
 
 .mini-table th {
-  color: var(--muted);
-  font-weight: 800;
-  font-size: 11px;
+  color: var(--pencil);
+  font-weight: 500;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--rule-key);
 }
 
 .mini-table tbody tr:hover {
@@ -357,51 +371,80 @@
 .ops-boxes {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  border-top: 1px solid var(--rule);
 }
 
 .ops-box {
-  background: var(--panel-soft);
-  border-radius: 8px;
-  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  padding: 12px 14px 12px 0;
+}
+
+.ops-box:nth-child(even) {
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
 }
 
 .ops-box span {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--pencil);
 }
 
 .ops-box strong {
-  font-size: 18px;
-  color: var(--text);
+  font-family: var(--type-num);
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
 }
 
-/* 규칙 */
+/* 규칙 설명 */
 .rules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  border-top: 1px solid var(--rule);
 }
 
 .rule-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  padding: 12px 16px 12px 0;
+}
+
+.rule-card + .rule-card {
+  padding-left: 16px;
+  border-left: 1px solid var(--rule);
 }
 
 .rule-card strong {
-  font-size: 14px;
-  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .rule-card span {
   font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.5;
+  color: var(--pencil);
+  line-height: 1.55;
+}
+
+/* 다른 화면으로 가는 링크 */
+.panel-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+  cursor: pointer;
+}
+
+.panel-link:hover {
+  text-decoration-color: var(--ink);
 }

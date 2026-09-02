@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import csv_guard
+
 ROOT = Path(__file__).parent.parent
 RAW_DIR = ROOT / "data" / "raw" / "kbo_official"
 PROCESSED_DIR = ROOT / "data" / "processed"
@@ -67,8 +69,7 @@ def build(year: int) -> pd.DataFrame:
 
     metrics = metrics.sort_values(["WARProxy", "OPS"], ascending=False)
     out = PROCESSED_DIR / f"kbo_hitter_metrics_{year}.csv"
-    metrics.to_csv(out, index=False, encoding="utf-8-sig")
-    print(f"saved {out.name} rows={len(metrics)}")
+    csv_guard.save_csv(metrics, out)
     return metrics
 
 

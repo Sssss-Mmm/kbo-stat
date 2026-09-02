@@ -5,79 +5,172 @@
   flex-direction: column;
 }
 
-/* vb-header: 스티키 반투명 + 블러 */
+/* 헤더는 기록지의 머리단. 아래 굵은 괘선이 머리단과 본문의 경계다. */
 .header {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
-  gap: 18px;
-  min-height: 58px;
+  align-items: stretch;
+  gap: 20px;
+  min-height: 54px;
   padding: 0 clamp(14px, 3vw, 36px);
   background: var(--header-bg);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--rule-key);
   backdrop-filter: blur(14px);
 }
 
-/* 로고처럼 보이게 */
+/* 워드마크: 'KBO' 는 표기용 활자, 'Dashboard' 는 본문 활자.
+   숫자·라틴 약어와 산문을 다른 활자로 나누는 규칙을 제목에서 먼저 보인다. */
 .header h1 {
   flex: 0 0 auto;
-  font-size: 18px;
-  font-weight: 900;
-  color: var(--ink);
-  letter-spacing: -0.01em;
+  align-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
-/* vb-nav: 어두운 알약 활성 */
+.header h1 .wm-kbo {
+  font-family: var(--type-num);
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.header h1 .wm-rest {
+  color: var(--pencil);
+  font-weight: 500;
+}
+
+/* 네비는 머리단 괘선 위에 앉은 탭. 현재 위치는 색이 아니라
+   괘선을 끊는 2px 밑줄로 표시한다. */
 .nav {
   display: flex;
-  gap: 2px;
+  gap: 0;
   overflow-x: auto;
   white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav button {
-  padding: 8px 12px;
+  position: relative;
+  padding: 0 13px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--pencil);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: color 0.12s ease;
 }
 
-.nav button:hover,
+.nav button:hover {
+  color: var(--ink);
+}
+
 .nav button.active {
-  color: var(--pill-text);
-  background: var(--pill-bg);
+  color: var(--ink);
+  font-weight: 700;
 }
 
-/* 테마 토글 */
+/* 활성 탭의 밑줄이 헤더 괘선 자리를 덮어 '여기'를 가리킨다. */
+.nav button.active::after {
+  position: absolute;
+  right: 6px;
+  bottom: -2px;
+  left: 6px;
+  height: 2px;
+  background: var(--rule-key);
+  content: "";
+}
+
 .theme-toggle {
   flex: 0 0 auto;
+  align-self: center;
   margin-left: auto;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--sheet);
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.12s ease;
 }
 
 .theme-toggle:hover {
-  background: var(--panel-soft);
+  background: var(--field);
 }
 
-/* vb-main: 중앙 정렬 1280 */
 .main {
   flex: 1;
   width: min(1280px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 26px 0 40px;
+  padding: 24px 0 40px;
+}
+
+/* 시즌 상태 배너 (FR-12 AC2). 한 곳에서만 정의한다 — 예전에는 이 클래스가
+   이 파일에 두 번 선언돼 서로를 덮어쓰고 있었다.
+   상태는 왼쪽 스파인 두께로 구분한다: 정규시즌은 1px 로 조용히, 그 외
+   상태(포스트시즌·오프시즌·개막전)는 2px 로 눈에 띄게. */
+.season-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 16px;
+  padding: 8px 0 8px 12px;
+  border-left: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+
+.season-banner.postseason,
+.season-banner.offseason,
+.season-banner.preseason {
+  border-left: 2px solid var(--rule-key);
+}
+
+.season-banner .sb-tag {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.season-banner .sb-note {
+  font-size: 12px;
+  color: var(--pencil);
+}
+
+/* 오프시즌/개막전 안내 블록 (오늘의 KBO 자리) */
+.season-notice {
+  margin-bottom: 18px;
+  padding: 30px 18px;
+  border-top: 2px solid var(--rule-key);
+  border-bottom: 1px solid var(--rule);
+  background: var(--sheet);
+  text-align: center;
+}
+
+.season-notice h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.season-notice p {
+  margin: 0 auto;
+  font-size: 13px;
+  color: var(--pencil);
 }

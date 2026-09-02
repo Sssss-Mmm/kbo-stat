@@ -31,7 +31,10 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_player_stats.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_pitch_zones.py --from-date ${TWO_DAYS_AGO} --to-date ${YESTERDAY}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_zone_metrics.py --year ${YEAR}"
-  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} exec -T backend python migrate.py"
+  echo "DRY_RUN: ${PYTHON_BIN} src/build_pitch_arsenal.py --year ${YEAR}"
+  echo "DRY_RUN: ${PYTHON_BIN} src/build_count_metrics.py --year ${YEAR}"
+  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} up -d backend   # only if container is down"
+  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} exec -T backend python migrate.py   # exit 3/4 on failure"
   exit 0
 fi
 
@@ -48,19 +51,51 @@ echo "[naver-pitch] refresh ${TWO_DAYS_AGO}..${YESTERDAY}"
 echo "[zones] rebuild hot/cold zone datasets season=${YEAR}"
 "${PYTHON_BIN}" src/build_zone_metrics.py --year "${YEAR}"
 
+echo "[arsenal] rebuild pitch-type arsenal datasets season=${YEAR}"
+"${PYTHON_BIN}" src/build_pitch_arsenal.py --year "${YEAR}"
+
+echo "[count] rebuild ball/strike count dataset season=${YEAR}"
+"${PYTHON_BIN}" src/build_count_metrics.py --year "${YEAR}"
+
 # 갱신된 CSV를 DB로 재적재(컨테이너는 data 를 bind mount 하므로 새 CSV 가 보인다).
-# 백엔드 컨테이너가 떠 있을 때만 수행. zone 데이터는 CSV 직접 서빙이라 재적재 불필요.
+# zone 데이터는 CSV 직접 서빙이라 재적재 불필요.
+# DB 적재 실패/스킵은 성공이 아니다: CSV 만 최신이고 DB 가 낡은 상태로 조용히
+# exit 0 하면 아무도 모른 채 몇 달이 지난다(실제로 2026-06-13 ~ 08-30 발생).
 echo "[db] reload database from refreshed CSVs"
-if command -v docker >/dev/null 2>&1 && \
-   docker compose -f "${COMPOSE_FILE}" ps -q backend 2>/dev/null | grep -q .; then
-  docker compose -f "${COMPOSE_FILE}" exec -T backend python migrate.py \
-    || echo "[db] migrate.py returned non-zero (continuing)"
-else
-  echo "[db] backend container not running — skipping DB reload"
+
+backend_running() {
+  docker compose -f "${COMPOSE_FILE}" ps -q backend 2>/dev/null | grep -q .
+}
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "[db] FAIL: docker not found — CSVs are updated but the DB was NOT reloaded" >&2
+  exit 3
+fi
+
+if ! backend_running; then
+  echo "[db] backend container not running — trying to start it once"
+  docker compose -f "${COMPOSE_FILE}" up -d backend || true
+  # ponytail: 고정 대기. backend 는 postgres service_healthy 를 기다린 뒤 뜨므로
+  # 보통 충분하다. 부족하면 healthcheck 폴링 루프로 올릴 것.
+  sleep 5
+fi
+
+if ! backend_running; then
+  echo "[db] FAIL: backend container is down and could not be started —" >&2
+  echo "[db]       CSVs are updated but the DB was NOT reloaded (stale API data)." >&2
+  echo "[db]       fix: bash scripts/start_kbo.sh" >&2
+  exit 3
+fi
+
+if ! docker compose -f "${COMPOSE_FILE}" exec -T backend python migrate.py; then
+  echo "[db] FAIL: migrate.py exited non-zero — CSVs are updated but the DB reload failed" >&2
+  exit 4
 fi
 
 # 성공 마커: 기동 캐치업(start_kbo.sh)이 "오늘 이미 갱신됨"을 판정하는 데 사용.
-# set -e 라 위 단계가 실패하면 여기까지 못 오므로, 마커는 전체 성공 시에만 갱신된다.
+# set -e + 위 exit 3/4 때문에 크롤 또는 DB 적재가 실패하면 여기까지 못 온다.
+# 즉 DB 적재 실패 시 마커가 안 남고, 다음 start_kbo.sh(=컨테이너 기동 후)가
+# 캐치업으로 다시 돌려 DB 까지 맞춘다.
 echo "${TODAY}" > "${LOG_DIR}/.last_update_date"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] finished daily KBO update date=${TODAY}"

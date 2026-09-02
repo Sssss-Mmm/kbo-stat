@@ -27,18 +27,6 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
-    build:
-      context: ..
-      dockerfile: web/Dockerfile
-    container_name: kbo_web
-    ports:
-      - "8000:80"
-    networks:
-      - kbo_network
-    depends_on:
-      - backend
-
   frontend:
     build:
       context: ./frontend

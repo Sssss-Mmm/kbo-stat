@@ -1,8 +1,0 @@
-FROM nginx:1.27-alpine
-
-COPY web/nginx.conf /etc/nginx/conf.d/default.conf
-COPY web /usr/share/nginx/html/web
-COPY data /usr/share/nginx/html/data
-COPY data /usr/share/nginx/html/web/data
-
-EXPOSE 80

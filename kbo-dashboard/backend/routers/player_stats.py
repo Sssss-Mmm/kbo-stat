@@ -25,7 +25,9 @@ ROLE_FILES = {
 def _read_csv(role: str, season: int) -> list[dict]:
     path = PROCESSED_DIR / ROLE_FILES[role].format(season=season)
     if not path.exists():
-        return []
+        raise HTTPException(
+            status_code=404, detail=f"{season}시즌 {role} 선수 데이터가 없습니다."
+        )
     df = pd.read_csv(path)
     df = df.astype(object).where(pd.notna(df), None)
     return df.to_dict(orient="records")

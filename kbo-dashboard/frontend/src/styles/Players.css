@@ -1,9 +1,7 @@
 .players-container {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 16px;
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -21,14 +19,13 @@
 .players-header h2 {
   margin-right: auto;
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
 }
 
 .players-table-wrap {
   border: 1px solid var(--line);
-  border-radius: 8px;
   overflow-x: auto;
   max-height: 700px;
   overflow-y: auto;
@@ -59,7 +56,7 @@
   background: var(--panel-soft);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
   user-select: none;
 }

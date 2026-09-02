@@ -1,0 +1,167 @@
+/* RAG 질의응답 페이지 (FR-09). 색·간격은 index.css 변수만 사용한다. */
+
+.ask-container {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ask-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.ask-header p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 질문 입력 — 모바일에서는 입력창과 버튼이 세로로 쌓인다. */
+.ask-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ask-form input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+}
+
+.ask-form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ask-form button {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pill-text);
+  background: var(--pill-bg);
+  border: 0;
+  cursor: pointer;
+}
+
+.ask-form button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ask-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ask-samples button {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.ask-samples button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.ask-samples button:disabled { opacity: 0.5; cursor: default; }
+
+.ask-answer { border-left: 3px solid var(--accent); }
+
+.ask-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.ask-summary {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.ask-bullets {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* 근거가 없거나 답변 대상과 어긋날 때의 경고 (AC2) */
+.ask-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--accent-2);
+  background: var(--loss-bg);
+  border: 1px solid var(--accent-2);
+}
+
+.ask-evidence + .ask-evidence { margin-top: 18px; }
+
+.ask-evidence h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ask-evidence h4 span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* NFR-11: 좁은 폭에서 표는 가로 스크롤한다. */
+.ask-scroll { overflow-x: auto; }
+.ask-scroll .mini-table { min-width: 520px; }
+
+.ask-cited-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ask-cited {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--pill-text);
+  background: var(--accent);
+}
+
+.ask-container .pos { color: var(--accent); }
+.ask-container .neg { color: var(--accent-2); }
+
+@media (max-width: 480px) {
+  .ask-container { padding: 12px; }
+  .ask-header h2 { font-size: 20px; }
+  .ask-form button { flex: 1 1 100%; }
+}

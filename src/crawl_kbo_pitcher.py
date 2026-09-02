@@ -19,6 +19,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -219,6 +221,7 @@ def crawl(start: int = 2008, end: int = 2026, overwrite: bool = False) -> None:
         "OPS",
     ]
 
+    failures: list[int] = []
     for year in range(start, end + 1):
         out = RAW_DIR / f"kbo_pitcher_{year}.csv"
         if out.exists() and not overwrite:
@@ -227,18 +230,29 @@ def crawl(start: int = 2008, end: int = 2026, overwrite: bool = False) -> None:
 
         try:
             df = fetch_year(session, year)
-            if df.empty:
-                print(f"  empty {year}")
+            if df.empty and not out.exists():
+                # 과거 연도 백필에서 그 해 자료가 아예 없는 것은 정상이다.
+                print(f"  empty {year} — 기존 파일 없음, 건너뛴다")
             else:
-                df.to_csv(out, index=False, encoding="utf-8-sig")
+                # 0행이면 save_csv 가 EmptyDatasetError 로 막는다. 덮어쓰기
+                # 경로(일일 갱신)에서 파서가 깨지면 여기서 걸려야 한다.
+                csv_guard.save_csv(df, out)
                 found_detail_cols = [col for col in detail_cols if col in df.columns]
                 print(
                     f"  saved {out.name}  players={len(df)} "
                     f"cols={len(df.columns)} detail_cols={len(found_detail_cols)}"
                 )
+        except (csv_guard.EmptyDatasetError, csv_guard.IntegrityError):
+            # 데이터가 깨졌다. 다음 연도로 넘어가면 조용히 낡은 CSV 가 남는다.
+            raise
         except Exception as exc:
             print(f"  ERROR {year}: {exc}")
+            failures.append(year)
         time.sleep(random.uniform(1.5, 2.5))
+
+    if failures:
+        # 여기서 조용히 끝나면 CSV 는 낡은 채로 남고 크론은 성공으로 기록한다.
+        raise RuntimeError(f"crawl failed for {failures}")
 
 
 if __name__ == "__main__":
