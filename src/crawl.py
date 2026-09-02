@@ -144,6 +144,7 @@ def fetch_season(season: int, qual: str = "y", use_selenium: bool = False) -> pd
 def crawl(start: int = 2002, end: int = 2025, qual: str = "y",
           delay: float = 3.0, use_selenium: bool = False):
     """연도 범위를 돌며 시즌별 CSV 를 저장한다(이미 있으면 건너뜀)."""
+    failures: list[int] = []
     for season in range(start, end + 1):
         out_path = RAW_DIR / f"kbo_{season}.csv"
         if out_path.exists():
@@ -151,15 +152,26 @@ def crawl(start: int = 2002, end: int = 2025, qual: str = "y",
             continue
         try:
             df = fetch_season(season, qual, use_selenium)
-            if df.empty:
-                print(f"  empty {season} — no data returned")
+            if df.empty and not out_path.exists():
+                # 과거 연도 백필에서 그 해 자료가 아예 없는 것은 정상이다.
+                print(f"  empty {season} — 기존 파일 없음, 건너뛴다")
             else:
+                # 0행이면 save_csv 가 EmptyDatasetError 로 막는다. 덮어쓰기
+                # 경로(일일 갱신)에서 파서가 깨지면 여기서 걸려야 한다.
                 csv_guard.save_csv(df, out_path)
                 print(f"  saved {out_path.name}  ({len(df)} players, {len(df.columns)} cols)")
-        except Exception as e:
-            print(f"  ERROR {season}: {e}")
+        except (csv_guard.EmptyDatasetError, csv_guard.IntegrityError):
+            # 데이터가 깨졌다. 다음 연도로 넘어가면 조용히 낡은 CSV 가 남는다.
+            raise
+        except Exception as exc:
+            print(f"  ERROR {season}: {exc}")
+            failures.append(season)
         jitter = delay + random.uniform(0, delay * 0.3)
         time.sleep(jitter)
+
+    if failures:
+        # 여기서 조용히 끝나면 CSV 는 낡은 채로 남고 크론은 성공으로 기록한다.
+        raise RuntimeError(f"crawl failed for {failures}")
 
 
 if __name__ == "__main__":

@@ -197,8 +197,12 @@ def main():
         print("=" * 50)
     
     except Exception as e:
-        print(f"❌ 오류 발생: {e}")
+        # 여기서 삼키면 exit 0 이 되어 update_kbo_daily.sh 의 DB 실패 게이트(exit 4)가
+        # 죽은 코드가 된다. CSV 는 최신인데 DB 만 몇 달 뒤처지고 스크립트는 "완료" 를
+        # 기록하는 사고(2026-06-13 ~ 08-30)가 정확히 이 경로로 났다.
+        print(f"❌ 마이그레이션 실패: {type(e).__name__}: {e}", file=sys.stderr)
         db.rollback()
+        raise
     finally:
         db.close()
 
