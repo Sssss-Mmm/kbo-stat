@@ -19,6 +19,7 @@ import PitchCount from '../components/PitchCount'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
+import { apiError } from '../lib/apiError'
 
 // .325 처럼 앞 0을 떼고 소수 3자리로 표시.
 function fmtRate(value) {
@@ -58,7 +59,7 @@ function Zones({ seasonInfo }) {
           setError('존 데이터를 가져오는데 실패했습니다.')
         }
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }

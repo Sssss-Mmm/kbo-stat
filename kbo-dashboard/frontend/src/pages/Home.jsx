@@ -13,6 +13,7 @@ import { teamColor, teamEmblem } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
+import { apiError } from '../lib/apiError'
 
 const TEAM_COUNT = 10
 
@@ -84,7 +85,7 @@ function Home({ seasonInfo, onOpsClick }) {
         ])
         if (active) setD({ standings, teamGames, hitters, pitchers, attendance, gameTime, failed })
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }

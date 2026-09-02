@@ -4,6 +4,7 @@ import axios from 'axios'
 import StandingsTable from '../components/StandingsTable'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Standings.css'
+import { apiError } from '../lib/apiError'
 
 function Standings({ seasonInfo, onTeamClick }) {
   const [standings, setStandings] = useState([])
@@ -28,7 +29,7 @@ function Standings({ seasonInfo, onTeamClick }) {
         setError('순위표 데이터를 가져오는데 실패했습니다.')
       }
     } catch (err) {
-      setError(err.message)
+      setError(apiError(err))
     } finally {
       setLoading(false)
     }
