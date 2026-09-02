@@ -173,7 +173,14 @@ def plate_z(pitch: dict) -> float | None:
 def zone_bucket(x: float | None, z: float | None, bottom: float | None, top: float | None) -> str:
     """투구의 좌우(x)·높이(z)와 타자별 존 상/하단으로 'row-col' 9분할 존을 정한다.
 
-    존을 벗어나면 L-out/R-out, low-out/high-out 으로 표기한다. row 3=상단, col 1=좌.
+    row 1=상단(높은 코스), row 3=하단 / col 1=좌, col 3=우.
+    row 는 z 가 클수록(높을수록) 작아진다 — 화면 좌표처럼 위에서부터 센다.
+    이 방향을 반대로 적어 둔 탓에 히트맵이 상하 반전됐던 적이 있다(6303f3d).
+    build_zone_metrics._axis_bins 와 ZoneHeatmap.jsx 도 같은 방향을 쓴다.
+
+    존을 벗어나면 L-out/R-out, low-out/high-out 으로 표기한다. 이때 구분자가
+    바뀐다: 안쪽은 "2-1" 처럼 하이픈, 한쪽이라도 존 밖이면 "low-out:2" 처럼
+    콜론이다. Zone 값을 split('-') 로 파싱하면 존 밖 값에서 깨진다.
     """
     if x is None or z is None or bottom is None or top is None or top <= bottom:
         return "unknown"

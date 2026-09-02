@@ -117,4 +117,20 @@ assert.deepEqual(raceRows([], {}, 5), [])
 assert.deepEqual(dailyRanks([]), { series: [], dates: [] })
 assert.deepEqual(remainingMatchups([], [], '2026-08-31'), [])
 
+// 11) win_rate 가 null 이면 피타고리안 차이는 null 이다.
+//     null - 0.52 는 NaN 이 아니라 -0.52 라, 예전엔 없는 차이를 -.520 으로 그렸다.
+const nullRate = [{ rank: 1, team: '삼성', games: 115, wins: 68, losses: 44, draws: 3, win_rate: null }]
+const nullTotals = { 삼성: { runsFor: 600, runsAgainst: 500 } }
+const [nullRow] = raceRows(nullRate, nullTotals, 5)
+assert.ok(Number.isFinite(nullRow.pyth), '득실점이 있으면 피타고리안은 계산된다')
+assert.equal(nullRow.pythDiff, null, 'win_rate 가 null 이면 차이는 null 이어야 한다')
+
+// 득실점이 없으면 피타고리안이 없으므로 차이도 null.
+const [noRuns] = raceRows([{ rank: 1, team: 'LG', games: 116, wins: 64, losses: 51, draws: 1, win_rate: 0.557 }], {}, 5)
+assert.equal(noRuns.pythDiff, null)
+
+// 양쪽 다 있으면 실제 차이가 나온다.
+const [ok] = raceRows([{ rank: 1, team: 'LG', games: 116, wins: 64, losses: 51, draws: 1, win_rate: 0.557 }], { LG: { runsFor: 600, runsAgainst: 500 } }, 5)
+assert.ok(Math.abs(ok.pythDiff - (0.557 - ok.pyth)) < 1e-9)
+
 console.log('ok: race.js 자체 점검 통과')

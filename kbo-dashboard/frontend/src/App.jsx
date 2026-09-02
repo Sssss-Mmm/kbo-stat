@@ -32,7 +32,15 @@ function App() {
     axios
       .get('/api/schedule-games')
       .then((res) => setSeasonInfo(seasonState(kstToday(), res.data.data || [])))
-      .catch(() => setSeasonInfo(seasonState(kstToday(), [])))  // 일정 조회 실패해도 화면은 뜬다
+      // 일정 조회가 실패해도 화면은 뜨지만, 그 사실을 숨기지 않는다. 빈 배열을 넘기면
+      // seasonState 가 달력만 보고 판정해 isFallback=false 로 "2026 정규시즌" 을
+      // 단언해 버린다(DR-06 AC2 위반). 어느 시즌인지 모른다는 걸 배너에 남긴다.
+      .catch(() =>
+        setSeasonInfo({
+          ...seasonState(kstToday(), []),
+          notice: '일정을 불러오지 못해 달력 기준으로 표시합니다 — 데이터가 비어 있을 수 있습니다',
+        }),
+      )
   }, [])
 
   // 테마 변경 시 <html data-theme>에 반영하고 선택을 저장(CSS 변수로 스타일 분기).

@@ -10,7 +10,7 @@ import RankRace from '../components/charts/RankRace'
 import TodayGames from '../components/TodayGames'
 import SeasonBanner from '../components/SeasonBanner'
 import { teamColor, teamEmblem } from '../lib/teamColors'
-import { MiniTable, BarList, TeamCell } from '../components/MiniTable'
+import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
 
@@ -206,11 +206,19 @@ function Home({ seasonInfo, onOpsClick }) {
 
   // 운영 데이터 요약
   const ops = useMemo(() => {
+    // 실패한 요청의 파생값은 0 이 아니라 null 이어야 한다. 관중 조회가 죽었을 때
+    // "총 관중 0" 을 그리면 없는 사실을 단정하는 것이 된다. fmt* 는 null 을 '-' 로 그린다.
+    const attFailed = d.failed.includes('관중')
+    const timeFailed = d.failed.includes('경기시간')
     const totals = d.attendance.filter((a) => a.Month === 0)
     const totalAtt = totals.reduce((s, a) => s + (a.Attendance || 0), 0)
     const topAtt = [...totals].sort((a, b) => (b.Attendance || 0) - (a.Attendance || 0))[0]
     const avgGameMin = mean(d.gameTime.map((g) => g.RegularInningMinutes).filter(Number.isFinite))
-    return { totalAtt, topAtt, avgGameMin }
+    return {
+      totalAtt: attFailed ? null : totalAtt,
+      topAtt: attFailed ? null : topAtt,
+      avgGameMin: timeFailed ? null : avgGameMin,
+    }
   }, [d])
 
   const RULES = [
@@ -302,7 +310,9 @@ function Home({ seasonInfo, onOpsClick }) {
           {/* 팀: 타이틀 레이스 */}
           <section className="panel">
             <div className="panel-head"><h3>타이틀 레이스</h3><p>날짜별 누적 순위 변화</p></div>
-            <RankRace series={race.series} dateCount={race.dateCount} teamCount={TEAM_COUNT} />
+            {d.failed.includes('경기 결과')
+              ? <Note rows={null} />
+              : <RankRace series={race.series} dateCount={race.dateCount} teamCount={TEAM_COUNT} />}
           </section>
 
           {/* 순위 + 홈/원정 성적 */}
@@ -380,7 +390,9 @@ function Home({ seasonInfo, onOpsClick }) {
             </article>
             <article className="panel">
               <div className="panel-head"><h3>팀 득실차</h3><p>득점 − 실점</p></div>
-              <BarList items={teamAgg.runDiff} fmt={(v) => (v > 0 ? `+${v}` : `${v}`)} />
+              {d.failed.includes('경기 결과')
+                ? <Note rows={null} />
+                : <BarList items={teamAgg.runDiff} fmt={(v) => (v > 0 ? `+${v}` : `${v}`)} />}
             </article>
           </section>
 

@@ -88,7 +88,9 @@ export function raceRows(standings = [], totals = {}, cutRank = PLAYOFF_CUT) {
       selfPower,
       magic,
       tragic,
-      pythDiff: r.pyth == null ? null : (r.win_rate ?? null) - r.pyth,
+      // win_rate 는 DB 컬럼이 비면 null 로 온다. null - 0.52 는 NaN 이 아니라 -0.52 라
+      // ?? null 가드가 무력했고, 없는 피타고리안 차이를 -.520 으로 단정해 그렸다.
+      pythDiff: Number.isFinite(r.pyth) && Number.isFinite(r.win_rate) ? r.win_rate - r.pyth : null,
       gbCut: r.team === cutTeam.team ? 0 : gamesBehind(cutTeam, r),
       cutTeam: cutTeam.team,
     }
