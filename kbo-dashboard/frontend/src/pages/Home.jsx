@@ -232,7 +232,6 @@ function Home({ seasonInfo, onOpsClick }) {
     <div className="home">
       <section className="home-hero">
         <div>
-          <p className="eyebrow">KBO Dashboard</p>
           <h2>한눈에 보는 {season} 시즌</h2>
         </div>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>

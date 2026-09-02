@@ -50,7 +50,7 @@ export function TeamCell({ team }) {
   return (
     <span className="team-cell">
       {teamEmblem(team) && <img src={teamEmblem(team)} alt="" />}
-      <b style={{ color: teamColor(team) }}>{team}</b>
+      <b className="team-ink" style={{ '--team-c': teamColor(team) }}>{team}</b>
     </span>
   )
 }

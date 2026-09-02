@@ -236,12 +236,12 @@ function Game({ g, onTeam }) {
   const done = g.status === 'final' && g.home_score != null && g.away_score != null
   return (
     <div className="game-chip">
-      <button className="g-team" style={{ color: teamColor(g.away_team) }} onClick={() => onTeam(g.away_team)}>
+      <button className="g-team team-ink" style={{ '--team-c': teamColor(g.away_team) }} onClick={() => onTeam(g.away_team)}>
         {teamEmblem(g.away_team) && <img className="g-emblem" src={teamEmblem(g.away_team)} alt="" />}
         {g.away_team}
       </button>
       <span className="g-score">{done ? `${g.away_score} : ${g.home_score}` : g.Time || 'vs'}</span>
-      <button className="g-team" style={{ color: teamColor(g.home_team) }} onClick={() => onTeam(g.home_team)}>
+      <button className="g-team team-ink" style={{ '--team-c': teamColor(g.home_team) }} onClick={() => onTeam(g.home_team)}>
         {teamEmblem(g.home_team) && <img className="g-emblem" src={teamEmblem(g.home_team)} alt="" />}
         {g.home_team}
       </button>

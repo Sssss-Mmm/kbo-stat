@@ -125,7 +125,12 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
             const awayWon = done && g.winner === 'AWAY'
             const homeWon = done && g.winner === 'HOME'
             return (
-              <article className="tg-card" key={g.gameId}>
+              <article
+                className="tg-card"
+                key={g.gameId}
+                /* 행 왼쪽 스파인 색: 위 절반 원정팀, 아래 절반 홈팀. */
+                style={{ '--away-c': teamColor(g.away.name), '--home-c': teamColor(g.home.name) }}
+              >
                 <div className="tg-meta">
                   <span>{g.cancel ? '취소' : g.time}</span>
                   <span className="tg-stadium">{g.stadium}{started && !done ? ' · 진행중' : ''}</span>
@@ -189,7 +194,7 @@ function Team({ t, won, loser, home }) {
   return (
     <div className={`tg-team${won ? ' won' : ''}${loser ? ' loser' : ''}`}>
       {emblem && <img src={emblem} alt={t.name} loading="lazy" />}
-      <span className="tg-name" style={{ color: teamColor(t.name) }}>{t.name}</span>
+      <span className="tg-name team-ink" style={{ '--team-c': teamColor(t.name) }}>{t.name}</span>
       <span className="tg-ha">{home ? '홈' : '원정'}</span>
     </div>
   )

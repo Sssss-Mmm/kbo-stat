@@ -1,9 +1,11 @@
 // 투구 존 히트맵. 격자 크기(gridN)는 데이터에서 받는다(build_zone_metrics.py 의 GRID_N).
 // 안쪽 gridN-2 칸이 스트라이크존, 바깥 테두리 한 겹이 존 밖(유인구)이라 테두리는 굵은 선으로 구분한다.
 // 리그 평균을 중앙값으로 한 발산(파랑→빨강) 색상.
-const COLOR_LOW = [59, 111, 212]
-const COLOR_MID = [242, 244, 246]
-const COLOR_HIGH = [216, 64, 58]
+// index.css 의 --scale-lo/--scale-mid/--scale-hi 와 같은 값이다. 셀 배경을 JS 가
+// 계산하므로 CSS 변수를 읽을 수 없어 여기에 한 벌 더 둔다 — 한쪽만 바꾸면 어긋난다.
+const COLOR_LOW = [58, 110, 165]   // #3a6ea5
+const COLOR_MID = [238, 240, 242]  // #eef0f2
+const COLOR_HIGH = [180, 71, 47]   // #b4472f
 const METRIC_SPREAD = { hit: 0.25, swing: 0.3 }
 const MIN_SAMPLE = { hit: 2, swing: 3 }
 

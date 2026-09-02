@@ -1,9 +1,7 @@
 .schedule-container {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 16px;
-  box-shadow: var(--shadow);
 }
 
 .schedule-filters {
@@ -14,7 +12,7 @@
 
 .schedule-filters h2 {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
   margin-bottom: 14px;
@@ -38,11 +36,10 @@
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border-radius: 999px;
   border: 1.5px solid var(--line);
   background: var(--panel);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--muted);
   cursor: pointer;
   transition: all 0.12s ease;
@@ -56,11 +53,11 @@
 
 .team-chip:hover {
   filter: brightness(0.96);
-  transform: translateY(-1px);
 }
 
+/* 선택 상태는 떠오르는 그림자가 아니라 먹 테두리로 표시한다. */
 .team-chip.active {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 2px var(--rule-key);
 }
 
 /* 달력 네비게이션 */
@@ -74,7 +71,7 @@
 
 .cal-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--text);
   min-width: 120px;
   text-align: center;
@@ -83,7 +80,6 @@
 .cal-nav-btn {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--panel);
   font-size: 20px;
@@ -109,7 +105,6 @@
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
-  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -118,16 +113,16 @@
   text-align: center;
   padding: 8px 0;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--muted);
 }
 
 .cal-wd.sun {
-  color: #d05240;
+  color: var(--scale-hi);
 }
 
 .cal-wd.sat {
-  color: #2e65b8;
+  color: var(--scale-lo);
 }
 
 .cal-cell {
@@ -145,22 +140,22 @@
 
 .cal-cell.today {
   background: var(--hover);
-  box-shadow: inset 0 0 0 2px var(--accent-3);
+  box-shadow: inset 0 0 0 2px var(--rule-key);
 }
 
 .cal-date {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   padding-left: 2px;
 }
 
 .cal-date.sun {
-  color: #d05240;
+  color: var(--scale-hi);
 }
 
 .cal-date.sat {
-  color: #2e65b8;
+  color: var(--scale-lo);
 }
 
 .cal-games {
@@ -178,7 +173,6 @@
   font-size: 11px;
   font-weight: 700;
   background: var(--panel-soft);
-  border-radius: 5px;
   padding: 2px 3px;
   line-height: 1.3;
 }
@@ -191,7 +185,7 @@
   border: none;
   padding: 0;
   font: inherit;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -227,12 +221,12 @@
 
 .tg-loc {
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 700;
   width: 14px;
 }
 
 .tg-opp {
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   flex: 1;
 }
@@ -246,21 +240,22 @@
 }
 
 .tg-res {
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .game-chip.team.tg-win {
   background: var(--win-bg);
 }
 .game-chip.team.tg-win .tg-res {
-  color: #1f9d57;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .game-chip.team.tg-loss {
   background: var(--loss-bg);
 }
 .game-chip.team.tg-loss .tg-res {
-  color: #d05240;
+  color: var(--pencil);
 }
 
 .game-chip.team.tg-draw {
@@ -281,9 +276,6 @@
   color: var(--muted);
 }
 
-.error {
-  color: #d05240;
-}
 
 @media (max-width: 720px) {
   .cal-cell {

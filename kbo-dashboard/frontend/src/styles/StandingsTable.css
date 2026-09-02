@@ -2,85 +2,93 @@
 .standings-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  border-top: 2px solid var(--rule-key);
+  background: var(--sheet);
 }
 
 .standings-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .standings-table th,
 .standings-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--rule);
   text-align: right;
+  white-space: nowrap;
 }
 
-/* 순위·팀명은 왼쪽 정렬 (web/ vb-table 컨셉) */
 .standings-table .lalign {
   text-align: left;
 }
 
 .standings-table thead th {
-  background: var(--panel-soft);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
+  padding: 0;
+  background: var(--field);
+  color: var(--pencil);
+  font-size: 11.5px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--rule-key);
 }
 
 .standings-table tbody tr:hover {
   background: var(--hover);
 }
 
+/* 팀 색은 행 왼쪽 3px 스파인으로만 들어간다. 이전에는 1~3위 행 전체를
+   크롬 액센트로 옅게 칠했는데, 그 액센트 중 하나가 KIA 팀 컬러와 같은
+   값이어서 '색이 순위를 뜻하는지 팀을 뜻하는지'가 구분되지 않았다. */
+.standings-table tbody td:first-child {
+  border-left: 3px solid var(--team-c, transparent);
+}
+
+/* 순위 숫자는 표기용 활자로 키워 행의 기준점을 만든다. */
+.standings-table tbody td:first-child {
+  font-family: var(--type-num);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+
+/* 가을야구 진출선. 5위 아래 굵은 괘선 — 넘으면 안 되는 경계다.
+   순위 오름차순일 때만 5행째가 실제 5위이므로 그때만 긋는다. */
+.standings-table.by-rank tbody tr.rank-5 td {
+  border-bottom: 2px solid var(--rule-key);
+}
+
 .standings-table .team-emblem {
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
   object-fit: contain;
   vertical-align: middle;
   margin-right: 7px;
 }
 
-.standings-table .rank-1 {
-  background: color-mix(in srgb, var(--accent) 8%, var(--tint-base));
-}
-
-.standings-table .rank-2 {
-  background: color-mix(in srgb, var(--accent-3) 7%, var(--tint-base));
-}
-
-.standings-table .rank-3 {
-  background: color-mix(in srgb, var(--accent-2) 7%, var(--tint-base));
-}
-
-.standings-table .win {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.standings-table .loss {
-  color: var(--accent-2);
-  font-weight: 700;
+/* 승·패·무·승률은 색으로 구분하지 않는다. 승률만 진하게 둔다. */
+.standings-table .win,
+.standings-table .loss,
+.standings-table .draw {
+  color: var(--ink);
+  font-weight: 400;
 }
 
 .standings-table .draw {
-  color: var(--muted);
+  color: var(--pencil);
 }
 
 .standings-table .winrate {
   font-weight: 700;
-  color: var(--accent-3);
+  color: var(--ink);
 }
 
 /* 정렬 가능한 헤더: 버튼이라 키보드 포커스·엔터가 그대로 동작한다 */
-.standings-table thead th {
-  padding: 0;
-  white-space: nowrap;
-}
-
 .standings-table .sort-btn {
   width: 100%;
-  padding: 10px 12px;
+  padding: 9px 12px;
   background: none;
   border: 0;
   font: inherit;
@@ -98,13 +106,13 @@
 }
 
 .standings-table .sort-btn:hover {
-  color: var(--text);
+  color: var(--ink);
 }
 
 .standings-table .sort-mark {
-  font-size: 9px;
-  color: var(--accent);
-  min-width: 9px;
+  font-size: 8px;
+  color: var(--ink);
+  min-width: 8px;
 }
 
 /* 팀명 클릭 -> 팀 분석 페이지 */
@@ -115,27 +123,24 @@
   background: none;
   border: 0;
   font: inherit;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .standings-table .team-link:hover {
-  color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* 홈/원정: 승-패 원기록 + 승률 */
-.standings-table td {
-  white-space: nowrap;
-}
-
 .standings-table .rec-pct {
-  color: var(--muted);
+  color: var(--pencil);
   font-size: 12px;
 }
 
 .standings-table .muted {
-  color: var(--muted);
+  color: var(--pencil);
 }

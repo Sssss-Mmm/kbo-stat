@@ -40,5 +40,6 @@
   font-size: 20px;
 }
 
-.team-summary .pos { color: #1a7f5a; }
-.team-summary .neg { color: #c0392b; }
+/* 부호는 숫자에 이미 붙어 있다. 색 대신 농도로 나눈다. */
+.team-summary .pos { color: var(--pos); font-weight: 700; }
+.team-summary .neg { color: var(--neg); }
