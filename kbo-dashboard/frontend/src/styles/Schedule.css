@@ -269,12 +269,6 @@
   background: var(--panel-soft);
 }
 
-.loading,
-.error {
-  padding: 24px;
-  text-align: center;
-  color: var(--muted);
-}
 
 
 @media (max-width: 720px) {
