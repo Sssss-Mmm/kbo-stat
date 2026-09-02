@@ -1,10 +1,23 @@
-// 핫/콜드존 페이지.
-// /api/zones 의 (선수, 3×3 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
-// 오른쪽에 9분할 스트라이크존 히트맵(ZoneHeatmap)을 보여준다.
+// 투구 분석 페이지. 같은 투구 원본에서 나온 세 화면을 탭으로 묶는다.
+//   존 히트맵   — 코스별 강약 (/api/zones)
+//   구종 아스널 — 구종별 배합·구속·결과 (/api/pitch-arsenal, PitchArsenal.jsx)
+//   볼카운트    — 카운트가 타석을 어떻게 바꾸나 (/api/count-baseball, PitchCount.jsx)
+// 셋 다 "이 타자를 어떻게 잡나"라는 같은 질문에 답하고 선수 선택 UI 도 같아서,
+// 네비 항목을 늘리는 대신 한 페이지 안에 둔다.
+// 볼카운트 탭은 타자 기준 데이터만 있어서 타자/투수 토글을 감춘다
+// (투수 쪽 카운트별 배합은 구종 아스널 탭이 이미 낸다).
+//
+// (존 히트맵) /api/zones 의 (선수, 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
+// 오른쪽에 존 히트맵(ZoneHeatmap)을 보여준다. 격자 크기는 하드코딩하지 않고
+// 응답의 Zone 라벨 최대 번호에서 읽는다(빌더의 GRID_N 만 바꾸면 화면이 따라온다).
 // 지표는 타율/피안타율(hit) 또는 스윙률(swing) 중 선택, 역할은 타자/투수.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import ZoneHeatmap from '../components/ZoneHeatmap'
+import PitchArsenal from '../components/PitchArsenal'
+import PitchCount from '../components/PitchCount'
+import SeasonBanner from '../components/SeasonBanner'
+import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
 
 // .325 처럼 앞 0을 떼고 소수 3자리로 표시.
@@ -18,9 +31,10 @@ function metricLabel(role, metric) {
   return role === 'batter' ? '타율' : '피안타율'
 }
 
-function Zones() {
+function Zones({ seasonInfo }) {
+  const [view, setView] = useState('zone') // zone | arsenal | count
   const [role, setRole] = useState('batter') // batter | pitcher
-  const [season, setSeason] = useState(new Date().getFullYear())
+  const [season, setSeason] = useState(seasonInfo.dataSeason)
   const [metric, setMetric] = useState('hit') // hit | swing
   const [team, setTeam] = useState('all')
   const [selectedId, setSelectedId] = useState(null)
@@ -29,6 +43,7 @@ function Zones() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (view !== 'zone') return
     let active = true
     const fetchZones = async () => {
       setLoading(true)
@@ -52,7 +67,7 @@ function Zones() {
     return () => {
       active = false
     }
-  }, [role, season])
+  }, [role, season, view])
 
   // 선수별 합계 집계.
   const players = useMemo(() => {
@@ -92,6 +107,12 @@ function Zones() {
     return den ? num / den : 0
   }, [rows, metric])
 
+  // 격자 한 변의 칸 수 = 리그 전체 셀에서 본 최대 row/col 번호.
+  const gridN = useMemo(
+    () => rows.reduce((max, row) => Math.max(max, ...String(row.Zone).split('-').map(Number)), 3),
+    [rows]
+  )
+
   const teams = useMemo(
     () => [...new Set(rows.map((row) => row.Team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
     [rows]
@@ -110,33 +131,48 @@ function Zones() {
 
   return (
     <div className="zones-container">
+      <SeasonBanner info={seasonInfo} selected={season} />
       <div className="zones-header">
-        <h2>핫/콜드존</h2>
+        <h2>투구 분석</h2>
+        <div className="toggle-group">
+          <button className={view === 'zone' ? 'active' : ''} onClick={() => setView('zone')}>존 히트맵</button>
+          <button className={view === 'arsenal' ? 'active' : ''} onClick={() => setView('arsenal')}>구종 아스널</button>
+          <button className={view === 'count' ? 'active' : ''} onClick={() => setView('count')}>볼카운트</button>
+        </div>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
           {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
             <option key={year} value={year}>{year}시즌</option>
           ))}
         </select>
-        <div className="toggle-group">
-          <button className={role === 'batter' ? 'active' : ''} onClick={() => { setRole('batter'); setTeam('all') }}>타자</button>
-          <button className={role === 'pitcher' ? 'active' : ''} onClick={() => { setRole('pitcher'); setTeam('all') }}>투수</button>
-        </div>
-        <select value={team} onChange={(e) => { setTeam(e.target.value); setSelectedId(null) }}>
-          <option value="all">전체 구단</option>
-          {teams.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <div className="toggle-group">
-          <button className={metric === 'hit' ? 'active' : ''} onClick={() => setMetric('hit')}>타율/피안타율</button>
-          <button className={metric === 'swing' ? 'active' : ''} onClick={() => setMetric('swing')}>스윙률</button>
-        </div>
+        {view !== 'count' && (
+          <div className="toggle-group">
+            <button className={role === 'batter' ? 'active' : ''} onClick={() => { setRole('batter'); setTeam('all') }}>타자</button>
+            <button className={role === 'pitcher' ? 'active' : ''} onClick={() => { setRole('pitcher'); setTeam('all') }}>투수</button>
+          </div>
+        )}
+        {view === 'zone' && (
+          <>
+            <select value={team} onChange={(e) => { setTeam(e.target.value); setSelectedId(null) }}>
+              <option value="all">전체 구단</option>
+              {teams.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <div className="toggle-group">
+              <button className={metric === 'hit' ? 'active' : ''} onClick={() => setMetric('hit')}>타율/피안타율</button>
+              <button className={metric === 'swing' ? 'active' : ''} onClick={() => setMetric('swing')}>스윙률</button>
+            </div>
+          </>
+        )}
       </div>
 
-      {loading && <p className="loading">로딩중...</p>}
-      {error && <p className="error">{error}</p>}
+      {view === 'arsenal' && <PitchArsenal role={role} season={season} />}
+      {view === 'count' && <PitchCount season={season} />}
 
-      {!loading && !error && (
+      {view === 'zone' && loading && <p className="loading">로딩중...</p>}
+      {view === 'zone' && error && <p className="error">{error}</p>}
+
+      {view === 'zone' && !loading && !error && (
         rows.length === 0 ? (
           <p className="zones-empty">{season}시즌 존 데이터가 아직 없습니다.</p>
         ) : (
@@ -176,9 +212,10 @@ function Zones() {
                   <h3>{selectedAgg.Player} · {selectedAgg.Team}{selectedAgg.Side ? ` · ${selectedAgg.Side}타` : ''}</h3>
                   <p className="sub">
                     {role === 'batter' ? '타자' : '투수'} · {metricLabel(role, metric)} · 투수 시점 기준 ·
+                    {' '}{gridN}×{gridN}(테두리는 존 밖) ·
                     {' '}표본 {metric === 'swing' ? '3구' : '2타구'} 미만은 회색
                   </p>
-                  <ZoneHeatmap cells={selectedCells} metric={metric} leagueAvg={leagueAvg} />
+                  <ZoneHeatmap cells={selectedCells} metric={metric} leagueAvg={leagueAvg} gridN={gridN} />
                 </>
               ) : (
                 <p className="zones-empty">선수를 선택하세요.</p>

@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 import build_team_game_results
+import csv_guard
 import crawl_kbo_attendance
 import crawl_kbo_game_time
 import crawl_kbo_schedule
@@ -75,7 +76,8 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
     snapshot = df.copy()
     snapshot.insert(1, "Date", snapshot_date)
     snapshot_path = snapshot_dir / f"kbo_team_rank_{snapshot_date}.csv"
-    snapshot.to_csv(snapshot_path, index=False, encoding="utf-8-sig")
+    # 0행 스냅샷은 KBO 순위 페이지 파싱이 깨진 것 — history 를 오염시키기 전에 멈춘다.
+    csv_guard.save_csv(snapshot, snapshot_path, prefix="[daily]")
 
     if history_path.exists():
         history = pd.read_csv(history_path)
@@ -90,10 +92,8 @@ def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
         history = snapshot
 
     history = history.sort_values(["Date", "순위", "팀명"])
-    history.to_csv(history_path, index=False, encoding="utf-8-sig")
-    print(
-        f"[daily] saved team rank snapshot {snapshot_path.name} "
-        f"history_rows={len(history)}"
+    csv_guard.save_csv(
+        history, history_path, prefix="[daily]", extra=f"snapshot={snapshot_date}"
     )
 
 
@@ -128,6 +128,26 @@ def update_pitch_zones(target_date: str | None = None) -> None:
         day = crawl_naver_pitch_zones.current_kst_date()
     print(f"[daily] updating Naver pitch-zone data for {day}")
     crawl_naver_pitch_zones.crawl(day)
+
+
+def build_pitch_derived(year: int) -> None:
+    """수집된 투구 원본에서 존/구종/볼카운트 파생 데이터셋을 다시 만든다.
+
+    같은 원본을 세 번 읽지만 각각 1~5초라 나눠 두는 편이 낫다(한쪽이 깨져도
+    다른 쪽 산출물은 남는다). 0행이면 csv_guard 가 덮어쓰기를 막고 예외를 던진다.
+    """
+    import build_count_metrics
+    import build_pitch_arsenal
+    import build_zone_metrics
+
+    print(f"[daily] building hot/cold zone datasets for {year}")
+    build_zone_metrics.build(year)
+
+    print(f"[daily] building pitch arsenal datasets for {year}")
+    build_pitch_arsenal.build(year)
+
+    print(f"[daily] building ball/strike count dataset for {year}")
+    build_count_metrics.build(year)
 
 
 def load_to_db() -> None:
@@ -187,6 +207,7 @@ def main() -> None:
         update_players(args.year)
     if args.pitch_zones:
         update_pitch_zones(args.pitch_date)
+        build_pitch_derived(args.year)
     if args.db:
         load_to_db()
     finished = datetime.now(ZoneInfo("Asia/Seoul"))

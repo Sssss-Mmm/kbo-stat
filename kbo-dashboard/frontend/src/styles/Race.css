@@ -1,0 +1,224 @@
+/* 가을야구 레이스 보드. 색·간격은 index.css 변수만 쓴다(다크모드 대응). */
+.race-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.race-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.race-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.race-cut-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pencil);
+}
+
+/* NFR-11: 좁은 화면에서는 표만 가로로 흐르고 레이아웃은 깨지지 않는다 */
+.race-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 2px solid var(--rule-key);
+  background: var(--sheet);
+}
+
+.race-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-table th,
+.race-table td {
+  padding: 9px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.race-table th.lalign,
+.race-table td.lalign {
+  text-align: left;
+}
+
+.race-table th {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--pencil);
+  background: var(--field);
+  border-bottom: 1px solid var(--rule-key);
+}
+
+.race-table tbody tr:hover {
+  background: var(--hover);
+}
+
+/* 진출선 안쪽 팀. 칠하지 않는다 — 경계는 cutline 의 굵은 괘선이 긋고,
+   칠은 팀 컬러와 섞여 무슨 색이 무슨 뜻인지 흐려진다. */
+.race-table tr.inside td {
+  font-weight: 500;
+}
+
+.race-table td.winrate {
+  font-weight: 700;
+}
+
+/* 부호는 이미 숫자에 붙어 있다. 색 대신 농도로 나눈다(양수=먹, 음수=연필). */
+.race-table td.pos { color: var(--pos); font-weight: 500; }
+.race-table td.neg { color: var(--neg); }
+
+/* 매직넘버는 이 화면에서 팬이 실제로 찾는 숫자다. 표기용 활자로 키운다. */
+.race-table td.magic b {
+  font-family: var(--type-num);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.race-table td.magic .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 가을야구 진출선. 이 화면에서 가장 굵은 선이고, 굵은 선은 이 뜻 하나만 갖는다. */
+.race-table tr.cutline td {
+  padding: 5px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border-top: 2px solid var(--rule-key);
+  border-bottom: 2px solid var(--rule-key);
+}
+
+.race-team {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.race-team:hover {
+  text-decoration: underline;
+}
+
+/* 진출/탈락도 색이 아니라 형태로. 채운 사각 = 안쪽, 빈 사각 = 바깥. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.tag::before {
+  width: 8px;
+  height: 8px;
+  content: "";
+}
+
+.tag.in {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.tag.in::before {
+  background: var(--ink);
+}
+
+.tag.out {
+  color: var(--pencil);
+}
+
+.tag.out::before {
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
+}
+
+/* 산식·비목표 명시 문구 (AC5) */
+.race-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.matchup-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.matchup-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.matchup-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.mu-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 190px;
+  font-size: 14px;
+}
+
+.mu-vs {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mu-count {
+  padding: 1px 7px;
+  background: var(--field);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pencil);
+}
+
+.mu-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mu-game {
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .race-header h2 { font-size: 20px; }
+  .mu-pair { min-width: 100%; }
+}

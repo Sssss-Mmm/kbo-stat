@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import csv_guard
+
 ROOT = Path(__file__).parent.parent
 RAW_DIR = ROOT / "data" / "raw" / "kbo_official"
 PROCESSED_DIR = ROOT / "data" / "processed"
@@ -116,10 +118,8 @@ def build(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     team_games_out = PROCESSED_DIR / f"kbo_team_games_{year}.csv"
     monthly_out = PROCESSED_DIR / f"kbo_team_monthly_{year}.csv"
-    team_games.to_csv(team_games_out, index=False, encoding="utf-8-sig")
-    monthly.to_csv(monthly_out, index=False, encoding="utf-8-sig")
-    print(f"saved {team_games_out.name} rows={len(team_games)}")
-    print(f"saved {monthly_out.name} rows={len(monthly)}")
+    csv_guard.save_csv(team_games, team_games_out)
+    csv_guard.save_csv(monthly, monthly_out)
     return team_games, monthly
 
 

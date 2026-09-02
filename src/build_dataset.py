@@ -14,6 +14,8 @@ import re
 import pandas as pd
 from pathlib import Path
 
+import csv_guard
+
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 PROCESSED_DIR = Path(__file__).parent.parent / "data" / "processed"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -66,7 +68,7 @@ def build(min_pa: int = MIN_PA) -> pd.DataFrame:
     df = df.sort_values(["Season", "Name"]).reset_index(drop=True)
 
     out = PROCESSED_DIR / "kbo_batters.csv"
-    df.to_csv(out, index=False)
+    csv_guard.save_csv(df, out)
     print(f"Saved {len(df)} rows × {len(df.columns)} cols → {out}")
     return df
 

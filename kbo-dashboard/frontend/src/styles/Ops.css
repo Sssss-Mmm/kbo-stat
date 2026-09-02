@@ -1,0 +1,63 @@
+/* 리그 운영 페이지. 패널·표·막대는 Home.css 를 그대로 쓰고 여기선 차이만 정의. */
+.ops {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ops-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+
+.ops-hero h2 {
+  font-size: clamp(22px, 4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ops-updated {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 월별 표는 열이 많아 좁은 화면에서 가로 스크롤한다(NFR-11). */
+.ops-table-wrap {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.ops-table-wrap .mini-table {
+  min-width: 320px;
+  white-space: nowrap;
+}
+
+.ops-extremes {
+  margin-top: 12px;
+}
+
+.ops-limits {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+}
+
+/* 이동거리 계산 기준 안내. 숫자 정의가 안 보이면 숫자를 못 믿는다. */
+.ops-travel-def {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.ops-travel-def b {
+  color: var(--text);
+}

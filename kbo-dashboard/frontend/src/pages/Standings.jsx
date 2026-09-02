@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import StandingsTable from '../components/StandingsTable'
+import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Standings.css'
 
-function Standings() {
+function Standings({ seasonInfo, onTeamClick }) {
   const [standings, setStandings] = useState([])
-  const [season, setSeason] = useState(new Date().getFullYear())
+  const [season, setSeason] = useState(seasonInfo.dataSeason)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -35,6 +36,12 @@ function Standings() {
 
   return (
     <div className="standings-container">
+      {/* FR-12: 포스트시즌에도 정규시즌 최종 순위를 그대로 보여준다(AC4) */}
+      <SeasonBanner
+        info={seasonInfo}
+        selected={season}
+        note={seasonInfo.state === 'postseason' ? 'PO 진행 중 · 대진 데이터는 수집 범위 밖' : ''}
+      />
       <div className="standings-header">
         <h2>{season}시즌 순위표</h2>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
@@ -46,7 +53,8 @@ function Standings() {
 
       {loading && <p className="loading">로딩중...</p>}
       {error && <p className="error">{error}</p>}
-      {standings.length > 0 && <StandingsTable data={standings} />}
+      {!loading && !error && standings.length === 0 && <p className="empty">{season}시즌 순위 데이터가 없습니다.</p>}
+      {standings.length > 0 && <StandingsTable data={standings} onTeamClick={onTeamClick} />}
     </div>
   )
 }
