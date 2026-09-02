@@ -80,3 +80,20 @@ function build(state, season, dataSeason, today, opening, closing, daysToOpening
     storyEnabled: state === 'regular' || state === 'postseason',
   }
 }
+
+// --- 시즌 커버리지 ---------------------------------------------------------
+// 실제로 CSV/DB 에 데이터가 있는 시즌만 담는다. 없는 시즌을 고를 수 있게 두면
+// 화면은 404 나 빈 표를 내놓는다 — 고를 수 없는 편이 정직하다.
+// API 로 뽑지 않는다: 백필 계획이 없고 도메인이 3개뿐이라 상수가 더 정직하다.
+// 데이터를 백필하거나 새 시즌이 시작되면 여기를 고친다(내림차순 유지).
+const SEASONS = {
+  league: [2026],       // 순위·일정·관중·팀별 경기시간 (Standings, Schedule, Home)
+  players: [2026],      // 선수 기록 (Players)
+  zones: [2026, 2025],  // 투구 존·구종·볼카운트 (Zones)
+}
+
+// 도메인이 커버하는 시즌 목록(내림차순, 최신이 [0]).
+// 길이가 1이면 화면은 <select> 대신 텍스트로 표기한다.
+export function seasonOptions(domain) {
+  return SEASONS[domain] || SEASONS.league
+}

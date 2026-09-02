@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import SeasonBanner from '../components/SeasonBanner'
+import { seasonOptions } from '../lib/season'
 import '../styles/Players.css'
 import { apiError } from '../lib/apiError'
 
@@ -71,7 +72,8 @@ function fmtValue(value, fmt) {
 
 function Players({ seasonInfo }) {
   const [role, setRole] = useState('hitter')
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 선수 기록은 2026 한 시즌뿐이다(season.js SEASONS.players).
+  const season = seasonOptions('players')[0]
   const [team, setTeam] = useState('all')
   const [qualifiedOnly, setQualifiedOnly] = useState(false)
   const [sort, setSort] = useState(DEFAULT_SORT)
@@ -149,11 +151,7 @@ function Players({ seasonInfo }) {
       <SeasonBanner info={seasonInfo} selected={season} />
       <div className="players-header">
         <h2>선수 기록</h2>
-        <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-            <option key={year} value={year}>{year}시즌</option>
-          ))}
-        </select>
+        <span className="season-static">{season}시즌</span>
         <div className="toggle-group">
           <button className={role === 'hitter' ? 'active' : ''} onClick={() => switchRole('hitter')}>타자</button>
           <button className={role === 'pitcher' ? 'active' : ''} onClick={() => switchRole('pitcher')}>투수</button>

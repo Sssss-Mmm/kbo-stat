@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import StandingsTable from '../components/StandingsTable'
 import SeasonBanner from '../components/SeasonBanner'
+import { seasonOptions } from '../lib/season'
 import '../styles/Standings.css'
 import { apiError } from '../lib/apiError'
 
 function Standings({ seasonInfo, onTeamClick }) {
   const [standings, setStandings] = useState([])
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 순위는 2026 한 시즌뿐이라 고를 게 없다(season.js SEASONS.league).
+  const season = seasonOptions('league')[0]
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -45,11 +47,6 @@ function Standings({ seasonInfo, onTeamClick }) {
       />
       <div className="standings-header">
         <h2>{season}시즌 순위표</h2>
-        <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
       </div>
 
       {loading && <p className="loading">로딩중...</p>}
