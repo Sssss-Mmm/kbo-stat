@@ -28,6 +28,12 @@ WIN_RATE_COL = "승률"
 RECENT_COL = "최근10경기"
 STREAK_COL = "연속"
 
+# 하락 서사에 쓸 월 표본 기준. 3월(3경기)이나 시즌 막바지 조각 달은 월 성적이 아니다.
+MIN_MONTH_GAMES = 5
+MIN_MONTHS = 4
+# "왜 무너졌나" 류 시간축 질문 키워드.
+DECLINE_WORDS = ("왜", "무너", "부진", "떨어", "언제부터")
+
 # 검색된 근거가 0건일 때 쓰는 답변. 단정하지 않고, 이 답변기가 실제로 답할 수 있는 범위를 안내한다.
 # (FR-09 AC2: 출처 없는 단정 금지)
 NO_EVIDENCE_ANSWER: dict[str, Any] = {
@@ -206,9 +212,75 @@ class RagService:
         lowered = question.lower()
         if "mvp" in lowered or "war" in lowered or "ops" in lowered:
             return self._answer_mvp(data)  # 최고 타자
+        if any(word in question for word in DECLINE_WORDS):
+            decline = self._answer_decline(question, data)  # 시간축: 언제부터 무너졌나
+            if decline:  # 서사를 세울 근거가 없으면 None -> 기존 분기로 그대로 흐른다
+                return decline
         if "뜨거" in question or "최근" in question or "hot" in lowered:
             return self._answer_hot_team(data)  # 최근 가장 잘하는 팀
         return self._answer_team(question, data, evidence)  # 기본: 특정 팀 분석
+
+    def _answer_decline(
+        self,
+        question: str,
+        data: dict[str, pd.DataFrame],
+    ) -> dict[str, Any] | None:
+        """'왜 무너졌나' 류 질문에 월별 성적으로 답한다: 최고였던 달 -> 무너진 달 -> 지금 흐름.
+
+        인과를 세울 수 없으면 None을 반환해 기존 팀 답변기로 넘긴다.
+        팀을 못 찾거나, 월 표본이 모자라거나, 최악의 달이 최고의 달보다 앞서거나,
+        최악의 달 뒤에 회복한 달이 있는(= 지금까지 이어지는 하락이 아닌) 경우다.
+        없는 서사를 지어내는 것보다 스냅샷이 낫다.
+        """
+        monthly = data["team_monthly"]
+        team = self._find_team_in_question(question, data["standings"])
+        if not team or monthly.empty:
+            return None
+
+        rows = monthly[(monthly["Team"] == team) & (monthly["Games"] >= MIN_MONTH_GAMES)]
+        rows = rows.sort_values("Month")
+        if len(rows) < MIN_MONTHS:
+            return None
+
+        best = rows.loc[rows["WinRate"].idxmax()]
+        worst = rows.loc[rows["WinRate"].idxmin()]
+        # "무너져서 지금 이 순위다"는 슬럼프가 마지막 달까지 이어질 때만 참이다.
+        # 최악의 달이 정점보다 앞서거나, 그 뒤에 회복한 달이 있으면 지나간 슬럼프다.
+        if int(worst["Month"]) <= int(best["Month"]) or int(worst["Month"]) != int(rows["Month"].max()):
+            return None
+
+        stand = data["standings"]
+        stand_row = stand[stand[TEAM_COL] == team]
+        now = stand_row.iloc[0] if not stand_row.empty else None
+
+        title = (
+            f"{team}는 {int(best['Month'])}월이 정점이었고, "
+            f"{int(worst['Month'])}월에 무너졌습니다."
+        )
+        summary = (
+            f"{int(best['Month'])}월에는 {int(best['Wins'])}승 {int(best['Losses'])}패"
+            f"(승률 {float(best['WinRate']):.3f}, 득실 {int(best['RunDiff']):+d})로 가장 좋았습니다. "
+            f"그러다 {int(worst['Month'])}월에 {int(worst['Wins'])}승 {int(worst['Losses'])}패"
+            f"(승률 {float(worst['WinRate']):.3f}, 득실 {int(worst['RunDiff']):+d})로 무너진 것이 "
+            f"순위가 밀린 직접 원인입니다."
+        )
+        if now is not None:
+            summary += (
+                f" 그 흐름이 지금까지 이어져 최근 10경기 {now[RECENT_COL]}, "
+                f"현재 {now[STREAK_COL]}로 {int(now[RANK_COL])}위입니다."
+            )
+
+        bullets = [
+            f"{int(row.Month)}월: {int(row.Wins)}승 {int(row.Losses)}패 "
+            f"(승률 {float(row.WinRate):.3f}, 득실 {int(row.RunDiff):+d})"
+            for row in rows.itertuples()
+        ]
+        if now is not None:
+            bullets.append(
+                f"현재: {int(now[RANK_COL])}위, {int(now[WINS_COL])}승 {int(now[LOSSES_COL])}패, "
+                f"게임차 {now.get('게임차')}"
+            )
+        return {"title": title, "summary": summary, "bullets": bullets}
 
     def _answer_team(
         self,
@@ -391,5 +463,62 @@ if __name__ == "__main__":
 
     # 공백만 있는 질문도 터지지 않고 근거 없음으로 떨어진다.
     assert _svc.ask("   ", 1900)["answer"] == NO_EVIDENCE_ANSWER
+
+    # 하락 분기 자가검증. 5월 정점 -> 8월 붕괴 팀과, 계속 올라간 팀을 같이 넣는다.
+    def _m(month, team, w, l, rd):
+        return {
+            "Season": 1901, "Month": month, "Team": team, "Games": w + l,
+            "Wins": w, "Losses": l, "Draws": 0, "RunsFor": 0, "RunsAgainst": 0,
+            "RunDiff": rd, "WinRate": w / (w + l),
+        }
+
+    _svc._cache[1901] = {
+        "standings": pd.DataFrame([
+            {TEAM_COL: "한화", RANK_COL: 8, WINS_COL: 49, LOSSES_COL: 63, DRAWS_COL: 3,
+             WIN_RATE_COL: 0.438, RECENT_COL: "1승0무9패", STREAK_COL: "7패", "게임차": 19.5},
+            {TEAM_COL: "삼성", RANK_COL: 1, WINS_COL: 69, LOSSES_COL: 44, DRAWS_COL: 3,
+             WIN_RATE_COL: 0.611, RECENT_COL: "7승1무2패", STREAK_COL: "6승", "게임차": 0.0},
+        ]),
+        "team_games": pd.DataFrame(),
+        "team_monthly": pd.DataFrame([
+            _m(4, "한화", 9, 15, -23), _m(5, "한화", 16, 9, 61),
+            _m(6, "한화", 10, 12, 15), _m(7, "한화", 9, 10, 11),
+            _m(8, "한화", 3, 15, -65),
+            _m(4, "삼성", 9, 15, -23), _m(5, "삼성", 10, 12, 5),
+            _m(6, "삼성", 13, 9, 20), _m(7, "삼성", 16, 6, 40),
+        ]),
+        "hitters": pd.DataFrame(),
+    }
+
+    _why = _svc.ask("한화 초반 잘 치고 나가다가 왜 9등이랑 1게임차밖에 차이가 안나게 된걸까?", 1901)["answer"]
+    assert "5월" in _why["summary"] and "8월" in _why["summary"], _why  # 시간축이 답에 있어야 한다
+    assert "7패" in _why["summary"], _why  # 연패는 불릿이 아니라 원인 자리에
+    assert _why["summary"].index("5월") < _why["summary"].index("8월"), _why  # 정점 -> 붕괴 순서
+
+    # 하락이 아닌 팀(계속 상승)은 서사를 지어내지 않고 기존 팀 답변으로 떨어진다.
+    _up = _svc.ask("삼성 왜 이래?", 1901)["answer"]
+    assert "무너" not in _up["title"], _up
+    assert "현재" in _up["title"], _up
+
+    # 회귀(LG 케이스): 최악의 달(7월) 뒤에 회복한 달(8월)이 있으면 지나간 슬럼프이므로 서사를 세우지 않는다.
+    _svc._cache[1902] = {
+        "standings": pd.DataFrame([
+            {TEAM_COL: "LG", RANK_COL: 3, WINS_COL: 62, LOSSES_COL: 50, DRAWS_COL: 3,
+             WIN_RATE_COL: 0.554, RECENT_COL: "6승0무4패", STREAK_COL: "2승", "게임차": 7.0},
+        ]),
+        "team_games": pd.DataFrame(),
+        "team_monthly": pd.DataFrame([
+            _m(4, "LG", 16, 7, 30), _m(5, "LG", 13, 11, 5),
+            _m(6, "LG", 12, 11, 3), _m(7, "LG", 7, 15, -20),
+            _m(8, "LG", 13, 8, 18),
+        ]),
+        "hitters": pd.DataFrame(),
+    }
+    _recovered = _svc.ask("왜 LG가 강하지?", 1902)["answer"]
+    assert "무너" not in _recovered["title"], _recovered
+    assert "현재" in _recovered["title"], _recovered
+
+    # 회귀: 월 데이터가 없는 시즌에서 "왜"가 섞여도 기존 팀 답변 그대로.
+    assert "무너" not in _svc.ask("삼성 왜 강해?", 1900)["answer"]["title"]
 
     print("rag_service selfcheck ok")

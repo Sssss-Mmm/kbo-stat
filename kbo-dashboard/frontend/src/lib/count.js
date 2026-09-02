@@ -7,7 +7,8 @@
 //   타석 단위: PA/K/OnBase           → 그 카운트를 한 번이라도 거친 타석
 // 그래서 표본 하한도 둘로 나눈다.
 
-export const MIN_PA = 50 // 목록 기본 필터. 타석 50 미만은 숨긴다(초구 스윙률 100%가 5타석일 수 있다).
+// 목록 필터의 폴백 하한(규정충족 플래그가 없는 시즌에만 기준이 된다) + 초구 스윙률 분포 하한.
+export const MIN_PA = 50 // 타석 50 미만은 숨긴다(초구 스윙률 100%가 5타석일 수 있다).
 export const MIN_BUCKET_PA = 20 // 타석 단위 지표 분모 하한
 export const MIN_BUCKET_PITCHES = 30 // 투구 단위 지표 분모 하한
 
@@ -33,7 +34,11 @@ export function indexRows(rows) {
       continue
     }
     if (!byId.has(r.PlayerId)) {
-      byId.set(r.PlayerId, { id: r.PlayerId, name: r.Player, team: r.Team, side: r.Side, pa: 0, buckets: {} })
+      byId.set(r.PlayerId, {
+        id: r.PlayerId, name: r.Player, team: r.Team, side: r.Side, pa: 0, buckets: {},
+        // 규정충족은 PlayerId 로 조인돼 행마다 같은 값이다. 없는 시즌은 null(= 알 수 없음).
+        qualified: r['규정충족'] ?? null,
+      })
     }
     const p = byId.get(r.PlayerId)
     p.buckets[r.Bucket] = r

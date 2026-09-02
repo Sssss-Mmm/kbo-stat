@@ -4,7 +4,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import SeasonBanner from '../components/SeasonBanner'
+import { sortRows, nextSort } from '../lib/list'
 import '../styles/Players.css'
+import { apiError } from '../lib/apiError'
 
 // 역할별 컬럼 정의. key=API 응답 필드, label=헤더, fmt=표시 형식.
 const COLUMNS = {
@@ -70,7 +72,8 @@ function fmtValue(value, fmt) {
 
 function Players({ seasonInfo }) {
   const [role, setRole] = useState('hitter')
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 선수 기록은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  const season = seasonInfo.dataSeason
   const [team, setTeam] = useState('all')
   const [qualifiedOnly, setQualifiedOnly] = useState(false)
   const [sort, setSort] = useState(DEFAULT_SORT)
@@ -92,7 +95,7 @@ function Players({ seasonInfo }) {
           setError('선수 데이터를 가져오는데 실패했습니다.')
         }
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }
@@ -114,32 +117,15 @@ function Players({ seasonInfo }) {
     [rows]
   )
 
-  // 구단/규정충족 필터 적용 후 정렬. 빈값은 항상 뒤로, 숫자는 수치 비교, 그 외 한글 로케일 비교.
+  // 구단/규정충족 필터 적용 후 정렬(정렬 규칙은 lib/list.js — 투구 분석 목록과 공유한다).
   const visibleRows = useMemo(() => {
     let list = rows
     if (team !== 'all') list = list.filter((r) => r['팀명'] === team)
     if (qualifiedOnly) list = list.filter((r) => r['규정충족'] === true)
-    const { key, dir } = sort
-    const factor = dir === 'asc' ? 1 : -1
-    return [...list].sort((a, b) => {
-      const av = a[key]
-      const bv = b[key]
-      const an = av === null || av === undefined || av === ''
-      const bn = bv === null || bv === undefined || bv === ''
-      if (an && bn) return 0
-      if (an) return 1
-      if (bn) return -1
-      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * factor
-      return String(av).localeCompare(String(bv), 'ko') * factor
-    })
+    return sortRows(list, sort)
   }, [rows, team, qualifiedOnly, sort])
 
-  // 같은 컬럼 재클릭이면 방향 토글, 새 컬럼이면 내림차순으로 시작.
-  const toggleSort = (key) => {
-    setSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }
-    )
-  }
+  const toggleSort = (key) => setSort((prev) => nextSort(prev, key))
 
   const columns = COLUMNS[role]
 
@@ -148,11 +134,7 @@ function Players({ seasonInfo }) {
       <SeasonBanner info={seasonInfo} selected={season} />
       <div className="players-header">
         <h2>선수 기록</h2>
-        <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-            <option key={year} value={year}>{year}시즌</option>
-          ))}
-        </select>
+        <span className="season-static">{season}시즌</span>
         <div className="toggle-group">
           <button className={role === 'hitter' ? 'active' : ''} onClick={() => switchRole('hitter')}>타자</button>
           <button className={role === 'pitcher' ? 'active' : ''} onClick={() => switchRole('pitcher')}>투수</button>

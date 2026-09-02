@@ -12,6 +12,7 @@ import { fmtInt, fmtPct, fmtOne, fmtMinutes } from '../lib/format'
 import { teamTravel } from '../lib/travel'
 import '../styles/Home.css'
 import '../styles/Ops.css'
+import { apiError } from '../lib/apiError'
 
 function Ops({ seasonInfo }) {
   // 관중·팀별 경기시간은 2026 한 시즌뿐이라 시즌 셀렉터를 두지 않는다(연도 축은 추이 차트가 담당).
@@ -38,7 +39,7 @@ function Ops({ seasonInfo }) {
         ])
         if (active) setD({ attendance, teamTime, yearly, games })
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }
@@ -151,8 +152,8 @@ function Ops({ seasonInfo }) {
           <>
             <TrendLine
               series={[
-                { label: '연장 포함', color: 'var(--accent-3)', points: yearly.extra },
-                { label: '정규이닝', color: 'var(--accent)', points: yearly.regular },
+                { label: '연장 포함', color: 'var(--series-1)', points: yearly.extra },
+                { label: '정규이닝', color: 'var(--series-2)', dash: '5 3', points: yearly.regular },
               ]}
               yLabel="분"
               fmt={(v) => fmtMinutes(v)}
@@ -227,7 +228,7 @@ function Ops({ seasonInfo }) {
         {att.months.length ? (
           <>
             <BarList
-              items={att.byMonth.map((m) => ({ label: `${m.month}월`, value: m.value, color: 'var(--accent-3)' }))}
+              items={att.byMonth.map((m) => ({ label: `${m.month}월`, value: m.value, color: 'var(--series-1)' }))}
               fmt={fmtInt}
             />
             <div className="ops-table-wrap">

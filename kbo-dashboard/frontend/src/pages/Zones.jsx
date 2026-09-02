@@ -17,8 +17,16 @@ import ZoneHeatmap from '../components/ZoneHeatmap'
 import PitchArsenal from '../components/PitchArsenal'
 import PitchCount from '../components/PitchCount'
 import SeasonBanner from '../components/SeasonBanner'
+import { SortHeader } from '../components/MiniTable'
+import { ZONE_SEASONS } from '../lib/season'
+import { sortRows, nextSort, listFilter } from '../lib/list'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
+import { apiError } from '../lib/apiError'
+
+// 목록 필터의 폴백 하한. 규정충족 플래그가 없는 시즌(2025)에만 기준이 된다.
+// 구종 아스널과 같은 값이다(같은 투구 원본, 같은 목록).
+const MIN_PLAYER_PITCHES = 100
 
 // .325 처럼 앞 0을 떼고 소수 3자리로 표시.
 function fmtRate(value) {
@@ -34,10 +42,15 @@ function metricLabel(role, metric) {
 function Zones({ seasonInfo }) {
   const [view, setView] = useState('zone') // zone | arsenal | count
   const [role, setRole] = useState('batter') // batter | pitcher
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 투구 데이터가 있는 시즌만(season.js ZONE_SEASONS). 활성 시즌이 커버 밖이면 최신으로.
+  const [season, setSeason] = useState(
+    ZONE_SEASONS.includes(seasonInfo.dataSeason) ? seasonInfo.dataSeason : ZONE_SEASONS[0]
+  )
   const [metric, setMetric] = useState('hit') // hit | swing
   const [team, setTeam] = useState('all')
   const [selectedId, setSelectedId] = useState(null)
+  const [showThin, setShowThin] = useState(false) // 필터 해제(표본 부족 / 규정 미달 포함)
+  const [sort, setSort] = useState({ key: 'value', dir: 'desc' })
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -58,7 +71,7 @@ function Zones({ seasonInfo }) {
           setError('존 데이터를 가져오는데 실패했습니다.')
         }
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }
@@ -74,7 +87,10 @@ function Zones({ seasonInfo }) {
     const byId = new Map()
     for (const row of rows) {
       if (!byId.has(row.PlayerId)) {
-        byId.set(row.PlayerId, { id: row.PlayerId, name: row.Player, team: row.Team, pitches: 0, inPlay: 0, hits: 0, swings: 0 })
+        byId.set(row.PlayerId, {
+          id: row.PlayerId, name: row.Player, team: row.Team, pitches: 0, inPlay: 0, hits: 0, swings: 0,
+          qualified: row['규정충족'] ?? null,
+        })
       }
       const agg = byId.get(row.PlayerId)
       agg.pitches += row.Pitches || 0
@@ -118,11 +134,20 @@ function Zones({ seasonInfo }) {
     [rows]
   )
 
+  // 규정충족 플래그가 있는 시즌이면 기준이 그걸로 승격되고, 없으면 MIN_PLAYER_PITCHES 로 남는다.
+  const filter = useMemo(
+    () => listFilter(players, { min: MIN_PLAYER_PITCHES, unit: '구', noun: '선수', sample: (p) => p.pitches }),
+    [players]
+  )
+
   const visiblePlayers = useMemo(() => {
-    let list = team === 'all' ? players : players.filter((agg) => agg.team === team)
-    return [...list].sort((a, b) => (overallMetric(b) ?? -1) - (overallMetric(a) ?? -1) || b.pitches - a.pitches)
+    const list = players
+      .filter((agg) => (team === 'all' || agg.team === team) && (showThin || filter.keep(agg)))
+      // 목록에 보이는 값만 정렬할 수 있게 대표 지표를 펼쳐 둔다(지표 토글에 따라 바뀐다).
+      .map((agg) => ({ ...agg, value: overallMetric(agg) }))
+    return sortRows(list, sort)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, team, metric])
+  }, [players, team, metric, showThin, filter, sort])
 
   // 선택이 비었으면 첫 선수 자동 선택.
   const effectiveSelectedId = selectedId ?? (visiblePlayers[0]?.id ?? null)
@@ -140,7 +165,7 @@ function Zones({ seasonInfo }) {
           <button className={view === 'count' ? 'active' : ''} onClick={() => setView('count')}>볼카운트</button>
         </div>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+          {ZONE_SEASONS.map((year) => (
             <option key={year} value={year}>{year}시즌</option>
           ))}
         </select>
@@ -162,6 +187,10 @@ function Zones({ seasonInfo }) {
               <button className={metric === 'hit' ? 'active' : ''} onClick={() => setMetric('hit')}>타율/피안타율</button>
               <button className={metric === 'swing' ? 'active' : ''} onClick={() => setMetric('swing')}>스윙률</button>
             </div>
+            <label className="ars-check">
+              <input type="checkbox" checked={showThin} onChange={(e) => setShowThin(e.target.checked)} />
+              {filter.label}
+            </label>
           </>
         )}
       </div>
@@ -178,32 +207,38 @@ function Zones({ seasonInfo }) {
         ) : (
           <div className="zones-layout">
             <div className="zone-list">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>선수</th>
-                    <th>팀</th>
-                    <th>투구</th>
-                    <th>{metricLabel(role, metric)}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visiblePlayers.map((agg, index) => (
-                    <tr
-                      key={agg.id}
-                      className={agg.id === effectiveSelectedId ? 'selected' : ''}
-                      onClick={() => setSelectedId(agg.id)}
-                    >
-                      <td>{index + 1}</td>
-                      <td><strong>{agg.name || '-'}</strong></td>
-                      <td>{agg.team || '-'}</td>
-                      <td>{agg.pitches}</td>
-                      <td>{fmtRate(overallMetric(agg))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
+              {!visiblePlayers.length ? (
+                <p className="zones-empty">{filter.empty}</p>
+              ) : (
+                <table>
+                  <SortHeader
+                    cols={[
+                      { key: 'name', label: '선수' },
+                      { key: 'team', label: '팀' },
+                      { key: 'pitches', label: '투구' },
+                      { key: 'value', label: metricLabel(role, metric) },
+                    ]}
+                    sort={sort}
+                    onSort={(key) => setSort((s) => nextSort(s, key))}
+                  />
+                  <tbody>
+                    {visiblePlayers.map((agg, index) => (
+                      <tr
+                        key={agg.id}
+                        className={agg.id === effectiveSelectedId ? 'selected' : ''}
+                        onClick={() => setSelectedId(agg.id)}
+                      >
+                        <td>{index + 1}</td>
+                        <td><strong>{agg.name || '-'}</strong></td>
+                        <td>{agg.team || '-'}</td>
+                        <td className={agg.pitches < MIN_PLAYER_PITCHES ? 'ars-thin' : ''}>{agg.pitches}</td>
+                        <td>{fmtRate(agg.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             <div className="zone-card">

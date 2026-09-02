@@ -80,3 +80,12 @@ function build(state, season, dataSeason, today, opening, closing, daysToOpening
     storyEnabled: state === 'regular' || state === 'postseason',
   }
 }
+
+// --- 투구 데이터 시즌 커버리지 ------------------------------------------------
+// 사용자가 실제로 고를 게 있는 도메인은 투구 데이터(존·구종·볼카운트)뿐이다.
+// 없는 시즌을 고를 수 있게 두면 화면은 404 나 빈 표를 내놓는다 — 고를 수 없는 편이 정직하다.
+// 나머지 화면(순위·일정·관중·기록)은 시즌이 하나뿐이고, 그 하나는 백엔드가 파일을
+// 글롭해 판정한 값(seasonInfo.dataSeason)이다. 여기에 연도를 적으면 새 시즌에
+// 백엔드만 따라가고 프런트는 멈춘다.
+// 투구 데이터를 백필하면 여기를 고친다(내림차순 유지, 최신이 [0]).
+export const ZONE_SEASONS = [2026, 2025]

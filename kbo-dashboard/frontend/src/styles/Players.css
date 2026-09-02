@@ -88,3 +88,13 @@
   padding: 30px 0;
   text-align: center;
 }
+
+/* 시즌 커버리지가 한 해뿐이라 고를 게 없다 — select 자리를 텍스트로 채운다.
+   활자·높이는 옆 컨트롤과 맞추되 테두리는 주지 않는다(누를 수 있어 보이면 안 된다). */
+.players-header .season-static {
+  padding: 7px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

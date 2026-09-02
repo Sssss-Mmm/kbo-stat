@@ -11,6 +11,7 @@ import { fmtRate, fmtTwo, fmtInt } from '../lib/format'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Home.css'
 import '../styles/Ask.css'
+import { apiError } from '../lib/apiError'
 
 // 클릭 한 번으로 던져볼 수 있는 예시 질문. 백엔드가 분기하는 세 의도(팀/최근/MVP)에 대응한다.
 const SAMPLES = ['왜 한화가 강하지?', '삼성 홈 성적은?', '최근 가장 뜨거운 팀은?', 'MVP는 누구야?']
@@ -36,7 +37,7 @@ function Ask({ seasonInfo }) {
       // 응답을 못 받았거나 status 가 success 가 아니면 이전 답변을 지운다.
       // 낡은 답변이 새 질문의 답처럼 보이면 안 된다.
       setRes(null)
-      setError(err.response ? `요청 실패 (HTTP ${err.response.status})` : '서버에 연결하지 못했습니다.')
+      setError(apiError(err))
     } finally {
       setLoading(false)
     }

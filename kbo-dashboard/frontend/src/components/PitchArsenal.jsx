@@ -4,11 +4,13 @@
 // 투수는 "뭘 던지나", 타자는 "뭘 못 치나" — 같은 데이터의 축만 반대다.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
-import { MiniTable, Note } from './MiniTable'
+import { MiniTable, Note, SortHeader } from './MiniTable'
 import { fmtRate, fmtOne, fmtPct, fmtInt } from '../lib/format'
+import { sortRows, nextSort, listFilter } from '../lib/list'
 import { teamColor } from '../lib/teamColors'
 
-const MIN_PLAYER_PITCHES = 100 // 목록 기본 필터. 3구 던지고 구사율 100%인 선수를 숨긴다.
+// 목록 필터의 폴백 하한. 규정충족 플래그가 없는 시즌(2025)에만 기준이 된다.
+const MIN_PLAYER_PITCHES = 100 // 3구 던지고 구사율 100%인 선수를 숨긴다.
 const MIN_CELL_PITCHES = 30 // 이 미만 구종 셀은 회색 처리(핫/콜드존과 같은 규칙)
 const MIN_SWINGS = 10 // 헛스윙률 분모 하한
 const MIN_INPLAY = 10 // 인플레이 타율 분모 하한
@@ -25,12 +27,20 @@ const BUCKETS = [
 const cell = (value, enough, fmt) =>
   enough && Number.isFinite(value) ? fmt(value) : <span className="ars-thin">-</span>
 
+const LIST_COLS = [
+  { key: 'name', label: '선수' },
+  { key: 'team', label: '팀' },
+  { key: 'pitches', label: '투구' },
+  { key: 'types', label: '구종' },
+]
+
 function PitchArsenal({ role, season }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [team, setTeam] = useState('all')
-  const [showThin, setShowThin] = useState(false) // 표본 부족 선수 포함
+  const [showThin, setShowThin] = useState(false) // 필터 해제(표본 부족 / 규정 미달 포함)
+  const [sort, setSort] = useState({ key: 'pitches', dir: 'desc' })
   const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
@@ -64,7 +74,10 @@ function PitchArsenal({ role, season }) {
     const byId = new Map()
     for (const r of totals) {
       if (!byId.has(r.PlayerId)) {
-        byId.set(r.PlayerId, { id: r.PlayerId, name: r.Player, team: r.Team, side: r.Side, pitches: 0, types: 0 })
+        byId.set(r.PlayerId, {
+          id: r.PlayerId, name: r.Player, team: r.Team, side: r.Side, pitches: 0, types: 0,
+          qualified: r['규정충족'] ?? null,
+        })
       }
       const p = byId.get(r.PlayerId)
       p.pitches += r.Pitches || 0
@@ -78,12 +91,19 @@ function PitchArsenal({ role, season }) {
     [totals]
   )
 
+  // 규정충족 플래그가 있는 시즌이면 기준이 그걸로 승격되고, 없으면 MIN_PLAYER_PITCHES 로 남는다.
+  const filter = useMemo(
+    () => listFilter(players, { min: MIN_PLAYER_PITCHES, unit: '구', noun: '선수', sample: (p) => p.pitches }),
+    [players]
+  )
+
   const visible = useMemo(
     () =>
-      players.filter(
-        (p) => (team === 'all' || p.team === team) && (showThin || p.pitches >= MIN_PLAYER_PITCHES)
+      sortRows(
+        players.filter((p) => (team === 'all' || p.team === team) && (showThin || filter.keep(p))),
+        sort
       ),
-    [players, team, showThin]
+    [players, team, showThin, filter, sort]
   )
 
   const selectedId2 = visible.some((p) => p.id === selectedId) ? selectedId : visible[0]?.id ?? null
@@ -148,29 +168,32 @@ function PitchArsenal({ role, season }) {
         </select>
         <label className="ars-check">
           <input type="checkbox" checked={showThin} onChange={(e) => setShowThin(e.target.checked)} />
-          표본 부족 선수 포함({MIN_PLAYER_PITCHES}구 미만)
+          {filter.label}
         </label>
         <span className="ars-count">{visible.length}명</span>
       </div>
 
       <div className="zones-layout">
         <div className="zone-list">
-          <table>
-            <thead>
-              <tr><th>#</th><th>선수</th><th>팀</th><th>투구</th><th>구종</th></tr>
-            </thead>
-            <tbody>
-              {visible.map((p, i) => (
-                <tr key={p.id} className={p.id === selectedId2 ? 'selected' : ''} onClick={() => setSelectedId(p.id)}>
-                  <td>{i + 1}</td>
-                  <td><strong>{p.name || '-'}</strong></td>
-                  <td>{p.team || '-'}</td>
-                  <td className={p.pitches < MIN_PLAYER_PITCHES ? 'ars-thin' : ''}>{fmtInt(p.pitches)}</td>
-                  <td>{p.types}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
+          {!visible.length ? (
+            <p className="zones-empty">{filter.empty}</p>
+          ) : (
+            <table>
+              <SortHeader cols={LIST_COLS} sort={sort} onSort={(key) => setSort((s) => nextSort(s, key))} />
+              <tbody>
+                {visible.map((p, i) => (
+                  <tr key={p.id} className={p.id === selectedId2 ? 'selected' : ''} onClick={() => setSelectedId(p.id)}>
+                    <td>{i + 1}</td>
+                    <td><strong>{p.name || '-'}</strong></td>
+                    <td>{p.team || '-'}</td>
+                    <td className={p.pitches < MIN_PLAYER_PITCHES ? 'ars-thin' : ''}>{fmtInt(p.pitches)}</td>
+                    <td>{p.types}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="zone-card">
