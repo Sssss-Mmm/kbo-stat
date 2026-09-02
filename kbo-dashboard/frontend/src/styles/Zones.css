@@ -69,6 +69,11 @@
   font-weight: 700;
 }
 
+/* 정렬 가능한 헤더. 누를 수 있다는 것과 지금 어느 컬럼·어느 방향인지가 보여야 한다. */
+.zone-list th.sortable { cursor: pointer; user-select: none; }
+.zone-list th.sortable:hover { color: var(--text); }
+.zone-list th.sorted { color: var(--accent-3); }
+
 .zone-list tbody tr { cursor: pointer; }
 .zone-list tbody tr:hover { background: var(--hover); }
 .zone-list tbody tr.selected { background: color-mix(in srgb, var(--accent-3) 10%, var(--tint-base)); }

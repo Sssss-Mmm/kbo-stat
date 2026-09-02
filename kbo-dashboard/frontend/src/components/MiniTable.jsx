@@ -20,6 +20,27 @@ export function MiniTable({ columns, rows }) {
   )
 }
 
+// 선수 목록 표의 정렬 가능한 헤더(존·구종·볼카운트 공용).
+// cols: {key,label}[] · sort: {key,dir} · onSort(key). 첫 칸 순번(#)은 정렬 대상이 아니다.
+export function SortHeader({ cols, sort, onSort }) {
+  return (
+    <thead>
+      <tr>
+        <th>#</th>
+        {cols.map((c) => (
+          <th
+            key={c.key}
+            className={`sortable${sort.key === c.key ? ' sorted' : ''}`}
+            onClick={() => onSort(c.key)}
+          >
+            {c.label}{sort.key === c.key ? (sort.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  )
+}
+
 // 가로 막대 리스트. 최대값을 100%로 잡아 상대 길이를 그린다.
 export function BarList({ items, fmt = fmtRate }) {
   const max = Math.max(...items.map((i) => i.value), 0.0001)

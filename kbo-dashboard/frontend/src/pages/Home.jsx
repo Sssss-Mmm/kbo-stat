@@ -13,6 +13,7 @@ import { teamColor, teamEmblem } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
+import { apiError } from '../lib/apiError'
 
 const TEAM_COUNT = 10
 
@@ -56,7 +57,8 @@ function HlItem({ label, player, val }) {
 }
 
 function Home({ seasonInfo, onOpsClick }) {
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 순위·관중·경기시간은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  const season = seasonInfo.dataSeason
   const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [], failed: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -84,7 +86,7 @@ function Home({ seasonInfo, onOpsClick }) {
         ])
         if (active) setD({ standings, teamGames, hitters, pitchers, attendance, gameTime, failed })
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }
@@ -234,11 +236,6 @@ function Home({ seasonInfo, onOpsClick }) {
         <div>
           <h2>한눈에 보는 {season} 시즌</h2>
         </div>
-        <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-            <option key={y} value={y}>{y}시즌</option>
-          ))}
-        </select>
       </section>
 
       {/* NFR-06: 일부 요청만 실패한 경우 나머지 패널은 그대로 두고 실패 사실만 알린다. */}

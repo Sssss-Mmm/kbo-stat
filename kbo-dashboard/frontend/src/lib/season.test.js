@@ -1,6 +1,6 @@
 // 시즌 판정 자체 점검. `node src/lib/season.test.js` 로 실행.
 import assert from 'node:assert/strict'
-import { seasonState, kstToday } from './season.js'
+import { seasonState, kstToday, ZONE_SEASONS } from './season.js'
 
 // 2026 정규시즌 일정 흉내: 3/21 개막 ~ 10/3 종료.
 // 과거 날짜의 취소 경기(status='scheduled', 재편성 안 됨)를 일부러 섞는다.
@@ -69,5 +69,8 @@ assert.equal(seasonState('2026-12-01', []).state, 'offseason')
 
 // KST 기준: UTC 2026-08-30 20:00 = KST 2026-08-31
 assert.equal(kstToday(new Date('2026-08-30T20:00:00Z')), '2026-08-31')
+
+// 투구 데이터 커버리지는 내림차순이어야 한다 — Zones.jsx 의 폴백이 [0] = 최신에 기댄다.
+assert.deepEqual([...ZONE_SEASONS].sort((a, b) => b - a), ZONE_SEASONS)
 
 console.log('ok: season.js 자체 점검 통과')

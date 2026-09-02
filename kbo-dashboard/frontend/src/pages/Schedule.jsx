@@ -6,6 +6,7 @@ import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'
 import SeasonBanner from '../components/SeasonBanner'
 import { kstToday } from '../lib/season'
 import '../styles/Schedule.css'
+import { apiError } from '../lib/apiError'
 
 const TEAMS = Object.keys(TEAM_COLORS)
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -22,7 +23,9 @@ const SCHEDULE_NOTE = {
 
 function Schedule({ seasonInfo }) {
   const [games, setGames] = useState([])
-  const [season, setSeason] = useState(seasonInfo.season)
+  // 일정은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  // dataSeason 이 아니라 season 이다 — 개막 전에는 기록이 아니라 다가올 일정을 봐야 한다.
+  const season = seasonInfo.season
   const [selectedTeam, setSelectedTeam] = useState('')
   const [viewKey, setViewKey] = useState('') // "YYYY-M"
   const [loading, setLoading] = useState(false)
@@ -39,7 +42,7 @@ function Schedule({ seasonInfo }) {
         setGames(res.data.status === 'success' ? res.data.data : [])
         if (res.data.status !== 'success') setError('경기 일정을 가져오는데 실패했습니다.')
       })
-      .catch((err) => active && setError(err.message))
+      .catch((err) => active && setError(apiError(err)))
       .finally(() => active && setLoading(false))
     return () => {
       active = false
@@ -127,16 +130,6 @@ function Schedule({ seasonInfo }) {
       />
       <div className="schedule-filters">
         <h2>{season}시즌 경기일정</h2>
-        <div className="filter-group">
-          <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-            {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="team-chips">
           <button
             className={`team-chip${selectedTeam === '' ? ' active' : ''}`}

@@ -35,17 +35,29 @@ def _fail(rule: str, msg: str) -> None:
     raise IntegrityError(f"{rule}: {msg}")
 
 
+def _num(df: pd.DataFrame, col: str) -> pd.Series:
+    """검사용 숫자 변환.
+
+    크롤러는 HTML 표를 그대로 DataFrame 으로 만들기 때문에 모든 칸이 문자열이다
+    (crawl_kbo_team_rank._parse_table). 반면 CSV 를 다시 읽으면 pandas 가 int/float
+    로 추론한다. 그래서 저장된 파일로만 검사하면 통과하고 실제 크롤 결과에서는
+    터진다 — 2026-09-01 일일 갱신이 V-02 로 죽은 원인이 이것이었다
+    (sorted(['1','10','2',...]) != [1,...,10]).
+    """
+    return pd.to_numeric(df[col], errors="coerce")
+
+
 def _check_team_rank(df: pd.DataFrame) -> None:
     """순위표 — 10팀, 순위 유일, 승패무 합, 승률 범위(V-01~05)."""
     if len(df) != 10:
         _fail("V-01", f"팀 수가 10이 아니다 (={len(df)})")
-    ranks = sorted(df["순위"].tolist())
+    ranks = sorted(_num(df, "순위").dropna().astype(int).tolist())
     if ranks != list(range(1, 11)):
         _fail("V-02", f"순위가 1~10 유일하지 않다 ({ranks})")
-    bad = df[df["승"] + df["패"] + df["무"] != df["경기"]]
+    bad = df[_num(df, "승") + _num(df, "패") + _num(df, "무") != _num(df, "경기")]
     if len(bad):
         _fail("V-03", f"승+패+무 != 경기: {bad['팀명'].tolist()}")
-    if not df["승률"].between(0, 1).all():
+    if not _num(df, "승률").between(0, 1).all():
         _fail("V-04", "승률이 0~1 범위 밖")
     _check_teams(df, "팀명")
 
@@ -78,7 +90,7 @@ def _check_hitters(df: pd.DataFrame) -> None:
 def _check_team_rank_history(df: pd.DataFrame) -> None:
     """순위 스냅샷 이력 — 날짜별 누적이라 10행 제약은 없다. 팀명과 승패무만 본다."""
     _check_teams(df, "팀명")
-    bad = df[df["승"] + df["패"] + df["무"] != df["경기"]]
+    bad = df[_num(df, "승") + _num(df, "패") + _num(df, "무") != _num(df, "경기")]
     if len(bad):
         _fail("V-03", f"승+패+무 != 경기 {len(bad)}행")
 
@@ -196,6 +208,18 @@ def _selfcheck() -> None:
             else:
                 raise AssertionError(f"{rule} 위반이 통과됐다")
         assert len(pd.read_csv(rank_path)) == 10, "깨진 데이터가 저장됐다"
+
+        # 크롤러는 HTML 을 그대로 담아 전 컬럼이 문자열이다. 위 ok_rank 는 숫자라
+        # 이 경로를 못 덮었고, 그래서 V-02 가 실제 크롤에서만 터졌다.
+        str_rank = ok_rank.astype(str)
+        assert str_rank["순위"].tolist() == [str(i) for i in range(1, 11)]
+        save_csv(str_rank, rank_path)
+        try:
+            save_csv(str_rank.assign(순위=["1"] * 10), rank_path)
+        except IntegrityError as exc:
+            assert "V-02" in str(exc), exc
+        else:
+            raise AssertionError("문자열 순위의 V-02 위반이 통과됐다")
 
         # V-08: 행 수 급감 거부
         try:

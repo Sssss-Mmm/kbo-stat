@@ -2,13 +2,14 @@
 
 data/processed 의 zone CSV(build_zone_metrics.py 산출물)를 직접 읽어 반환한다.
 DB 모델 없이 파생 CSV를 그대로 서빙한다(rag_service 와 동일한 파일 접근 방식).
+규정충족(규정타석/규정이닝) 여부만 kbo_naver_hitters/pitchers CSV 에서 PlayerId 로 조인해 붙인다.
 """
 from pathlib import Path
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-from utils import current_season
+from utils import attach_qualified, current_season
 
 router = APIRouter()
 
@@ -30,7 +31,8 @@ def _read_zone_csv(role: str, season: int) -> list[dict]:
     df = pd.read_csv(path)
     # NaN -> None 으로 바꿔 JSON null 로 직렬화되게 한다(예: 인플레이 0인 셀의 BipHitRate).
     df = df.astype(object).where(pd.notna(df), None)
-    return df.to_dict(orient="records")
+    # 규정타석/규정이닝 충족 여부(프런트 필터용). 스탯 CSV가 없는 시즌은 None.
+    return attach_qualified(df.to_dict(orient="records"), role, season)
 
 
 @router.get("/zones")

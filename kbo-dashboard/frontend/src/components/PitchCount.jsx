@@ -6,10 +6,11 @@
 // 타자 기준 데이터만 있다(투수 쪽 카운트 배합은 '구종 아스널' 탭이 이미 낸다).
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
-import { MiniTable, Note } from './MiniTable'
+import { MiniTable, Note, SortHeader } from './MiniTable'
 import Beeswarm from './charts/Beeswarm'
 import { fmtRate, fmtPct, fmtInt } from '../lib/format'
 import { teamColor } from '../lib/teamColors'
+import { sortRows, nextSort, listFilter } from '../lib/list'
 import {
   indexRows, matrixRows, bucketTable, paEnough, pitchEnough,
   MIN_PA, MIN_BUCKET_PA, MIN_BUCKET_PITCHES, STRIKES,
@@ -54,13 +55,21 @@ function Cell({ row, lg, metricKey, pct, ok }) {
   )
 }
 
+const LIST_COLS = [
+  { key: 'name', label: '타자' },
+  { key: 'team', label: '팀' },
+  { key: 'pa', label: '타석' },
+  { key: 'firstSwing', label: '초구스윙' },
+]
+
 function PitchCount({ season }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [metric, setMetric] = useState('onbase')
   const [team, setTeam] = useState('all')
-  const [showThin, setShowThin] = useState(false)
+  const [showThin, setShowThin] = useState(false) // 필터 해제(표본 부족 / 규정 미달 포함)
+  const [sort, setSort] = useState({ key: 'pa', dir: 'desc' })
   const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
@@ -94,9 +103,22 @@ function PitchCount({ season }) {
     [players]
   )
 
+  // 규정충족 플래그가 있는 시즌이면 기준이 그걸로 승격되고, 없으면 MIN_PA 로 남는다.
+  const filter = useMemo(
+    () => listFilter(players, { min: MIN_PA, unit: '타석', noun: '타자', sample: (p) => p.pa }),
+    [players]
+  )
+
   const visible = useMemo(
-    () => players.filter((p) => (team === 'all' || p.team === team) && (showThin || p.pa >= MIN_PA)),
-    [players, team, showThin]
+    () =>
+      sortRows(
+        players
+          .filter((p) => (team === 'all' || p.team === team) && (showThin || filter.keep(p)))
+          // 목록에 보이는 값만 정렬할 수 있게 초구 스윙률을 펼쳐 둔다.
+          .map((p) => ({ ...p, firstSwing: p.buckets['초구']?.SwingRate ?? null })),
+        sort
+      ),
+    [players, team, showThin, filter, sort]
   )
 
   const selected = visible.find((p) => p.id === selectedId) || visible[0] || null
@@ -212,29 +234,32 @@ function PitchCount({ season }) {
         </select>
         <label className="ars-check">
           <input type="checkbox" checked={showThin} onChange={(e) => setShowThin(e.target.checked)} />
-          표본 부족 타자 포함({MIN_PA}타석 미만)
+          {filter.label}
         </label>
         <span className="ars-count">{visible.length}명</span>
       </div>
 
       <div className="zones-layout">
         <div className="zone-list">
-          <table>
-            <thead>
-              <tr><th>#</th><th>타자</th><th>팀</th><th>타석</th><th>초구스윙</th></tr>
-            </thead>
-            <tbody>
-              {visible.map((p, i) => (
-                <tr key={p.id} className={p.id === selected?.id ? 'selected' : ''} onClick={() => setSelectedId(p.id)}>
-                  <td>{i + 1}</td>
-                  <td><strong>{p.name || '-'}</strong></td>
-                  <td>{p.team || '-'}</td>
-                  <td className={p.pa < MIN_PA ? 'ars-thin' : ''}>{fmtInt(p.pa)}</td>
-                  <td>{p.buckets['초구'] ? fmtPct(p.buckets['초구'].SwingRate) : '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
+          {!visible.length ? (
+            <p className="zones-empty">{filter.empty}</p>
+          ) : (
+            <table>
+              <SortHeader cols={LIST_COLS} sort={sort} onSort={(key) => setSort((s) => nextSort(s, key))} />
+              <tbody>
+                {visible.map((p, i) => (
+                  <tr key={p.id} className={p.id === selected?.id ? 'selected' : ''} onClick={() => setSelectedId(p.id)}>
+                    <td>{i + 1}</td>
+                    <td><strong>{p.name || '-'}</strong></td>
+                    <td>{p.team || '-'}</td>
+                    <td className={p.pa < MIN_PA ? 'ars-thin' : ''}>{fmtInt(p.pa)}</td>
+                    <td>{p.firstSwing === null ? '-' : fmtPct(p.firstSwing)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="zone-card">
