@@ -9,7 +9,6 @@ import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
 import TodayGames from '../components/TodayGames'
 import SeasonBanner from '../components/SeasonBanner'
-import { seasonOptions } from '../lib/season'
 import { teamColor, teamEmblem } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
@@ -58,8 +57,8 @@ function HlItem({ label, player, val }) {
 }
 
 function Home({ seasonInfo, onOpsClick }) {
-  // 관중·경기시간·순위 모두 2026 한 시즌뿐이다(season.js SEASONS.league).
-  const season = seasonOptions('league')[0]
+  // 순위·관중·경기시간은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  const season = seasonInfo.dataSeason
   const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [], failed: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

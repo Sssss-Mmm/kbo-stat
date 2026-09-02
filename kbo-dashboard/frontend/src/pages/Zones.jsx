@@ -17,7 +17,7 @@ import ZoneHeatmap from '../components/ZoneHeatmap'
 import PitchArsenal from '../components/PitchArsenal'
 import PitchCount from '../components/PitchCount'
 import SeasonBanner from '../components/SeasonBanner'
-import { seasonOptions } from '../lib/season'
+import { ZONE_SEASONS } from '../lib/season'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
 import { apiError } from '../lib/apiError'
@@ -36,10 +36,9 @@ function metricLabel(role, metric) {
 function Zones({ seasonInfo }) {
   const [view, setView] = useState('zone') // zone | arsenal | count
   const [role, setRole] = useState('batter') // batter | pitcher
-  // 투구 데이터가 있는 시즌만(season.js SEASONS.zones). 활성 시즌이 커버 밖이면 최신으로.
-  const seasons = seasonOptions('zones')
+  // 투구 데이터가 있는 시즌만(season.js ZONE_SEASONS). 활성 시즌이 커버 밖이면 최신으로.
   const [season, setSeason] = useState(
-    seasons.includes(seasonInfo.dataSeason) ? seasonInfo.dataSeason : seasons[0]
+    ZONE_SEASONS.includes(seasonInfo.dataSeason) ? seasonInfo.dataSeason : ZONE_SEASONS[0]
   )
   const [metric, setMetric] = useState('hit') // hit | swing
   const [team, setTeam] = useState('all')
@@ -146,7 +145,7 @@ function Zones({ seasonInfo }) {
           <button className={view === 'count' ? 'active' : ''} onClick={() => setView('count')}>볼카운트</button>
         </div>
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {seasons.map((year) => (
+          {ZONE_SEASONS.map((year) => (
             <option key={year} value={year}>{year}시즌</option>
           ))}
         </select>

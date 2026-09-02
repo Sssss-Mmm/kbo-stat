@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'
 import SeasonBanner from '../components/SeasonBanner'
-import { kstToday, seasonOptions } from '../lib/season'
+import { kstToday } from '../lib/season'
 import '../styles/Schedule.css'
 import { apiError } from '../lib/apiError'
 
@@ -23,8 +23,9 @@ const SCHEDULE_NOTE = {
 
 function Schedule({ seasonInfo }) {
   const [games, setGames] = useState([])
-  // 일정 데이터는 2026 한 시즌뿐이다(season.js SEASONS.league).
-  const season = seasonOptions('league')[0]
+  // 일정은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  // dataSeason 이 아니라 season 이다 — 개막 전에는 기록이 아니라 다가올 일정을 봐야 한다.
+  const season = seasonInfo.season
   const [selectedTeam, setSelectedTeam] = useState('')
   const [viewKey, setViewKey] = useState('') // "YYYY-M"
   const [loading, setLoading] = useState(false)
