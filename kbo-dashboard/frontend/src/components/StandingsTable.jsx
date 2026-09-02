@@ -1,7 +1,7 @@
 // 순위표 표 컴포넌트. data(순위 배열)를 받아 팀별 한 행씩 렌더한다.
 // 열 헤더 클릭으로 정렬하고, 팀명을 누르면 onTeamClick(팀명)을 호출한다.
 import { useState } from 'react'
-import { teamEmblem } from '../lib/teamColors'
+import { teamEmblem, teamColor } from '../lib/teamColors'
 import { fmtRate, parseRecord, streakScore, recentWinRate } from '../lib/format'
 import '../styles/StandingsTable.css'
 
@@ -48,7 +48,7 @@ function StandingsTable({ data, onTeamClick }) {
 
   return (
     <div className="standings-scroll">
-      <table className="standings-table">
+      <table className={`standings-table${sort.key === 'rank' && !sort.desc ? ' by-rank' : ''}`}>
         <thead>
           <tr>
             {COLUMNS.map((c) => (
@@ -67,7 +67,11 @@ function StandingsTable({ data, onTeamClick }) {
         </thead>
         <tbody>
           {rows.map((team) => (
-            <tr key={team.team} className={`rank-${team.rank}`}>
+            <tr
+              key={team.team}
+              className={`rank-${team.rank}`}
+              style={{ '--team-c': teamColor(team.team) }}
+            >
               {COLUMNS.map((c) => (
                 <td key={c.key} className={[c.cls, c.left ? 'lalign' : ''].filter(Boolean).join(' ')}>
                   {c.key === 'team' ? (

@@ -1,164 +1,227 @@
+/* 오늘의 경기 = 홈 화면의 히어로.
+   가로 스크롤 카드 스트립이 아니라 스코어보드 행으로 쌓는다. 팬이 하루에
+   한 번 확인하는 것은 '오늘 우리 팀 어떻게 됐나' 한 줄이고, 그 한 줄은
+   가로로 밀어야 보이는 카드가 아니라 위에서 아래로 훑는 행이어야 한다. */
 .today-games {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px 18px;
-  box-shadow: var(--shadow);
-  margin-bottom: 18px;
+  margin-bottom: 26px;
 }
 
 .tg-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 12px;
+  padding-bottom: 8px;
 }
 
 .tg-head h3 {
-  font-size: 18px;
-  font-weight: 900;
-  color: var(--text);
-  letter-spacing: -0.01em;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .tg-nav {
   display: flex;
-  gap: 6px;
 }
 
 .tg-nav button {
   min-width: 30px;
-  height: 30px;
+  height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 800;
+  border: 1px solid var(--rule);
+  border-left-width: 0;
+  border-radius: 0;
+  background: var(--sheet);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
 }
 
+.tg-nav button:first-child {
+  border-left-width: 1px;
+}
+
 .tg-nav button:hover {
-  background: var(--panel-soft);
+  background: var(--field);
 }
 
 .tg-today {
-  font-size: 13px !important;
+  font-size: 12.5px !important;
 }
 
 .tg-msg {
-  padding: 18px;
-  text-align: center;
-  color: var(--muted);
+  padding: 22px 0;
+  color: var(--pencil);
+  border-top: 2px solid var(--rule-key);
 }
+
 .tg-msg.error {
-  color: #d05240;
+  color: var(--ink);
 }
 
-/* 카드 가로 스크롤 스트립 */
+/* 경기 행 스택. */
 .tg-cards {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(200px, 1fr);
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-@media (max-width: 900px) {
-  .tg-cards {
-    grid-auto-columns: minmax(190px, 80%);
-  }
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--rule-key);
+  background: var(--sheet);
 }
 
 .tg-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px 12px;
-  background: var(--panel-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+  display: grid;
+  /* 내용 칸에 상한을 둔다. 폭을 다 쓰면 원정팀과 홈팀이 화면 양 끝으로
+     밀려 한 경기가 한 덩어리로 읽히지 않는다. */
+  grid-template-columns: 118px minmax(0, 660px);
+  gap: 2px 20px;
+  align-items: baseline;
+  padding: 13px 16px 14px;
+  border-bottom: 1px solid var(--rule);
+  /* 왼쪽 스파인은 원정팀→홈팀 색. 화면에서 채도를 가진 유일한 크롬이다. */
+  border-left: 3px solid;
+  border-image: linear-gradient(
+      to bottom,
+      var(--away-c, var(--rule)) 0 50%,
+      var(--home-c, var(--rule)) 50% 100%
+    )
+    1;
 }
 
+/* 시간·구장·상태. 행의 왼쪽 기둥. */
 .tg-meta {
   display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--muted);
+  flex-direction: column;
+  gap: 1px;
+  font-size: 12px;
+  color: var(--pencil);
 }
 
+.tg-stadium {
+  font-size: 11.5px;
+}
+
+/* 원정 ─ 점수 ─ 홈. */
 .tg-match {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 4px;
+  gap: 12px;
 }
 
 .tg-team {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 3px;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 홈팀은 점수 오른쪽에서 안쪽으로 읽히도록 뒤집는다. */
+.tg-match .tg-team:last-child {
+  flex-direction: row-reverse;
 }
 
 .tg-team img {
-  width: 38px;
-  height: 38px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .tg-name {
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tg-ha {
-  font-size: 10px;
-  color: var(--muted);
-  font-weight: 700;
+  font-size: 11px;
+  color: var(--pencil);
+  flex: 0 0 auto;
 }
 
+/* 패한 쪽을 흐리는 대신 이긴 쪽을 진하게 둔다 — 정보를 지우지 않는다. */
 .tg-team.loser {
-  opacity: 0.5;
+  opacity: 1;
 }
+
+.tg-team.loser .tg-name {
+  font-weight: 500;
+  color: var(--pencil) !important;
+}
+
+/* 승패 표시는 색이 아니라 형태(채운 사각/빈 사각)로. */
+.tg-team.won .tg-name::after,
+.tg-team.loser .tg-name::after {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 7px;
+  vertical-align: 2px;
+  content: "";
+}
+
 .tg-team.won .tg-name::after {
-  content: ' W';
-  font-size: 10px;
-  color: #1f9d57;
+  background: var(--ink);
+}
+
+.tg-team.loser .tg-name::after {
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
 }
 
 .tg-center {
-  padding: 0 4px;
+  padding: 0 2px;
   text-align: center;
 }
 
 .tg-vs {
   font-size: 12px;
-  font-weight: 900;
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--pencil);
 }
 
+/* 점수가 이 행에서 가장 큰 목소리다. */
 .tg-score {
-  font-size: 18px;
-  font-weight: 900;
-  color: var(--text);
+  font-family: var(--type-num);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.tg-score b.w {
-  color: #1f9d57;
+
+.tg-score b {
+  font-weight: 700;
 }
 
-/* 예상 승률 바 */
+.tg-score b.w {
+  color: var(--ink);
+}
+
+.tg-score b:not(.w) {
+  color: var(--pencil);
+  font-weight: 500;
+}
+
+/* 예상 승률·선발·AI 글은 점수 아래 둘째 줄. 격자 오른쪽 칸에만 놓는다. */
+.tg-prob,
+.tg-starters,
+.tg-story {
+  grid-column: 2;
+}
+
+.tg-prob {
+  margin-top: 7px;
+}
+
 .tg-prob-bar {
   display: flex;
-  height: 16px;
-  border-radius: 5px;
-  overflow: hidden;
-  background: var(--line);
+  height: 7px;
+  background: var(--field);
 }
 
 .tg-prob-fill {
@@ -168,72 +231,92 @@
 .tg-prob-nums {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-top: 3px;
+  align-items: baseline;
+  margin-top: 4px;
   font-size: 12px;
-  font-weight: 900;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .tg-prob-tag {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--pencil);
 }
 
-/* 선발 투수 */
 .tg-starters {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 4px;
-  border-top: 1px dashed var(--line);
-  padding-top: 8px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 7px;
+  font-size: 12.5px;
 }
 
 .tg-pit {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text);
+  color: var(--ink);
+  font-weight: 500;
   text-align: center;
 }
+
 .tg-pit.away {
   text-align: left;
 }
+
 .tg-pit.home {
   text-align: right;
 }
 
 .tg-pit-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--muted);
+  font-size: 11px;
+  color: var(--pencil);
 }
 
-/* AI 데일리 스토리 */
+/* AI 데일리 스토리. 칩 대신 왼쪽 괘선으로 인용처럼 들여쓴다. */
 .tg-story {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border, #e3e3e3);
+  margin-top: 9px;
+  padding-left: 10px;
+  border-left: 1px solid var(--rule);
 }
+
 .tg-story-tag {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: #fff;
-  background: var(--accent, #6b4eff);
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-bottom: 6px;
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pencil);
 }
+
 .tg-story p {
   margin: 0;
   font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--text);
+  line-height: 1.65;
+  color: var(--ink);
 }
+
 .tg-story-skel {
-  color: var(--muted) !important;
-  font-style: italic;
+  color: var(--pencil) !important;
+}
+
+@media (max-width: 720px) {
+  .tg-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tg-meta {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .tg-prob,
+  .tg-starters,
+  .tg-story {
+    grid-column: 1;
+  }
+
+  .tg-score {
+    font-size: 28px;
+  }
 }

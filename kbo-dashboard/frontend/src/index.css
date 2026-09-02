@@ -1,51 +1,88 @@
-/* web/ 디자인 컨셉 이식: 라이트 테마 + 토큰 + 카드/테이블 룩 */
+/* 기록지(scorecard) 디자인 시스템.
+
+   원칙: 채도는 데이터의 것이다.
+   팀 컬러 10개와 측정값 스케일만 색을 갖고, UI 크롬(헤더·네비·패널·표)은
+   무채색 괘선과 활자 위계로만 구조를 만든다. 이전 팔레트는 크롬 액센트로
+   teal/blue/red 를 썼는데 --accent-2(#d05240)가 KIA 팀 컬러와 값까지 같아
+   "이 빨강이 팀을 가리키는가 상태를 가리키는가"가 화면에서 구분되지 않았다.
+
+   괘선은 두 두께뿐이고 각각 의미가 있다.
+     --rule     1px  행 구분
+     --rule-key 2px  넘으면 안 되는 경계 (섹션 머리, 가을야구 진출선)
+   장식용 헤어라인은 두지 않는다. */
+
 :root {
   color-scheme: light;
-  --bg: #f3f5f7;
-  --panel: #ffffff;
-  --panel-soft: #eef2f5;
-  --text: #17202a;
-  --muted: #667381;
-  --line: #d7dee7;
-  --accent: #0b7f74;
-  --accent-2: #d05240;
-  --accent-3: #2e65b8;
-  --ink: #101820;
-  --shadow: 0 12px 30px rgba(22, 33, 46, 0.08);
-  /* 다크모드 토큰화용(하드코딩 제거) */
-  --header-bg: rgba(255, 255, 255, 0.94);
-  --pill-bg: #101820;
+
+  --paper: #f4f5f6; /* 바탕 */
+  --sheet: #ffffff; /* 기록지 면 */
+  --field: #eceef0; /* 눌린 칸(표 머리·보조 블록) */
+  --ink: #16181a; /* 본문 */
+  --pencil: #6b7076; /* 보조·라벨 */
+  --rule: #dbdfe3;
+  --rule-key: #16181a;
+
+  /* 측정값 스케일: 데이터에만 쓴다. 존 히트맵 등 발산형 지표용. */
+  --scale-lo: #3a6ea5;
+  --scale-mid: #eef0f2;
+  --scale-hi: #b4472f;
+
+  /* 상태는 색이 아니라 형태로 — 승은 채운 사각, 패는 빈 사각.
+     수치의 +/- 는 부호와 농도로 구분한다(양수=먹, 음수=연필). */
+  --pos: var(--ink);
+  --neg: var(--pencil);
+
+  --type-ui: Pretendard, "Pretendard Variable", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --type-num: "Big Shoulders Display", "Big Shoulders", "Archivo Narrow",
+    var(--type-ui);
+
+  /* --- 옛 토큰 별칭 (페이지 CSS 11개가 아직 이 이름을 쓴다) --- */
+  --bg: var(--paper);
+  --panel: var(--sheet);
+  --panel-soft: var(--field);
+  --text: var(--ink);
+  --muted: var(--pencil);
+  --line: var(--rule);
+  --accent: var(--ink);
+  --accent-2: var(--pencil);
+  --accent-3: var(--ink);
+  --shadow: none;
+  --header-bg: rgba(244, 245, 246, 0.92);
+  --pill-bg: #16181a;
   --pill-text: #ffffff;
-  --hover: #f3f7fc;
-  --win-bg: #e9f6ee;
-  --loss-bg: #fdecec;
-  --draw-bg: #f1f3f5;
-  --card-primary-bg: #101820; /* "현재 1위" 강조 카드(흰 글씨) */
-  --tint-base: #ffffff; /* color-mix 틴트 베이스(순위/선택 행) */
+  --hover: #eef0f2;
+  --win-bg: #e4e7ea;
+  --loss-bg: #f0f1f3;
+  --draw-bg: #f0f1f3;
+  --card-primary-bg: #16181a;
+  --tint-base: #ffffff;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e141a;
-  --panel: #161e26;
-  --panel-soft: #1d2832;
-  --text: #e6edf3;
-  --muted: #8b97a3;
-  --line: #2a3640;
-  --accent: #14a89a;
-  --accent-2: #e2685a;
-  --accent-3: #4b86d6;
-  --ink: #e6edf3;
-  --shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
-  --header-bg: rgba(18, 24, 30, 0.92);
-  --pill-bg: #2f3d49;
-  --pill-text: #ffffff;
-  --hover: #1f2b35;
-  --win-bg: #16352440;
-  --loss-bg: #3a1c1c66;
-  --draw-bg: #232d36;
-  --card-primary-bg: #0c8a7e; /* 다크: 강조 카드(accent 톤, 흰 글씨 가독) */
-  --tint-base: #161e26; /* 다크: 틴트 베이스(어두운 패널톤) */
+
+  --paper: #101214;
+  --sheet: #17191c;
+  --field: #202428;
+  --ink: #e7eaec;
+  --pencil: #8b9299;
+  --rule: #292e33;
+  --rule-key: #e7eaec;
+
+  --scale-lo: #5b8fc9;
+  --scale-mid: #2a2f34;
+  --scale-hi: #d1674c;
+
+  --header-bg: rgba(16, 18, 20, 0.92);
+  --pill-bg: #e7eaec;
+  --pill-text: #101214;
+  --hover: #202428;
+  --win-bg: #262b30;
+  --loss-bg: #1d2126;
+  --draw-bg: #1d2126;
+  --card-primary-bg: #e7eaec;
+  --tint-base: #17191c;
 }
 
 * {
@@ -55,10 +92,11 @@
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--type-ui);
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -68,70 +106,170 @@ body {
   min-height: 100vh;
 }
 
-/* 폼 컨트롤 공통 룩 */
+/* 활자 위계. 굵기는 400/500/700 세 단계만 쓴다.
+   이전에는 800~900 이 기본값이라 전부 같은 목소리로 외치고 있었다. */
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+h2 {
+  font-size: 24px;
+}
+h3 {
+  font-size: 17px;
+}
+
+/* 산문은 80자 아래로. */
+p {
+  max-width: 74ch;
+}
+
+/* 숫자는 표기용 활자로. 18px 이상에서만 쓴다 — 콘덴스드라 작은 크기에서는
+   가독성이 떨어져 표의 잔 숫자는 Pretendard 의 tabular-nums 를 그대로 둔다. */
+.num {
+  font-family: var(--type-num);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* 팀 컬러를 글자에 쓰는 자리. 팀 색은 밝은 배경 기준으로 정해진 값이라
+   다크에서 그대로 쓰면 두산(#243b6b)·키움(#7a3f76) 처럼 near-black 위에서
+   대비가 무너진다. 색상은 지키고 밝기만 흰색 쪽으로 올린다. */
+.team-ink {
+  color: var(--team-c, inherit);
+}
+
+:root[data-theme="dark"] .team-ink {
+  color: color-mix(in srgb, var(--team-c, currentColor) 55%, #fff);
+}
+
+/* 행 왼쪽 팀 스파인도 같은 이유로 다크에서 밝힌다. */
+:root[data-theme="dark"] .standings-table tbody td:first-child {
+  border-left-color: color-mix(in srgb, var(--team-c) 62%, #fff);
+}
+
+:root[data-theme="dark"] .tg-card {
+  border-image: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--away-c, var(--rule)) 62%, #fff) 0 50%,
+      color-mix(in srgb, var(--home-c, var(--rule)) 62%, #fff) 50% 100%
+    )
+    1;
+}
+
+/* 승/패는 색맹 안전하게 형태로 구분한다. */
+.mark-w::before,
+.mark-l::before,
+.mark-d::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  vertical-align: 1px;
+  content: "";
+}
+.mark-w::before {
+  background: var(--ink);
+}
+.mark-l::before {
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
+}
+.mark-d::before {
+  height: 1.5px;
+  vertical-align: 4px;
+  background: var(--pencil);
+}
+
+/* 폼 컨트롤: 칸처럼 보이게. 둥근 모서리 없음. */
 select,
 input[type="search"],
 input[type="text"] {
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--text);
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--sheet);
+  color: var(--ink);
+  font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+}
+
+select:focus-visible,
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--rule-key);
+  outline-offset: 1px;
 }
 
 select:focus,
 input:focus {
-  outline: none;
-  border-color: var(--accent-3);
+  border-color: var(--rule-key);
 }
 
-/* 타자/투수·역할 토글 (선택 = 어두운 알약, 네비와 동일 언어) */
 .toggle-group {
   display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
+  border: 1px solid var(--rule);
 }
 
 .toggle-group button {
   border: 0;
-  background: var(--panel);
-  padding: 8px 14px;
+  border-left: 1px solid var(--rule);
+  background: var(--sheet);
+  padding: 7px 14px;
   cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--pencil);
+}
+
+.toggle-group button:first-child {
+  border-left: 0;
 }
 
 .toggle-group button.active {
   background: var(--pill-bg);
   color: var(--pill-text);
+  font-weight: 700;
 }
 
 .loading,
 .error,
 .empty {
-  padding: 18px;
+  padding: 18px 0;
   font-size: 14px;
-  color: var(--muted);
+  color: var(--pencil);
 }
 
 .error {
-  color: var(--accent-2);
+  color: var(--ink);
+  border-left: 2px solid var(--rule-key);
+  padding-left: 12px;
 }
 
-/* 데이터 출처 안내 (web/ 와 동일 컨셉) */
+/* 데이터 출처. */
 #root::after {
   content: "데이터 출처: KBO 공식 기록실/일정/관중/경기시간, Naver Sports 경기센터 공개 응답(투구 위치). Naver pitch-zone 데이터는 공식 문서화 API가 아니며 구조가 변경될 수 있습니다.";
   display: block;
   width: min(1280px, calc(100% - 28px));
   margin: 0 auto 28px;
   padding: 16px 0 0;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  color: var(--pencil);
   font-size: 12px;
   line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

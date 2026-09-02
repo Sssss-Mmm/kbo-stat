@@ -113,7 +113,6 @@ function Ops({ seasonInfo }) {
       <SeasonBanner info={seasonInfo} selected={season} note="관중·팀별 경기시간은 2026시즌만 수집돼 있습니다" />
       <section className="ops-hero">
         <div>
-          <p className="eyebrow">KBO Dashboard</p>
           <h2>{season}시즌 리그 운영</h2>
         </div>
         {att.updatedAt && <p className="ops-updated">관중 갱신 {att.updatedAt}</p>}

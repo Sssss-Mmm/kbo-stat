@@ -52,13 +52,16 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>KBO Dashboard</h1>
+        <h1>
+          <span className="wm-kbo">KBO</span>
+          <span className="wm-rest">Dashboard</span>
+        </h1>
         <nav className="nav">
           <button
             className={currentPage === 'home' ? 'active' : ''}
             onClick={() => setCurrentPage('home')}
           >
-            HOME
+            홈
           </button>
           <button
             className={currentPage === 'standings' ? 'active' : ''}
@@ -118,14 +121,6 @@ function App() {
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
       </header>
-      {/* FR-12 AC2 / DR-06 AC2: 지금 어느 시즌의 데이터를 보고 있는지 전 화면 공통으로 명시한다.
-          페이지마다 배너를 두는 대신 셸에서 한 번만 그린다. */}
-      {seasonInfo && (
-        <div className={`season-banner${seasonInfo.state === 'regular' ? '' : ' off'}`}>
-          <strong>{seasonInfo.label}</strong>
-          {seasonInfo.notice && <span>{seasonInfo.notice}</span>}
-        </div>
-      )}
       <main className="main">
         {/* 페이지들이 시즌 상태를 초기값으로 쓰므로 판정 전에는 렌더하지 않는다. */}
         {!seasonInfo && <p className="loading">로딩중...</p>}

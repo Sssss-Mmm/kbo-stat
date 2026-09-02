@@ -215,9 +215,9 @@ function Race({ seasonInfo, onTeamClick }) {
                 {matchups.map((m) => (
                   <li key={`${m.a}|${m.b}`}>
                     <span className="mu-pair">
-                      <b style={{ color: teamColor(m.a) }}>{m.a}</b>
+                      <b className="team-ink" style={{ '--team-c': teamColor(m.a) }}>{m.a}</b>
                       <span className="mu-vs">vs</span>
-                      <b style={{ color: teamColor(m.b) }}>{m.b}</b>
+                      <b className="team-ink" style={{ '--team-c': teamColor(m.b) }}>{m.b}</b>
                       <span className="mu-count">{m.games.length}경기</span>
                     </span>
                     <span className="mu-games">

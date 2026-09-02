@@ -3,9 +3,7 @@
 .ask-container {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 16px;
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -13,7 +11,7 @@
 
 .ask-header h2 {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
 }
@@ -39,7 +37,6 @@
   color: var(--text);
   background: var(--panel-soft);
   border: 1px solid var(--line);
-  border-radius: 6px;
 }
 
 .ask-form input:focus {
@@ -54,7 +51,6 @@
   color: var(--pill-text);
   background: var(--pill-bg);
   border: 0;
-  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -75,7 +71,6 @@
   color: var(--muted);
   background: var(--panel-soft);
   border: 1px solid var(--line);
-  border-radius: 999px;
   cursor: pointer;
 }
 
@@ -90,7 +85,7 @@
 
 .ask-title {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   line-height: 1.45;
 }
@@ -121,7 +116,6 @@
   color: var(--accent-2);
   background: var(--loss-bg);
   border: 1px solid var(--accent-2);
-  border-radius: 6px;
 }
 
 .ask-evidence + .ask-evidence { margin-top: 18px; }
@@ -161,7 +155,6 @@
   font-weight: 700;
   color: var(--pill-text);
   background: var(--accent);
-  border-radius: 999px;
 }
 
 .ask-container .pos { color: var(--accent); }

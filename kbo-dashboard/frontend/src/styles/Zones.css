@@ -1,9 +1,7 @@
 .zones-container {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 16px;
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -21,7 +19,7 @@
 .zones-header h2 {
   margin-right: auto;
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
 }
@@ -44,7 +42,6 @@
 
 .zone-list {
   border: 1px solid var(--line);
-  border-radius: 8px;
   overflow: hidden;
   max-height: 640px;
   overflow-y: auto;
@@ -69,7 +66,7 @@
   background: var(--panel-soft);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .zone-list tbody tr { cursor: pointer; }
@@ -78,7 +75,6 @@
 
 .zone-card {
   border: 1px solid var(--line);
-  border-radius: 8px;
   padding: 18px;
 }
 
@@ -104,12 +100,11 @@
 
 .heat-cell {
   aspect-ratio: 1 / 1;
-  border-radius: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #16202c;
+  color: #16202c; /* 밝은 셀 위 고정 먹 — 테마와 무관 */
   font-weight: 700;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
@@ -133,8 +128,7 @@
 .heat-legend .bar {
   width: 160px;
   height: 10px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #3b6fd4, #f2f4f6, #d8403a);
+  background: linear-gradient(90deg, #3a6ea5, #eef0f2, #b4472f);
 }
 
 .zones-empty { color: var(--muted); padding: 30px 0; text-align: center; }
@@ -176,7 +170,7 @@
 .ars-sub {
   margin: 16px 0 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -192,7 +186,6 @@
   margin-top: 12px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
   background: var(--panel-soft);
 }
 
@@ -205,13 +198,12 @@
   gap: 6px 18px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
   background: var(--panel-soft);
   font-size: 13px;
   color: var(--muted);
 }
 
-.cnt-baseline b { color: var(--text); font-weight: 800; margin-left: 4px; }
+.cnt-baseline b { color: var(--text); font-weight: 700; margin-left: 4px; }
 
 .cnt-grid {
   display: grid;
