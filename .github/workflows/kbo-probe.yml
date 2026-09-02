@@ -1,0 +1,60 @@
+# KBO 공식 사이트가 GitHub Actions 러너에서 받아지는지 확인하는 일회성 프로브.
+#
+# 왜 필요한가: 순위 스냅샷은 하루 거르면 영영 복구할 수 없는 유일한 데이터다
+# (KBO 순위 페이지는 현재 순위만 보여준다). 실제로 2026 시즌 86일 중 60일이
+# 비어 있다 — PC 가 02:00 cron 시점에 꺼져 있었기 때문이다. 이걸 Actions 로
+# 옮기려면 국내 사이트가 해외 클라우드 IP 를 막지 않는다는 게 먼저 확인돼야 한다.
+#
+# 데이터를 저장하거나 커밋하지 않는다. 받아지는지만 본다.
+name: KBO 접근 프로브
+
+on:
+  workflow_dispatch:
+  # workflow_dispatch 는 기본 브랜치에 있는 워크플로만 UI 에 뜬다.
+  # 이 프로브는 기능 브랜치에서 바로 돌려봐야 하므로 자기 자신이 바뀔 때도 돈다.
+  push:
+    paths:
+      - .github/workflows/kbo-probe.yml
+      - scripts/probe_kbo_reachable.py
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # requirements.txt 전체는 matplotlib 까지 끌고 와 느리다. 프로브에 필요한 것만.
+      - run: pip install requests beautifulsoup4 lxml pandas
+
+      - name: KBO 순위 페이지 요청
+        id: probe
+        run: |
+          python scripts/probe_kbo_reachable.py | tee probe.log
+        continue-on-error: true
+
+      - name: 결과 요약
+        run: |
+          {
+            echo '## KBO 접근 프로브 결과'
+            echo
+            if [ '${{ steps.probe.outcome }}' = 'success' ]; then
+              echo '**성공** — 러너에서 KBO 순위 표를 받았다. 스냅샷 수집을 Actions 로 옮길 수 있다.'
+            else
+              echo '**실패** — 러너에서 받지 못했다. 아래 로그의 판정 줄을 볼 것.'
+              echo '로컬에서는 되는데 여기서 안 되면 IP/지역 차단이므로,'
+              echo 'Windows 작업 스케줄러 wake 나 국내 상시 호스트 쪽으로 가야 한다.'
+            fi
+            echo
+            echo '```'
+            cat probe.log 2>/dev/null || echo '(로그 없음)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 프로브 실패 시 잡도 실패시킨다
+        if: steps.probe.outcome != 'success'
+        run: exit 1
