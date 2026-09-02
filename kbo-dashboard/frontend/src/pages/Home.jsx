@@ -9,6 +9,7 @@ import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
 import TodayGames from '../components/TodayGames'
 import SeasonBanner from '../components/SeasonBanner'
+import { seasonOptions } from '../lib/season'
 import { teamColor, teamEmblem } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
@@ -57,7 +58,8 @@ function HlItem({ label, player, val }) {
 }
 
 function Home({ seasonInfo, onOpsClick }) {
-  const [season, setSeason] = useState(seasonInfo.dataSeason)
+  // 관중·경기시간·순위 모두 2026 한 시즌뿐이다(season.js SEASONS.league).
+  const season = seasonOptions('league')[0]
   const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [], failed: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -235,11 +237,6 @@ function Home({ seasonInfo, onOpsClick }) {
         <div>
           <h2>한눈에 보는 {season} 시즌</h2>
         </div>
-        <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-          {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-            <option key={y} value={y}>{y}시즌</option>
-          ))}
-        </select>
       </section>
 
       {/* NFR-06: 일부 요청만 실패한 경우 나머지 패널은 그대로 두고 실패 사실만 알린다. */}

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'
 import SeasonBanner from '../components/SeasonBanner'
-import { kstToday } from '../lib/season'
+import { kstToday, seasonOptions } from '../lib/season'
 import '../styles/Schedule.css'
 import { apiError } from '../lib/apiError'
 
@@ -23,7 +23,8 @@ const SCHEDULE_NOTE = {
 
 function Schedule({ seasonInfo }) {
   const [games, setGames] = useState([])
-  const [season, setSeason] = useState(seasonInfo.season)
+  // 일정 데이터는 2026 한 시즌뿐이다(season.js SEASONS.league).
+  const season = seasonOptions('league')[0]
   const [selectedTeam, setSelectedTeam] = useState('')
   const [viewKey, setViewKey] = useState('') // "YYYY-M"
   const [loading, setLoading] = useState(false)
@@ -128,16 +129,6 @@ function Schedule({ seasonInfo }) {
       />
       <div className="schedule-filters">
         <h2>{season}시즌 경기일정</h2>
-        <div className="filter-group">
-          <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
-            {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="team-chips">
           <button
             className={`team-chip${selectedTeam === '' ? ' active' : ''}`}
