@@ -1,4 +1,6 @@
-// 연도별 추이 멀티라인(SVG). series: [{label, color, points:[{x,y}]}].
+// 연도별 추이 멀티라인(SVG). series: [{label, color, dash?, points:[{x,y}]}].
+// dash 는 색과 별개의 구분 채널이다. 선 색을 배경 대비 3:1 이상으로
+// 맞추면 계열끼리 명도가 비슷해져 흑백·색맹 환경에서 겹쳐 보인다.
 // x 는 연도(정수), y 는 값. 시리즈마다 x 범위가 달라도 된다(경기시간의 정규이닝 계열은 2010~).
 const W = 760
 const H = 300
@@ -53,6 +55,7 @@ function TrendLine({ series, yLabel, fmt = (v) => v, xTickStep = 5 }) {
             stroke={s.color}
             strokeWidth={2.2}
             strokeLinejoin="round"
+            strokeDasharray={s.dash || undefined}
           />
           {s.points.map((p) => (
             <circle key={p.x} cx={sx(p.x)} cy={sy(p.y)} r={2.4} fill={s.color}>
@@ -67,7 +70,7 @@ function TrendLine({ series, yLabel, fmt = (v) => v, xTickStep = 5 }) {
         legendX += 26 + s.label.length * 11
         return (
           <g key={`lg-${s.label}`}>
-            <line x1={x} y1={12} x2={x + 16} y2={12} stroke={s.color} strokeWidth={2.6} />
+            <line x1={x} y1={12} x2={x + 16} y2={12} stroke={s.color} strokeWidth={2.6} strokeDasharray={s.dash || undefined} />
             <text x={x + 21} y={16} className="axis-label">{s.label}</text>
           </g>
         )
