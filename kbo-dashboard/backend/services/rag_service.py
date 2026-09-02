@@ -228,8 +228,9 @@ class RagService:
         """'왜 무너졌나' 류 질문에 월별 성적으로 답한다: 최고였던 달 -> 무너진 달 -> 지금 흐름.
 
         인과를 세울 수 없으면 None을 반환해 기존 팀 답변기로 넘긴다.
-        팀을 못 찾거나, 월 표본이 모자라거나, 최악의 달이 최고의 달보다 앞서는
-        (= 하락이 아닌) 경우다. 없는 서사를 지어내는 것보다 스냅샷이 낫다.
+        팀을 못 찾거나, 월 표본이 모자라거나, 최악의 달이 최고의 달보다 앞서거나,
+        최악의 달 뒤에 회복한 달이 있는(= 지금까지 이어지는 하락이 아닌) 경우다.
+        없는 서사를 지어내는 것보다 스냅샷이 낫다.
         """
         monthly = data["team_monthly"]
         team = self._find_team_in_question(question, data["standings"])
@@ -243,8 +244,10 @@ class RagService:
 
         best = rows.loc[rows["WinRate"].idxmax()]
         worst = rows.loc[rows["WinRate"].idxmin()]
-        if int(worst["Month"]) <= int(best["Month"]):
-            return None  # 시간 순서가 없으면 하락이 아니다
+        # "무너져서 지금 이 순위다"는 슬럼프가 마지막 달까지 이어질 때만 참이다.
+        # 최악의 달이 정점보다 앞서거나, 그 뒤에 회복한 달이 있으면 지나간 슬럼프다.
+        if int(worst["Month"]) <= int(best["Month"]) or int(worst["Month"]) != int(rows["Month"].max()):
+            return None
 
         stand = data["standings"]
         stand_row = stand[stand[TEAM_COL] == team]
@@ -496,6 +499,24 @@ if __name__ == "__main__":
     _up = _svc.ask("삼성 왜 이래?", 1901)["answer"]
     assert "무너" not in _up["title"], _up
     assert "현재" in _up["title"], _up
+
+    # 회귀(LG 케이스): 최악의 달(7월) 뒤에 회복한 달(8월)이 있으면 지나간 슬럼프이므로 서사를 세우지 않는다.
+    _svc._cache[1902] = {
+        "standings": pd.DataFrame([
+            {TEAM_COL: "LG", RANK_COL: 3, WINS_COL: 62, LOSSES_COL: 50, DRAWS_COL: 3,
+             WIN_RATE_COL: 0.554, RECENT_COL: "6승0무4패", STREAK_COL: "2승", "게임차": 7.0},
+        ]),
+        "team_games": pd.DataFrame(),
+        "team_monthly": pd.DataFrame([
+            _m(4, "LG", 16, 7, 30), _m(5, "LG", 13, 11, 5),
+            _m(6, "LG", 12, 11, 3), _m(7, "LG", 7, 15, -20),
+            _m(8, "LG", 13, 8, 18),
+        ]),
+        "hitters": pd.DataFrame(),
+    }
+    _recovered = _svc.ask("왜 LG가 강하지?", 1902)["answer"]
+    assert "무너" not in _recovered["title"], _recovered
+    assert "현재" in _recovered["title"], _recovered
 
     # 회귀: 월 데이터가 없는 시즌에서 "왜"가 섞여도 기존 팀 답변 그대로.
     assert "무너" not in _svc.ask("삼성 왜 강해?", 1900)["answer"]["title"]
