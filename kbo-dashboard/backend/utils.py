@@ -1,5 +1,4 @@
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -34,12 +33,13 @@ QUALIFIED_FILES = {
 }
 
 
-@lru_cache(maxsize=8)
 def _qualified_map(role: str, season: int) -> dict[int, bool] | None:
     """PlayerId -> 규정충족 매핑. 해당 시즌 스탯 CSV가 없으면 None.
 
-    하루 한 번 갱신되는 파생 파일이라 프로세스 수명 동안 캐시해도 된다.
-    반환 dict는 캐시에 그대로 남으므로 호출부에서 변형하지 않는다.
+    캐시하지 않는다. 일일 갱신(update_kbo_daily.sh)은 백엔드 컨테이너가 살아 있으면
+    재시작하지 않으므로, 프로세스 수명 캐시는 CSV가 새로 와도 안 깨진다.
+    규정타석은 팀 경기수 x 3.1로 시즌 내내 움직이는 값이라 그대로 얼어붙는다.
+    342행 2컬럼 읽기라 아낄 시간도 없다.
     """
     path = PROCESSED_DIR / QUALIFIED_FILES[role].format(season=season)
     if not path.exists():
