@@ -4,7 +4,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import SeasonBanner from '../components/SeasonBanner'
-import { seasonOptions } from '../lib/season'
 import '../styles/Players.css'
 import { apiError } from '../lib/apiError'
 
@@ -72,8 +71,8 @@ function fmtValue(value, fmt) {
 
 function Players({ seasonInfo }) {
   const [role, setRole] = useState('hitter')
-  // 선수 기록은 2026 한 시즌뿐이다(season.js SEASONS.players).
-  const season = seasonOptions('players')[0]
+  // 선수 기록은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  const season = seasonInfo.dataSeason
   const [team, setTeam] = useState('all')
   const [qualifiedOnly, setQualifiedOnly] = useState(false)
   const [sort, setSort] = useState(DEFAULT_SORT)

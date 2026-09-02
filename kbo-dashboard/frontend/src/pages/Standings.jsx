@@ -3,14 +3,13 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import StandingsTable from '../components/StandingsTable'
 import SeasonBanner from '../components/SeasonBanner'
-import { seasonOptions } from '../lib/season'
 import '../styles/Standings.css'
 import { apiError } from '../lib/apiError'
 
 function Standings({ seasonInfo, onTeamClick }) {
   const [standings, setStandings] = useState([])
-  // 순위는 2026 한 시즌뿐이라 고를 게 없다(season.js SEASONS.league).
-  const season = seasonOptions('league')[0]
+  // 순위는 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
+  const season = seasonInfo.dataSeason
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
