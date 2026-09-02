@@ -152,8 +152,8 @@ function Ops({ seasonInfo }) {
           <>
             <TrendLine
               series={[
-                { label: '연장 포함', color: 'var(--accent-3)', points: yearly.extra },
-                { label: '정규이닝', color: 'var(--accent)', points: yearly.regular },
+                { label: '연장 포함', color: 'var(--series-1)', points: yearly.extra },
+                { label: '정규이닝', color: 'var(--series-2)', dash: '5 3', points: yearly.regular },
               ]}
               yLabel="분"
               fmt={(v) => fmtMinutes(v)}
@@ -228,7 +228,7 @@ function Ops({ seasonInfo }) {
         {att.months.length ? (
           <>
             <BarList
-              items={att.byMonth.map((m) => ({ label: `${m.month}월`, value: m.value, color: 'var(--accent-3)' }))}
+              items={att.byMonth.map((m) => ({ label: `${m.month}월`, value: m.value, color: 'var(--series-1)' }))}
               fmt={fmtInt}
             />
             <div className="ops-table-wrap">
