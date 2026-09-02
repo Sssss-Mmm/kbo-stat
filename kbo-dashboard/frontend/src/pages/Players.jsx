@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Players.css'
+import { apiError } from '../lib/apiError'
 
 // 역할별 컬럼 정의. key=API 응답 필드, label=헤더, fmt=표시 형식.
 const COLUMNS = {
@@ -92,7 +93,7 @@ function Players({ seasonInfo }) {
           setError('선수 데이터를 가져오는데 실패했습니다.')
         }
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }

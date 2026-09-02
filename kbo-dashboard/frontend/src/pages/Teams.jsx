@@ -10,6 +10,7 @@ import { fmtRate, fmtPct, fmtInt } from '../lib/format'
 import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Home.css'
 import '../styles/Teams.css'
+import { apiError } from '../lib/apiError'
 
 const TEAM_COUNT = 10
 const MONTH_LABEL = (m) => `${m}월`
@@ -49,7 +50,7 @@ function Teams({ seasonInfo, initialTeam }) {
           setTeam(top?.['팀명'] || history[0]['팀명'])
         }
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }

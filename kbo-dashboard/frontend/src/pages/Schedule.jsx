@@ -6,6 +6,7 @@ import { TEAM_COLORS, teamColor, teamEmblem } from '../lib/teamColors'
 import SeasonBanner from '../components/SeasonBanner'
 import { kstToday } from '../lib/season'
 import '../styles/Schedule.css'
+import { apiError } from '../lib/apiError'
 
 const TEAMS = Object.keys(TEAM_COLORS)
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -39,7 +40,7 @@ function Schedule({ seasonInfo }) {
         setGames(res.data.status === 'success' ? res.data.data : [])
         if (res.data.status !== 'success') setError('경기 일정을 가져오는데 실패했습니다.')
       })
-      .catch((err) => active && setError(err.message))
+      .catch((err) => active && setError(apiError(err)))
       .finally(() => active && setLoading(false))
     return () => {
       active = false

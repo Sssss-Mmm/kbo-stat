@@ -6,6 +6,7 @@ import axios from 'axios'
 import { teamColor, teamEmblem } from '../lib/teamColors'
 import { kstToday } from '../lib/season'
 import '../styles/TodayGames.css'
+import { apiError } from '../lib/apiError'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const pad = (n) => String(n).padStart(2, '0')
@@ -40,7 +41,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
     axios
       .get('/api/today-games', { params: { date } })
       .then((r) => active && setGames(r.data.data || []))
-      .catch((e) => active && setError(e.message))
+      .catch((e) => active && setError(apiError(e)))
       .finally(() => active && setLoading(false))
     return () => {
       active = false

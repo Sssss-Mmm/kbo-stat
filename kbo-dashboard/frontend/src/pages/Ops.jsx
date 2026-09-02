@@ -12,6 +12,7 @@ import { fmtInt, fmtPct, fmtOne, fmtMinutes } from '../lib/format'
 import { teamTravel } from '../lib/travel'
 import '../styles/Home.css'
 import '../styles/Ops.css'
+import { apiError } from '../lib/apiError'
 
 function Ops({ seasonInfo }) {
   // 관중·팀별 경기시간은 2026 한 시즌뿐이라 시즌 셀렉터를 두지 않는다(연도 축은 추이 차트가 담당).
@@ -38,7 +39,7 @@ function Ops({ seasonInfo }) {
         ])
         if (active) setD({ attendance, teamTime, yearly, games })
       } catch (err) {
-        if (active) setError(err.message)
+        if (active) setError(apiError(err))
       } finally {
         if (active) setLoading(false)
       }
