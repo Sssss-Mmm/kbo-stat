@@ -24,6 +24,12 @@ PROCESSED_DIR = ROOT / "data" / "processed"
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 
+# 승부예측(경기 전): log5(홈/원정 분리 승률) + 홈 어드밴티지 + 선발 ERA 보정.
+HOME_EDGE = 0.04      # KBO 홈 승률 ≈ 0.54
+STARTER_W = 0.03      # 선발 ERA 1.00 차이 ≈ 승률 3%p
+STARTER_CAP = 1.5     # ERA 편차는 ±1.5까지만 반영(소표본 방어)
+PROB_MIN, PROB_MAX = 0.15, 0.85
+
 # 네이버 홈/원정 팀 코드 -> CSV(팀명/Team) 표기. today.py HOME_STADIUM 과 동일 코드 체계.
 CODE_TO_TEAM = {
     "LG": "LG", "OB": "두산", "WO": "키움", "KT": "KT",
@@ -36,6 +42,10 @@ SYSTEM_PROMPT = (
     "주어진 데이터(순위, 최근 10경기 흐름, 득실차, 선발투수 시즌 성적, 경기 결과)만 "
     "근거로 삼아 한 경기에 대한 짧은 글을 쓴다. 데이터에 없는 사실(부상, 라인업, 과거 "
     "맞대결 등)을 지어내지 않는다. 숫자는 자연스럽게 문장에 녹인다. "
+    "runs_scored 는 그 팀이 '낸' 점수다(실점이 아니다). "
+    "선발투수의 이 경기 투구 내용(이닝, 실점, 탈삼진, 승패)은 데이터에 없으니 절대 쓰지 마라. "
+    "ERA·W·L·WHIP·K9 는 이 경기를 포함하지 않을 수 있는 시즌 누적이므로 "
+    "'이 경기로 몇 승째' 같은 표현도 쓰지 마라. "
     "경기 전이면 매치업 프리뷰(선발 대결과 두 팀의 분위기), 경기 종료면 결과 리뷰를 쓴다. "
     "3~4문장, 과장 없이 담백하게."
 )
@@ -77,12 +87,13 @@ class StoryService:
 
         context = self._build_context(game, csv)
         kind = "review" if game.get("statusCode") == "RESULT" else "preview"
-        text = self._generate(context, kind)
+        # 경기 전은 AI 텍스트 대신 승부예측. 종료 경기만 LLM 리뷰를 쓴다.
         story = {
             "gameId": game.get("gameId"),
             "kind": kind,
             "matchup": context["matchup"],
-            "story": text,
+            "story": self._generate(context, kind) if kind == "review" else None,
+            "winProb": None if kind == "review" else win_prob(context, self._league_era(csv)),
             "cached": False,
         }
         self._story_cache[key] = (time.time(), story)
@@ -120,13 +131,13 @@ class StoryService:
             "winner": game.get("winner"),
             "home": {
                 "name": home.get("name"),
-                "score": home.get("score"),
+                "runs_scored": home.get("score"),
                 "team": self._team_context(home_team, csv),
                 "starter": self._starter_context(home.get("starter"), home_team, csv),
             },
             "away": {
                 "name": away.get("name"),
-                "score": away.get("score"),
+                "runs_scored": away.get("score"),
                 "team": self._team_context(away_team, csv),
                 "starter": self._starter_context(away.get("starter"), away_team, csv),
             },
@@ -147,6 +158,8 @@ class StoryService:
                     win_rate=r.get("승률"),
                     recent10=r.get("최근10경기"),
                     streak=r.get("연속"),
+                    home_record=r.get("홈"),
+                    away_record=r.get("방문"),
                 )
         games = csv["team_games"]
         if not games.empty:
@@ -217,10 +230,10 @@ class StoryService:
         away = context["away"]
         h_team = home["team"]
         a_team = away["team"]
-        if kind == "review" and home.get("score") is not None:
+        if kind == "review" and home.get("runs_scored") is not None:
             return (
-                f"[mock] {context['matchup']} 경기는 {home['name']} {home['score']} : "
-                f"{away['score']} {away['name']}로 마무리됐다. "
+                f"[mock] {context['matchup']} 경기는 {home['name']} {home['runs_scored']} : "
+                f"{away['runs_scored']} {away['name']}로 마무리됐다. "
                 f"(OPENAI_API_KEY를 설정하면 실제 AI 리뷰가 생성됩니다.)"
             )
         return (
@@ -231,6 +244,15 @@ class StoryService:
             f"{(home.get('starter') or {}).get('name', '미정')}. "
             f"(OPENAI_API_KEY를 설정하면 실제 AI 프리뷰가 생성됩니다.)"
         )
+
+    @staticmethod
+    def _league_era(csv: dict[str, pd.DataFrame]) -> float:
+        # ponytail: 리그 평균 자책점을 팀 득점/경기 * 0.92 로 근사한다.
+        # 정확히 하려면 투수 CSV의 ER/IP 합계가 필요한데, 보정항 하나에 그 정도는 과하다.
+        games = csv["team_games"]
+        if games.empty or "RunsFor" not in games:
+            return 4.5
+        return float(games["RunsFor"].mean()) * 0.92
 
     # ── CSV 로딩/유틸 ────────────────────────────────────────────────────
     def _load_csv(self, season: int) -> dict[str, pd.DataFrame]:
@@ -264,3 +286,79 @@ class StoryService:
             return round(float(value), 2)
         except (TypeError, ValueError):
             return value
+
+
+# ── 승부예측 (순수 함수) ──────────────────────────────────────────────────
+def log5(a: float, b: float) -> float:
+    """승률 a 팀이 승률 b 팀을 이길 확률."""
+    d = a * (1 - b) + b * (1 - a)
+    return (a * (1 - b)) / d if d else 0.5
+
+
+def record_rate(record: Any) -> float | None:
+    """'19-0-10'(승-무-패) -> 승률."""
+    try:
+        w, _, l = (int(x) for x in str(record).split("-"))
+    except (ValueError, TypeError):
+        return None
+    return w / (w + l) if w + l else None
+
+
+def era_edge(starter: dict[str, Any] | None, league_era: float) -> float:
+    """선발이 리그 평균보다 얼마나 좋은가(자책점 기준, ±STARTER_CAP)."""
+    try:
+        era = float((starter or {}).get("ERA"))
+    except (TypeError, ValueError):
+        return 0.0
+    return max(-STARTER_CAP, min(STARTER_CAP, league_era - era))
+
+
+def win_prob(context: dict[str, Any], league_era: float) -> dict[str, Any] | None:
+    """홈 관점 예상 승률. 순위 데이터가 없으면 None."""
+    home, away = context["home"], context["away"]
+    ph = record_rate(home["team"].get("home_record")) or _rate(home["team"].get("win_rate"))
+    pa = record_rate(away["team"].get("away_record")) or _rate(away["team"].get("win_rate"))
+    if ph is None or pa is None:
+        return None
+    edge = era_edge(home.get("starter"), league_era) - era_edge(away.get("starter"), league_era)
+    p = log5(ph, pa) + HOME_EDGE + STARTER_W * edge
+    p = max(PROB_MIN, min(PROB_MAX, p))
+    return {
+        "home": round(p, 3),
+        "away": round(1 - p, 3),
+        "starterEdge": round(edge, 2),
+        "leagueEra": round(league_era, 2),
+    }
+
+
+def _rate(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+if __name__ == "__main__":  # python -m services.story_service
+    assert abs(log5(0.5, 0.5) - 0.5) < 1e-9
+    assert log5(0.7, 0.3) > 0.8 and log5(0.3, 0.7) < 0.2
+    assert record_rate("19-0-10") == 19 / 29
+    assert record_rate("") is None and record_rate(None) is None
+    assert record_rate("0-0-0") is None
+    assert era_edge({"ERA": 2.5}, 4.5) == 1.5          # 캡 적용
+    assert era_edge({"ERA": 3.5}, 4.5) == 1.0
+    assert era_edge(None, 4.5) == 0.0 and era_edge({"name": "x"}, 4.5) == 0.0
+
+    even = {
+        "home": {"team": {"home_record": "10-0-10"}, "starter": None},
+        "away": {"team": {"away_record": "10-0-10"}, "starter": None},
+    }
+    assert win_prob(even, 4.5)["home"] == 0.54, win_prob(even, 4.5)   # 홈 어드밴티지만
+    assert win_prob(even, 4.5)["home"] + win_prob(even, 4.5)["away"] == 1.0
+    ace = {
+        "home": {"team": {"home_record": "10-0-10"}, "starter": {"ERA": 2.0}},
+        "away": {"team": {"away_record": "10-0-10"}, "starter": {"ERA": 6.0}},
+    }
+    assert win_prob(ace, 4.5)["home"] == 0.63, win_prob(ace, 4.5)     # 0.54 + 0.03*3.0
+    assert win_prob({"home": {"team": {}, "starter": None},
+                     "away": {"team": {}, "starter": None}}, 4.5) is None
+    print("ok")

@@ -1,6 +1,6 @@
 // 오늘의 경기 카드 섹션 (HOME 상단).
-// /api/today-games(라이브 경기/스코어/선발)와 /api/today-story(AI 프리뷰/리뷰)를
-// 따로 받아 날짜별 카드로 보여준다. 경기 전이면 시즌 성적 기반 예상 승률 막대를 표시.
+// /api/today-games(라이브 경기/스코어/선발)와 /api/today-story(승부예측/AI 리뷰)를
+// 따로 받아 날짜별 카드로 보여준다. 경기 전이면 예상 승률 막대, 종료 후면 AI 리뷰.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { teamColor, teamEmblem } from '../lib/teamColors'
@@ -75,7 +75,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
     return m
   }, [standings])
 
-  // 홈 관점 예상 승률. 홈/원정 성적이 있으면 그걸, 없으면 전체 승률 사용.
+  // 홈 관점 예상 승률 폴백. 서버 예측(선발 ERA 반영)이 오기 전/실패 시 순위표만으로 계산.
   const homeWinProb = (g) => {
     const h = standMap[g.home?.name]
     const a = standMap[g.away?.name]
@@ -121,7 +121,9 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
           {games.map((g) => {
             const done = g.statusCode === 'RESULT'
             const started = g.statusCode && g.statusCode !== 'BEFORE'
-            const hp = homeWinProb(g)
+            const story = stories[g.gameId]
+            // 서버 예측이 있으면 그걸 쓴다(선발 ERA 보정 포함). 없으면 순위표 폴백.
+            const hp = story?.winProb?.home ?? homeWinProb(g)
             const ap = hp == null ? null : 1 - hp
             const awayWon = done && g.winner === 'AWAY'
             const homeWon = done && g.winner === 'HOME'
@@ -150,7 +152,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
                 </div>
 
                 {!started && ap != null && (
-                  <div className="tg-prob" title="예상 승률 (시즌 성적 기반)">
+                  <div className="tg-prob" title={story?.winProb ? '예상 승률 (홈/원정 성적 + 선발 ERA)' : '예상 승률 (시즌 성적 기반)'}>
                     <div className="tg-prob-bar">
                       <span className="tg-prob-fill away" style={{ width: `${ap * 100}%`, background: teamColor(g.away.name) }} />
                       <span className="tg-prob-fill home" style={{ width: `${hp * 100}%`, background: teamColor(g.home.name) }} />
@@ -171,11 +173,11 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
                   </div>
                 )}
 
-                {storyEnabled && (
+                {storyEnabled && done && (
                 <div className="tg-story">
-                  <span className="tg-story-tag">{done ? 'AI 리뷰' : 'AI 프리뷰'}</span>
-                  {stories[g.gameId]?.story ? (
-                    <p>{stories[g.gameId].story}</p>
+                  <span className="tg-story-tag">AI 리뷰</span>
+                  {story?.story ? (
+                    <p>{story.story}</p>
                   ) : (
                     <p className="tg-story-skel">{storyLoading ? 'AI가 이야기를 쓰는 중...' : '—'}</p>
                   )}
