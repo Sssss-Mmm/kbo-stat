@@ -14,6 +14,8 @@ from typing import Any
 
 import pandas as pd
 
+from services.csv_cache import file_versions
+
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = ROOT / "data" / "raw" / "kbo_official"
@@ -65,6 +67,7 @@ class RagService:
 
     def __init__(self) -> None:
         self._cache: dict[int, dict[str, pd.DataFrame]] = {}  # 시즌별 CSV 캐시
+        self._versions = {}
 
     def ask(self, question: str, season: int) -> dict[str, Any]:
         """질문 → 문서화 → 검색 → 답변 합성까지의 전체 파이프라인."""
@@ -72,13 +75,14 @@ class RagService:
         docs = self._build_documents(data)
         retrieved = self._retrieve(question, docs, limit=8)
         # 근거가 하나도 없으면 답변을 합성하지 않는다. 무관한 질문에 단정형 문장이 나가는 걸 여기 한 곳에서 막는다.
-        answer = self._synthesize(question, data, retrieved) if retrieved else NO_EVIDENCE_ANSWER
+        answer = dict(self._synthesize(question, data, retrieved) if retrieved else NO_EVIDENCE_ANSWER)
+        supporting = answer.pop("_evidence", [])
         return {
             "status": "success",
             "season": season,
             "question": question,
             "answer": answer,
-            "evidence": [self._evidence_to_dict(item) for item in retrieved],
+            "evidence": [self._evidence_to_dict(item) for item in supporting],
             "data_sources": self._data_sources(data),
         }
 
@@ -96,16 +100,18 @@ class RagService:
 
     def _load(self, season: int) -> dict[str, pd.DataFrame]:
         """시즌별 소스 CSV 4종을 읽어 캐시한다(순위/경기/월간/타자지표)."""
-        if season in self._cache:
-            return self._cache[season]
-
-        data = {
-            "standings": self._read_csv(RAW_DIR / f"kbo_team_rank_{season}.csv"),
-            "team_games": self._read_csv(PROCESSED_DIR / f"kbo_team_games_{season}.csv"),
-            "team_monthly": self._read_csv(PROCESSED_DIR / f"kbo_team_monthly_{season}.csv"),
-            "hitters": self._read_csv(PROCESSED_DIR / f"kbo_hitter_metrics_{season}.csv"),
+        paths = {
+            "standings": RAW_DIR / f"kbo_team_rank_{season}.csv",
+            "team_games": PROCESSED_DIR / f"kbo_team_games_{season}.csv",
+            "team_monthly": PROCESSED_DIR / f"kbo_team_monthly_{season}.csv",
+            "hitters": PROCESSED_DIR / f"kbo_hitter_metrics_{season}.csv",
         }
+        version = file_versions(list(paths.values()))
+        if season in self._cache and self._versions.get(season) == version:
+            return self._cache[season]
+        data = {name: self._read_csv(path) for name, path in paths.items()}
         self._cache[season] = data
+        self._versions[season] = version
         return data
 
     @staticmethod
@@ -126,9 +132,9 @@ class RagService:
             for _, row in standings.iterrows():
                 team = row.get(TEAM_COL, "")
                 team_games = games[games["Team"] == team] if not games.empty else pd.DataFrame()
-                runs_for = int(team_games["RunsFor"].sum()) if not team_games.empty else 0
-                runs_against = int(team_games["RunsAgainst"].sum()) if not team_games.empty else 0
-                run_diff = runs_for - runs_against
+                runs_for = int(team_games["RunsFor"].sum()) if not team_games.empty else None
+                runs_against = int(team_games["RunsAgainst"].sum()) if not team_games.empty else None
+                run_diff = runs_for - runs_against if runs_for is not None else None
                 docs.append(
                     Evidence(
                         title=f"{team} team standing",
@@ -208,17 +214,73 @@ class RagService:
         data: dict[str, pd.DataFrame],
         evidence: list[Evidence],
     ) -> dict[str, Any]:
-        # 질문 키워드로 의도를 분기해 알맞은 규칙 기반 답변기를 고른다.
         lowered = question.lower()
-        if "mvp" in lowered or "war" in lowered or "ops" in lowered:
-            return self._answer_mvp(data)  # 최고 타자
-        if any(word in question for word in DECLINE_WORDS):
-            decline = self._answer_decline(question, data)  # 시간축: 언제부터 무너졌나
-            if decline:  # 서사를 세울 근거가 없으면 None -> 기존 분기로 그대로 흐른다
+        team = self._find_team_in_question(question, data["standings"])
+        if any(word in question for word in ("부상", "연봉", "트레이드", "라인업", "예측", "확률", "내년", "내일", "우승")):
+            return NO_EVIDENCE_ANSWER
+        if team and re.search(r"홈(?!런)|원정|방문", question):
+            return self._answer_split(question, team, data)
+        if any(word in lowered for word in ("mvp", "war", "ops", "홈런", "타율", "타점")):
+            metric = "WARProxy"
+            if "mvp" not in lowered and "war" not in lowered:
+                metric = next((column for word, column in (("ops", "OPS"), ("홈런", "HR"), ("타율", "AVG"), ("타점", "RBI")) if word in lowered), "WARProxy")
+            # 팀·선수를 명시한 질문에 리그 전체 1위를 답하지 않는다.
+            hitters = data["hitters"]
+            if not hitters.empty:
+                players = [name for name in hitters["Player"].dropna().unique() if str(name) in question]
+                players = [name for name in players if not any(name != other and name in other for other in players)]
+                if players:
+                    hitters = hitters[hitters["Player"].isin(players)]
+                elif team:
+                    hitters = hitters[hitters["Team"] == team]
+                elif not any(word in lowered for word in ("mvp", "순위", "상위", "최고", "1위", "누구")):
+                    return NO_EVIDENCE_ANSWER
+            return self._answer_mvp({**data, "hitters": hitters}, metric)
+        if team and any(word in question for word in DECLINE_WORDS):
+            decline = self._answer_decline(question, data)
+            if decline:
                 return decline
-        if "뜨거" in question or "최근" in question or "hot" in lowered:
-            return self._answer_hot_team(data)  # 최근 가장 잘하는 팀
-        return self._answer_team(question, data, evidence)  # 기본: 특정 팀 분석
+        if not team and ("뜨거" in question or "최근" in question or "hot" in lowered):
+            return self._answer_hot_team(data)
+        if team and any(word in question for word in ("어때", "성적", "순위", "강", "왜", "최근", "승률", "득실", "몇 위", "몇위")):
+            return self._answer_team(question, data, evidence)
+        return NO_EVIDENCE_ANSWER
+
+    def _support(self, data: dict, teams=(), players=()) -> list[Evidence]:
+        return [doc for doc in self._build_documents(data)
+                if (doc.payload.get("type") == "team" and doc.payload.get("team") in teams)
+                or (doc.payload.get("type") == "hitter" and doc.payload.get("player") in players)]
+
+    def _answer_split(self, question: str, team: str, data: dict) -> dict:
+        if re.search(r"홈(?!런)", question) and re.search(r"원정|방문", question):
+            home = self._answer_split("홈", team, data)
+            away = self._answer_split("원정", team, data)
+            if not home.get("_evidence") or not away.get("_evidence"):
+                return NO_EVIDENCE_ANSWER
+            return {"title": f"{team}의 홈·원정 성적입니다.",
+                    "summary": f"홈: {home['summary']} 원정: {away['summary']}",
+                    "bullets": home["bullets"] + away["bullets"],
+                    "_evidence": home["_evidence"] + away["_evidence"]}
+        games = data["team_games"]
+        required = {"Team", "HomeAway", "Win", "Loss", "Draw", "Date"}
+        if games.empty or not required.issubset(games.columns):
+            return NO_EVIDENCE_ANSWER
+        home = "홈" in question
+        label = "홈" if home else "원정"
+        aliases = ("home", "홈") if home else ("away", "원정", "방문")
+        rows = games[(games["Team"] == team) & games["HomeAway"].str.lower().isin(aliases)]
+        if rows.empty:
+            return NO_EVIDENCE_ANSWER
+        wins, losses, draws = (int(rows[col].sum()) for col in ("Win", "Loss", "Draw"))
+        rate = wins / (wins + losses) if wins + losses else None
+        summary = f"{len(rows)}경기 {wins}승 {draws}무 {losses}패, 승률 {rate:.3f}입니다." if rate is not None else f"{len(rows)}경기 {draws}무로 승률을 계산할 수 없습니다."
+        through = str(rows["Date"].max())
+        payload = {"type": "split", "team": team, "split": label, "games": len(rows),
+                   "wins": wins, "losses": losses, "draws": draws, "win_rate": rate, "through": through}
+        evidence = Evidence(f"{team} {label} 성적", summary, "kbo_team_games", 0, payload)
+        return {"title": f"{team}의 {label} 성적입니다.", "summary": summary,
+                "bullets": [f"{through} 경기까지 수집된 결과 기준 · 무승부는 승률 계산에서 제외"],
+                "_evidence": [evidence]}
 
     def _answer_decline(
         self,
@@ -261,12 +323,12 @@ class RagService:
             f"{int(best['Month'])}월에는 {int(best['Wins'])}승 {int(best['Losses'])}패"
             f"(승률 {float(best['WinRate']):.3f}, 득실 {int(best['RunDiff']):+d})로 가장 좋았습니다. "
             f"그러다 {int(worst['Month'])}월에 {int(worst['Wins'])}승 {int(worst['Losses'])}패"
-            f"(승률 {float(worst['WinRate']):.3f}, 득실 {int(worst['RunDiff']):+d})로 무너진 것이 "
-            f"순위가 밀린 직접 원인입니다."
+            f"(승률 {float(worst['WinRate']):.3f}, 득실 {int(worst['RunDiff']):+d})로 낮아졌습니다. "
+            f"이 수치만으로 부진의 원인을 단정할 수는 없습니다."
         )
         if now is not None:
             summary += (
-                f" 그 흐름이 지금까지 이어져 최근 10경기 {now[RECENT_COL]}, "
+                f" 별도로 최근 10경기는 {now[RECENT_COL]}, "
                 f"현재 {now[STREAK_COL]}로 {int(now[RANK_COL])}위입니다."
             )
 
@@ -280,7 +342,13 @@ class RagService:
                 f"현재: {int(now[RANK_COL])}위, {int(now[WINS_COL])}승 {int(now[LOSSES_COL])}패, "
                 f"게임차 {now.get('게임차')}"
             )
-        return {"title": title, "summary": summary, "bullets": bullets}
+        supporting = self._support(data, teams=[team])
+        supporting += [Evidence(
+            f"{team} {int(row.Month)}월 성적", bullet, "kbo_team_monthly", 0,
+            {"type": "monthly", "team": team, "month": int(row.Month), "games": int(row.Games),
+             "wins": int(row.Wins), "losses": int(row.Losses), "win_rate": float(row.WinRate), "run_diff": int(row.RunDiff)},
+        ) for row, bullet in zip(rows.itertuples(), bullets)]
+        return {"title": title, "summary": summary, "bullets": bullets, "_evidence": supporting}
 
     def _answer_team(
         self,
@@ -315,17 +383,20 @@ class RagService:
 
         payload = team_doc.payload
         title = f"{payload['team']}는 현재 {int(payload['rank'])}위, 승률 {payload['win_rate']:.3f}입니다."
+        run_diff = payload['run_diff']
+        run_summary = f"득실차는 {run_diff:+d}입니다." if run_diff is not None else "득실 기록은 수집되지 않았습니다."
         summary = (
-            f"핵심 근거는 승패 품질과 득실차입니다. "
+            f"수집된 시즌 성적 기준으로 "
             f"{int(payload['wins'])}승 {int(payload['losses'])}패, 최근 흐름은 "
-            f"{payload['recent']}, 득실차는 {int(payload['run_diff']):+d}입니다."
+            f"{payload['recent']}, {run_summary}"
         )
         return {
             "title": title,
             "summary": summary,
+            "_evidence": [team_doc],
             "bullets": [
                 f"시즌 전적: {int(payload['wins'])}승 {int(payload['draws'])}무 {int(payload['losses'])}패",
-                f"득실: {payload['runs_for']}득점 / {payload['runs_against']}실점",
+                f"득실: {payload['runs_for']}득점 / {payload['runs_against']}실점" if run_diff is not None else "득실 기록 미수집",
                 f"최근 흐름: {payload['recent']} ({payload['streak']})",
             ],
         }
@@ -335,11 +406,11 @@ class RagService:
         if standings.empty:
             return None
         for team in standings[TEAM_COL].dropna().astype(str).tolist():
-            if team and team in question:
+            if team and team.lower() in question.lower():
                 return team
         return None
 
-    def _answer_mvp(self, data: dict[str, pd.DataFrame]) -> dict[str, Any]:
+    def _answer_mvp(self, data: dict[str, pd.DataFrame], metric: str = "WARProxy") -> dict[str, Any]:
         """WARProxy·OPS 상위 5명을 뽑아 MVP형 타자를 답한다."""
         hitters = data["hitters"]
         if hitters.empty:
@@ -348,17 +419,20 @@ class RagService:
                 "summary": "Build kbo_hitter_metrics first.",
                 "bullets": [],
             }
-        top = hitters.sort_values(["WARProxy", "OPS"], ascending=False).head(5)
+        top = hitters.dropna(subset=[metric]).sort_values(list(dict.fromkeys([metric, "OPS"])), ascending=False).head(5)
+        if top.empty:
+            return NO_EVIDENCE_ANSWER
         leader = top.iloc[0]
         return {
-            "title": f"{leader['Player']}이 현재 데이터 기준 가장 강한 MVP형 타자입니다.",
+            "title": f"{leader['Player']}의 {metric}가 조회 범위에서 가장 높습니다.",
+            "_evidence": self._support(data, players=top["Player"].tolist()),
             "summary": (
-                f"WARProxy {leader['WARProxy']}, OPS {leader['OPS']}, "
+                f"WARProxy(공식 WAR와 다른 근사 지표) {leader['WARProxy']}, OPS {leader['OPS']}, "
                 f"홈런 {int(leader['HR'])}, 타점 {int(leader['RBI'])}을 근거로 봅니다."
             ),
             "bullets": [
-                f"{row.Player} ({row.Team}) - WARProxy {row.WARProxy}, OPS {row.OPS}"
-                for row in top.itertuples()
+                f"{row['Player']} ({row['Team']}) - {metric} {row[metric]}, OPS {row['OPS']}"
+                for _, row in top.iterrows()
             ],
         }
 
@@ -379,6 +453,7 @@ class RagService:
         rate, row = rows[0]
         return {
             "title": f"{row[TEAM_COL]}가 최근 10경기 기준 가장 뜨겁습니다.",
+            "_evidence": self._support(data, teams=[item[1][TEAM_COL] for item in rows[:5]]),
             "summary": f"최근 흐름은 {row[RECENT_COL]}, 최근 승률은 {rate:.3f}입니다.",
             "bullets": [
                 f"{item[1][TEAM_COL]} - {item[1][RECENT_COL]} ({item[0]:.3f})"
@@ -397,7 +472,7 @@ class RagService:
         payload_type = doc.payload.get("type")
         if payload_type == "team" and any(word in query for word in ["팀", "순위", "강", "왜"]):
             return 3
-        if payload_type == "hitter" and any(word in query.lower() for word in ["mvp", "ops", "war", "선수", "홈런"]):
+        if payload_type == "hitter" and any(word in query.lower() for word in ["mvp", "ops", "war", "선수", "홈런", "타율", "타점"]):
             return 3
         return 0
 
@@ -439,6 +514,7 @@ class RagService:
 if __name__ == "__main__":
     # 근거 0건 분기 자가검증: 무관한 질문은 단정하지 않고, 매칭되는 질문은 기존대로 답해야 한다.
     _svc = RagService()
+    _svc._load = lambda season: _svc._cache[season]
     _svc._cache[1900] = {
         "standings": pd.DataFrame([{
             TEAM_COL: "삼성", RANK_COL: 1, WINS_COL: 60, LOSSES_COL: 40,

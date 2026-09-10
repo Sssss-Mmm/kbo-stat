@@ -51,6 +51,17 @@
   font-size: 12.5px !important;
 }
 
+.tg-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+  color: var(--pencil);
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
 .tg-msg {
   padding: 22px 0;
   color: var(--pencil);

@@ -1,4 +1,4 @@
-// 앱 루트. 라우터 없이 currentPage 상태로 9개 페이지를 전환하는 단일 SPA 셸.
+// URL 기반 페이지 이동과 공통 헤더.
 // 상단 헤더(네비게이션 + 다크/라이트 테마 토글)와 본문 페이지로 구성된다.
 import { useState, useEffect } from 'react'
 import axios from 'axios'
@@ -13,6 +13,8 @@ import Ops from './pages/Ops'
 import Ask from './pages/Ask'
 import { seasonState, kstToday } from './lib/season'
 import './App.css'
+import { useRoute } from './lib/useRoute'
+import { navigate, pageUrl, followLink } from './lib/navigation'
 
 // 초기 테마 결정: 저장된 선택 > OS 선호(prefers-color-scheme) 순.
 function getInitialTheme() {
@@ -22,15 +24,16 @@ function getInitialTheme() {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('home')  // 현재 보이는 페이지
+  const { page: currentPage, query } = useRoute()
+  const setCurrentPage = (page) => navigate(pageUrl(page))
+  const openTeam = (team) => navigate(pageUrl('teams', { team }))
   const [theme, setTheme] = useState(getInitialTheme)
-  const [focusTeam, setFocusTeam] = useState(null)  // 순위표에서 클릭한 팀(팀 분석 초기 선택)
   const [seasonInfo, setSeasonInfo] = useState(null)  // 시즌 상태 판정 결과(FR-12). 앱 전체가 공유.
 
   // 시즌 판정은 앱 진입 시 한 번. season 파라미터를 주지 않아 백엔드 활성 시즌(DR-06)을 그대로 받는다.
   useEffect(() => {
     axios
-      .get('/api/schedule-games')
+      .get('/api/schedule-games', { timeout: 15000 })
       .then((res) => setSeasonInfo(seasonState(kstToday(), res.data.data || [])))
       // 일정 조회가 실패해도 화면은 뜨지만, 그 사실을 숨기지 않는다. 빈 배열을 넘기면
       // seasonState 가 달력만 보고 판정해 isFallback=false 로 "2026 정규시즌" 을
@@ -57,60 +60,78 @@ function App() {
           <span className="wm-rest">Dashboard</span>
         </h1>
         <nav className="nav">
-          <button
+          <a
             className={currentPage === 'home' ? 'active' : ''}
-            onClick={() => setCurrentPage('home')}
+            aria-current={currentPage === 'home' ? 'page' : undefined}
+            href={pageUrl('home')}
+            onClick={followLink}
           >
             홈
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'standings' ? 'active' : ''}
-            onClick={() => setCurrentPage('standings')}
+            aria-current={currentPage === 'standings' ? 'page' : undefined}
+            href={pageUrl('standings')}
+            onClick={followLink}
           >
             순위표
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'race' ? 'active' : ''}
-            onClick={() => setCurrentPage('race')}
+            aria-current={currentPage === 'race' ? 'page' : undefined}
+            href={pageUrl('race')}
+            onClick={followLink}
           >
             가을야구
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'teams' ? 'active' : ''}
-            onClick={() => setCurrentPage('teams')}
+            aria-current={currentPage === 'teams' ? 'page' : undefined}
+            href={pageUrl('teams')}
+            onClick={followLink}
           >
             팀 분석
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'schedule' ? 'active' : ''}
-            onClick={() => setCurrentPage('schedule')}
+            aria-current={currentPage === 'schedule' ? 'page' : undefined}
+            href={pageUrl('schedule')}
+            onClick={followLink}
           >
             경기일정
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'players' ? 'active' : ''}
-            onClick={() => setCurrentPage('players')}
+            aria-current={currentPage === 'players' ? 'page' : undefined}
+            href={pageUrl('players')}
+            onClick={followLink}
           >
             선수 기록
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'zones' ? 'active' : ''}
-            onClick={() => setCurrentPage('zones')}
+            aria-current={currentPage === 'zones' ? 'page' : undefined}
+            href={pageUrl('zones')}
+            onClick={followLink}
           >
             투구 분석
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'ops' ? 'active' : ''}
-            onClick={() => setCurrentPage('ops')}
+            aria-current={currentPage === 'ops' ? 'page' : undefined}
+            href={pageUrl('ops')}
+            onClick={followLink}
           >
             리그 운영
-          </button>
-          <button
+          </a>
+          <a
             className={currentPage === 'ask' ? 'active' : ''}
-            onClick={() => setCurrentPage('ask')}
+            aria-current={currentPage === 'ask' ? 'page' : undefined}
+            href={pageUrl('ask')}
+            onClick={followLink}
           >
             질의응답
-          </button>
+          </a>
         </nav>
         <button
           className="theme-toggle"
@@ -124,14 +145,14 @@ function App() {
       <main className="main">
         {/* 페이지들이 시즌 상태를 초기값으로 쓰므로 판정 전에는 렌더하지 않는다. */}
         {!seasonInfo && <p className="loading">로딩중...</p>}
-        {seasonInfo && currentPage === 'home' && <Home seasonInfo={seasonInfo} onOpsClick={() => setCurrentPage('ops')} />}
+        {seasonInfo && currentPage === 'home' && <Home seasonInfo={seasonInfo} onOpsClick={() => setCurrentPage('ops')} onNavigate={setCurrentPage} onTeamClick={openTeam} />}
         {seasonInfo && currentPage === 'standings' && (
-          <Standings seasonInfo={seasonInfo} onTeamClick={(t) => { setFocusTeam(t); setCurrentPage('teams') }} />
+          <Standings seasonInfo={seasonInfo} onTeamClick={openTeam} />
         )}
         {seasonInfo && currentPage === 'race' && (
-          <Race seasonInfo={seasonInfo} onTeamClick={(t) => { setFocusTeam(t); setCurrentPage('teams') }} />
+          <Race seasonInfo={seasonInfo} onTeamClick={openTeam} />
         )}
-        {seasonInfo && currentPage === 'teams' && <Teams seasonInfo={seasonInfo} initialTeam={focusTeam} />}
+        {seasonInfo && currentPage === 'teams' && <Teams seasonInfo={seasonInfo} initialTeam={query.get('team')} />}
         {seasonInfo && currentPage === 'schedule' && <Schedule seasonInfo={seasonInfo} />}
         {seasonInfo && currentPage === 'players' && <Players seasonInfo={seasonInfo} />}
         {seasonInfo && currentPage === 'zones' && <Zones seasonInfo={seasonInfo} />}

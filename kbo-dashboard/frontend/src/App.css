@@ -61,7 +61,7 @@
   display: none;
 }
 
-.nav button {
+.nav a {
   position: relative;
   padding: 0 13px;
   border: 0;
@@ -75,17 +75,17 @@
   transition: color 0.12s ease;
 }
 
-.nav button:hover {
+.nav a:hover {
   color: var(--ink);
 }
 
-.nav button.active {
+.nav a.active {
   color: var(--ink);
   font-weight: 700;
 }
 
 /* 활성 탭의 밑줄이 헤더 괘선 자리를 덮어 '여기'를 가리킨다. */
-.nav button.active::after {
+.nav a.active::after {
   position: absolute;
   right: 6px;
   bottom: -2px;
@@ -174,3 +174,5 @@
   font-size: 13px;
   color: var(--pencil);
 }
+
+.nav a { display: inline-flex; align-items: center; text-decoration: none; }

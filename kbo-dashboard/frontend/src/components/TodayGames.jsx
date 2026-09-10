@@ -31,31 +31,66 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [refresh, setRefresh] = useState(0)
+  const [checkedAt, setCheckedAt] = useState(null)
   const [stories, setStories] = useState({}) // gameId -> story
   const [storyLoading, setStoryLoading] = useState(false)
 
   useEffect(() => {
     let active = true
-    setLoading(true)
-    setError(null)
-    axios
-      .get('/api/today-games', { params: { date } })
-      .then((r) => active && setGames(r.data.data || []))
-      .catch((e) => active && setError(apiError(e)))
-      .finally(() => active && setLoading(false))
+    let busy = false
+    const controller = new AbortController()
+    setCheckedAt(null)
+    setGames([])
+    const fetchGames = async (initial = false) => {
+      if (busy) return
+      busy = true
+      if (initial) setLoading(true)
+      try {
+        const r = await axios.get('/api/today-games', { params: { date }, signal: controller.signal, timeout: 15000 })
+        if (active) {
+          setGames(r.data.data || [])
+          setCheckedAt(new Date())
+          setError(null)
+        }
+      } catch (err) {
+        if (active) setError(apiError(err))
+      } finally {
+        busy = false
+        if (active) setLoading(false)
+      }
+    }
+    fetchGames(true)
+    // 오늘 날짜는 경기 시작·취소·종료 전환도 확인한다. 숨긴 탭은 조회하지 않는다.
+    const timer = setInterval(() => {
+      if (date === kstToday() && document.visibilityState === 'visible') fetchGames()
+    }, 60000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && date === kstToday()) fetchGames()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       active = false
+      controller.abort()
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [date])
+  }, [date, refresh])
+
+  const gameVersion = games.map((g) => `${g.gameId}:${g.statusCode}`).join('|')
 
   // AI 데일리 스토리: 경기 목록과 별개로(느릴 수 있어) 받아 gameId로 매핑.
   useEffect(() => {
-    if (!storyEnabled) return  // FR-12 AC3: 비활성 시즌에는 요청 자체를 보내지 않는다
+    if (!storyEnabled || !gameVersion) {
+      setStories({})
+      setStoryLoading(false)
+      return
+    }
     let active = true
     setStories({})
     setStoryLoading(true)
     axios
-      .get('/api/today-story', { params: { date } })
+      .get('/api/today-story', { params: { date }, timeout: 30000 })
       .then((r) => {
         if (!active) return
         const map = {}
@@ -67,7 +102,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
     return () => {
       active = false
     }
-  }, [date, storyEnabled])
+  }, [date, storyEnabled, gameVersion, refresh])
 
   const standMap = useMemo(() => {
     const m = {}
@@ -105,12 +140,21 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
       <div className="tg-head">
         <h3>{label}</h3>
         <div className="tg-nav">
+          <button onClick={() => setRefresh((n) => n + 1)} disabled={loading}>새로고침</button>
           <button onClick={() => shift(-1)} aria-label="이전 날">‹</button>
           <button className="tg-today" onClick={() => setDate(kstToday())}>오늘</button>
           <button onClick={() => shift(1)} aria-label="다음 날">›</button>
         </div>
       </div>
 
+      {checkedAt && (
+        <p className="tg-freshness" role="status">
+          <time dateTime={checkedAt.toISOString()} title="화면에 표시된 경기 정보를 마지막으로 확인한 시각 · 한국 시간">
+            {checkedAt.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })} 업데이트
+          </time>
+          {date === kstToday() && <span>· 1분마다 자동 갱신</span>}
+        </p>
+      )}
       {note && <p className="tg-msg">{note}</p>}
       {loading && <p className="tg-msg">로딩중...</p>}
       {error && <p className="tg-msg error">{error}</p>}

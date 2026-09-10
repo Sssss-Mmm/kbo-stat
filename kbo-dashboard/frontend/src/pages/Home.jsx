@@ -9,7 +9,7 @@ import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
 import TodayGames from '../components/TodayGames'
 import SeasonBanner from '../components/SeasonBanner'
-import { teamColor, teamEmblem } from '../lib/teamColors'
+import { teamColor, teamEmblem, TEAM_COLORS } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
@@ -56,9 +56,16 @@ function HlItem({ label, player, val }) {
   )
 }
 
-function Home({ seasonInfo, onOpsClick }) {
+function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
   // 순위·관중·경기시간은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
   const season = seasonInfo.dataSeason
+  const [favorite, setFavorite] = useState(() => {
+    try { return localStorage.getItem('favoriteTeam') || '' } catch { return '' }
+  })
+  const chooseFavorite = (team) => {
+    setFavorite(team)
+    try { localStorage.setItem('favoriteTeam', team) } catch { /* 저장 불가 시 이번 방문에만 적용 */ }
+  }
   const [d, setD] = useState({ standings: [], teamGames: [], hitters: [], pitchers: [], attendance: [], gameTime: [], failed: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -223,6 +230,9 @@ function Home({ seasonInfo, onOpsClick }) {
     }
   }, [d])
 
+  const favoriteStanding = d.standings.find((row) => row.team === favorite)
+  const through = d.teamGames.map((row) => row.Date).filter(Boolean).sort().at(-1)
+
   const RULES = [
     ['승부치기', '연장 10회부터 무사 1·2루로 시작하는 KBO 연장 규정.'],
     ['피치클락', '투수는 주자 없을 때 18초, 주자 있을 때 23초 내 투구.'],
@@ -264,6 +274,33 @@ function Home({ seasonInfo, onOpsClick }) {
         </section>
       )}
 
+      <section className="panel home-favorite">
+        <div className="panel-head">
+          <h3>응원팀</h3>
+          <select aria-label="응원팀 선택" value={favorite} onChange={(e) => chooseFavorite(e.target.value)}>
+            <option value="">팀 선택</option>
+            {Object.keys(TEAM_COLORS).map((team) => <option key={team}>{team}</option>)}
+          </select>
+        </div>
+        {favoriteStanding ? (
+          <div className="favorite-summary">
+            <TeamCell team={favorite} />
+            <strong>{favoriteStanding.rank}위</strong>
+            <span>{favoriteStanding.wins}승 {favoriteStanding.draws}무 {favoriteStanding.losses}패</span>
+            <span>최근 10경기 {favoriteStanding.last_10_games || '-'}</span>
+            <span>{favoriteStanding.streak || '-'}</span>
+            <button onClick={() => onTeamClick(favorite)}>팀 분석 보기 →</button>
+          </div>
+        ) : <p className="players-note">{favorite ? (loading ? '팀 성적을 불러오는 중입니다.' : '선택한 팀의 순위 데이터를 확인할 수 없습니다.') : '응원팀을 선택하면 다음 방문에도 성적을 바로 확인할 수 있습니다.'}</p>}
+      </section>
+
+      <nav className="home-shortcuts" aria-label="상세 분석">
+        <button onClick={() => onNavigate('standings')}>전체 순위</button>
+        <button onClick={() => onNavigate('race')}>가을야구 경쟁</button>
+        <button onClick={() => onNavigate('players')}>선수 기록·비교</button>
+        <button onClick={() => onNavigate('zones')}>투구 분석</button>
+      </nav>
+      {through && <p className="players-note">경기 결과 집계: {through} 경기까지 · 순위와 선수 기록은 자료별 반영 시점이 다를 수 있습니다.</p>}
       {loading && <p className="loading">로딩중...</p>}
       {error && <p className="error">{error}</p>}
 
@@ -290,16 +327,6 @@ function Home({ seasonInfo, onOpsClick }) {
               <span className="kicker">WAR 1위 투수</span>
               <h3>{summary.warPit?.['선수명'] || '-'}</h3>
               <p>{summary.warPit ? `${summary.warPit['팀명']} · WAR ${fmtTwo(summary.warPit.WAR)} · ERA ${fmtTwo(summary.warPit.ERA)}` : '-'}</p>
-            </article>
-            <article className="stat-card">
-              <span className="kicker">홈런 1위</span>
-              <h3>{summary.hr?.['선수명'] || '-'}</h3>
-              <p>{summary.hr ? `${summary.hr['팀명']} · ${summary.hr.HR}홈런 · ${summary.hr.RBI}타점` : '-'}</p>
-            </article>
-            <article className="stat-card">
-              <span className="kicker">리그 평균</span>
-              <h3>{fmtRate(league.ops)} OPS</h3>
-              <p>타율 {fmtRate(league.avg)} · ERA {fmtTwo(league.era)} · WHIP {fmtTwo(league.whip)}</p>
             </article>
           </section>
 
@@ -348,6 +375,9 @@ function Home({ seasonInfo, onOpsClick }) {
             </article>
           </section>
 
+          <details className="home-details">
+            <summary>리그 상세 지표와 차트 보기</summary>
+            <div className="home-detail-content">
           {/* 리그 평균 · 시즌 하이라이트 · 선발 안정성 */}
           <section className="panel-grid-4">
             <article className="panel">
@@ -487,6 +517,8 @@ function Home({ seasonInfo, onOpsClick }) {
               ))}
             </div>
           </section>
+            </div>
+          </details>
         </>
       )}
     </div>

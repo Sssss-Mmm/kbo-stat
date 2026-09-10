@@ -15,6 +15,8 @@ import {
 } from '../lib/race'
 import '../styles/Home.css'
 import '../styles/Race.css'
+import { useRoute } from '../lib/useRoute'
+import { updateQuery } from '../lib/navigation'
 
 const CUT_OPTIONS = [
   { value: 1, label: '1위 (우승)' },
@@ -33,7 +35,10 @@ const signed = (v) => (v > 0 ? `+${v}` : String(v))  // 커트라인 대비 게�
 
 function Race({ seasonInfo, onTeamClick }) {
   const season = seasonInfo.dataSeason
-  const [cut, setCut] = useState(PLAYOFF_CUT)
+  const { query } = useRoute()
+  const requestedCut = Number(query.get('cut'))
+  const cut = CUT_OPTIONS.some((option) => option.value === requestedCut) ? requestedCut : PLAYOFF_CUT
+  const setCut = (value) => updateQuery({ cut: value })
   const [d, setD] = useState({ standings: [], games: [], schedule: [] })
   const [loading, setLoading] = useState(true)
   const [today] = useState(() => kstToday())

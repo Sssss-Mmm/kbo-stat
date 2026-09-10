@@ -146,7 +146,6 @@ function Zones({ seasonInfo }) {
       // 목록에 보이는 값만 정렬할 수 있게 대표 지표를 펼쳐 둔다(지표 토글에 따라 바뀐다).
       .map((agg) => ({ ...agg, value: overallMetric(agg) }))
     return sortRows(list, sort)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, team, metric, showThin, filter, sort])
 
   // 선택이 비었으면 첫 선수 자동 선택.

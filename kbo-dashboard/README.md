@@ -1,6 +1,6 @@
 # KBO Dashboard
 
-`kbo-dashboard`는 KBO Stat 프로젝트의 백엔드, React 개발용 프론트, Docker 실행 구성을 담고 있습니다.
+`kbo-dashboard`는 KBO Stat 프로젝트의 백엔드, React 프론트, Docker 실행 구성을 담고 있습니다.
 
 상위 루트 README가 전체 프로젝트 기준 문서이고, 이 문서는 대시보드 실행에 필요한 내용만 정리합니다.
 
@@ -32,13 +32,13 @@ docker compose up -d --build
 
 | 서비스 | 주소 |
 | --- | --- |
-| 웹 | `http://127.0.0.1:8000/web/` |
+| 웹 | `http://127.0.0.1:3000` |
 | FastAPI | `http://127.0.0.1:8001` |
 | API 문서 | `http://127.0.0.1:8001/docs` |
 | pgAdmin | `http://127.0.0.1:5050` |
 | PostgreSQL | `localhost:5433` |
 
-현재 Docker의 `web` 서비스는 `frontend/` React 앱이 아니라 상위 루트의 `web/` 정적 대시보드를 서빙합니다.
+Docker의 `frontend` 서비스는 React 앱을 빌드해 nginx로 제공합니다. `/api/` 요청은 백엔드로 전달하며, `/players` 같은 주소로 직접 접속할 수 있습니다.
 
 ## 환경 변수
 
@@ -142,3 +142,27 @@ docker compose up -d --build
 ```
 
 DB 접속 오류가 나면 `.env`의 `DB_USER`, `DB_PASSWORD`, `DB_NAME`과 `docker-compose.yml`의 healthcheck 값이 같은지 확인하세요.
+
+## 확인 명령
+
+```bash
+cd frontend
+npm ci
+npm test
+npm run lint
+npm run build
+```
+
+백엔드 회귀 테스트(백엔드 의존성이 설치된 환경):
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+```
+
+`/health`는 프로세스 생존 여부, `/ready`는 DB 연결 가능 여부를 확인합니다.
+DB가 중단되면 `/ready`는 503을 반환하며 CSV 기반 기능은 계속 사용할 수 있습니다.
+
+오늘 경기 화면은 표시 중인 탭에서 1분마다 갱신합니다. 마지막 조회 시각은 조회 성공 시각이며, 원본 기록의 반영 시각과는 다릅니다.
+질의응답과 경기 스토리에 사용하는 CSV는 파일이 변경되면 다음 요청에서 다시 읽습니다.
+선수 기록의 검색·구단·정렬·비교 선택은 URL에 저장되고, 응원팀은 브라우저에 저장됩니다.

@@ -7,6 +7,8 @@ import SeasonBanner from '../components/SeasonBanner'
 import { kstToday } from '../lib/season'
 import '../styles/Schedule.css'
 import { apiError } from '../lib/apiError'
+import { useRoute } from '../lib/useRoute'
+import { updateQuery } from '../lib/navigation'
 
 const TEAMS = Object.keys(TEAM_COLORS)
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -26,8 +28,10 @@ function Schedule({ seasonInfo }) {
   // 일정은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
   // dataSeason 이 아니라 season 이다 — 개막 전에는 기록이 아니라 다가올 일정을 봐야 한다.
   const season = seasonInfo.season
-  const [selectedTeam, setSelectedTeam] = useState('')
-  const [viewKey, setViewKey] = useState('') // "YYYY-M"
+  const { query } = useRoute()
+  const selectedTeam = TEAMS.includes(query.get('team')) ? query.get('team') : ''
+  const setSelectedTeam = (team) => updateQuery({ team })
+  const setViewKey = (month) => updateQuery({ month })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -64,23 +68,16 @@ function Schedule({ seasonInfo }) {
     })
   }, [games])
 
-  // 데이터 로드 시 표시할 달 결정: 오늘이 속한 달 > 마지막 달
-  useEffect(() => {
-    if (months.length === 0) {
-      setViewKey('')
-      return
-    }
-    const [ty, tm] = kstToday().split('-').map(Number)  // 오늘(KST)
+  const requestedMonth = query.get('month')
+  const viewKey = useMemo(() => {
+    if (!months.length) return ''
+    if (months.includes(requestedMonth)) return requestedMonth
+    const [ty, tm] = kstToday().split('-').map(Number)
     const todayKey = monthKey(ty, tm)
-    if (months.includes(todayKey)) {
-      setViewKey(todayKey)
-      return
-    }
-    // 오늘이 일정 밖이면: 개막 전이면 첫 달, 시즌 종료 후면 마지막 달
+    if (months.includes(todayKey)) return todayKey
     const [fy, fm] = months[0].split('-').map(Number)
-    const before = ty < fy || (ty === fy && tm < fm)
-    setViewKey(before ? months[0] : months[months.length - 1])
-  }, [months])
+    return ty < fy || (ty === fy && tm < fm) ? months[0] : months.at(-1)
+  }, [months, requestedMonth])
 
   // 날짜별 경기 묶음
   const byDate = useMemo(() => {

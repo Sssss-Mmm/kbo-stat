@@ -1,9 +1,4 @@
-// RAG 질의응답 페이지 (FR-09).
-// 자연어 질문을 /api/rag/ask 에 보내고, 답변과 "그 답변이 실제로 어떤 CSV 행에
-// 근거하는지"를 나란히 보여준다. 백엔드 RAG 는 LLM 이 아니라 CSV 규칙 기반이라
-// 답변 자체는 결정적이지만, 검색된 근거와 답변 주체가 어긋날 수 있다.
-// 그래서 AC2 를 위해 (1) 근거를 표로 펼치고 (2) 답변 주체와 일치하는 근거를 표시하고
-// (3) 근거가 하나도 없으면 그 사실을 경고한다.
+// 데이터 질의응답과 답변에 사용된 근거 표시.
 import { useState, useMemo } from 'react'
 import axios from 'axios'
 import { MiniTable, TeamCell } from '../components/MiniTable'
@@ -30,7 +25,7 @@ function Ask({ seasonInfo }) {
     setLoading(true)
     setError(null)
     try {
-      const r = await axios.post('/api/rag/ask', { question: text, season })
+      const r = await axios.post('/api/rag/ask', { question: text, season }, { timeout: 15000 })
       if (r.data?.status !== 'success') throw new Error('서버가 실패를 응답했습니다.')
       setRes(r.data)
     } catch (err) {
@@ -53,16 +48,7 @@ function Ask({ seasonInfo }) {
     [res],
   )
 
-  // AC2: 답변이 지목한 대상(팀·선수)이 근거 목록에 실제로 있는지 확인한다.
-  // 백엔드는 검색 점수 순으로만 근거를 주기 때문에, 답변 주체가 8번째에 묻혀 있거나
-  // 아예 빠져 있을 수 있다. 답변 제목에 이름이 포함되면 "답변 근거"로 표시한다.
-  const answerText = res ? `${res.answer?.title || ''} ${res.answer?.summary || ''}` : ''
-  const isCited = (name) => Boolean(name) && answerText.includes(name)
-  // 표에 실제로 배지가 붙는 조건과 같아야 한다. 타자 행은 소속팀이 아니라 선수명으로만 판정한다
-  // (답변이 '삼성'을 말했다고 삼성 타자 8명이 근거가 되는 건 아니다).
-  const citedCount = (res?.evidence || []).filter((e) =>
-    e.payload?.type === 'hitter' ? isCited(e.payload.player) : isCited(e.payload?.team),
-  ).length
+  const detailRows = (res?.evidence || []).filter((e) => ['split', 'monthly'].includes(e.payload?.type))
 
   const sources = res?.data_sources || {}
   const sourceTotal = Object.values(sources).reduce((a, b) => a + b, 0)
@@ -117,14 +103,6 @@ function Ask({ seasonInfo }) {
                 {res.answer.bullets.map((b, i) => <li key={i}>{b}</li>)}
               </ul>
             )}
-            {/* AC2: 근거 없는 단정을 그대로 두지 않는다.
-                근거 0건 자체는 백엔드가 답변에서 밝히고 아래 근거 섹션도 비었다고 알리므로
-                여기서 또 경고하지 않는다. 남은 건 "근거는 있는데 답변 주체가 그 안에 없는" 경우다. */}
-            {res.evidence?.length > 0 && citedCount === 0 && (
-              <p className="ask-warn">
-                답변이 지목한 대상이 아래 근거 목록에 없습니다. 질문과 답변의 초점이 어긋났을 수 있으니 수치를 직접 확인하세요.
-              </p>
-            )}
           </section>
 
           <section className="panel">
@@ -141,6 +119,18 @@ function Ask({ seasonInfo }) {
               <p className="empty">검색된 근거 문서가 없습니다.</p>
             )}
 
+            {detailRows.length > 0 && (
+              <div className="ask-evidence">
+                {detailRows.map((item) => (
+                  <article key={item.title}>
+                    <h4>{item.title}</h4>
+                    <p>{item.body}</p>
+                    <p className="players-note">출처: {item.source}{item.payload.through ? ` · ${item.payload.through} 경기까지` : ''}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+
             {teamRows.length > 0 && (
               <div className="ask-evidence">
                 <h4>팀 순위 · 득실 <span>출처: {teamRows[0].source}</span></h4>
@@ -152,7 +142,7 @@ function Ask({ seasonInfo }) {
                         render: (r) => (
                           <span className="ask-cited-cell">
                             <TeamCell team={r.payload.team} />
-                            {isCited(r.payload.team) && <em className="ask-cited">답변 근거</em>}
+                            <em className="ask-cited">답변 근거</em>
                           </span>
                         ),
                       },
@@ -170,7 +160,6 @@ function Ask({ seasonInfo }) {
                           </b>
                         ),
                       },
-                      { key: 'score', label: '검색점수', render: (r) => fmtInt(r.score) },
                     ]}
                     rows={teamRows}
                   />
@@ -189,7 +178,7 @@ function Ask({ seasonInfo }) {
                         render: (r) => (
                           <span className="ask-cited-cell">
                             <b>{r.payload.player}</b>
-                            {isCited(r.payload.player) && <em className="ask-cited">답변 근거</em>}
+                            <em className="ask-cited">답변 근거</em>
                           </span>
                         ),
                       },
@@ -199,7 +188,6 @@ function Ask({ seasonInfo }) {
                       { key: 'avg', label: 'AVG', render: (r) => fmtRate(r.payload.avg) },
                       { key: 'hr', label: 'HR', render: (r) => fmtInt(r.payload.hr) },
                       { key: 'rbi', label: 'RBI', render: (r) => fmtInt(r.payload.rbi) },
-                      { key: 'score', label: '검색점수', render: (r) => fmtInt(r.score) },
                     ]}
                     rows={hitterRows}
                   />

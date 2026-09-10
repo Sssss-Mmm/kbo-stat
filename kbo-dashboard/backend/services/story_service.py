@@ -15,6 +15,8 @@ from typing import Any
 
 import pandas as pd
 
+from services.csv_cache import file_versions
+
 from routers.today import _fetch  # 라이브 경기 카드(네이버 프록시) 재사용
 
 
@@ -56,6 +58,7 @@ class StoryService:
 
     def __init__(self) -> None:
         self._csv_cache: dict[int, dict[str, pd.DataFrame]] = {}
+        self._csv_versions = {}
         # story 캐시: cache_key -> (저장시각, story dict). 종료 경기는 TTL 무한.
         self._story_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._preview_ttl = 600.0  # 프리뷰/진행중 경기는 10분만 캐싱
@@ -256,14 +259,18 @@ class StoryService:
 
     # ── CSV 로딩/유틸 ────────────────────────────────────────────────────
     def _load_csv(self, season: int) -> dict[str, pd.DataFrame]:
-        if season in self._csv_cache:
-            return self._csv_cache[season]
-        data = {
-            "standings": self._read(RAW_DIR / f"kbo_team_rank_{season}.csv"),
-            "team_games": self._read(PROCESSED_DIR / f"kbo_team_games_{season}.csv"),
-            "pitchers": self._read(PROCESSED_DIR / f"kbo_naver_pitchers_{season}.csv"),
+        paths = {
+            "standings": RAW_DIR / f"kbo_team_rank_{season}.csv",
+            "team_games": PROCESSED_DIR / f"kbo_team_games_{season}.csv",
+            "pitchers": PROCESSED_DIR / f"kbo_naver_pitchers_{season}.csv",
         }
+        version = file_versions(list(paths.values()))
+        if season in self._csv_cache and self._csv_versions.get(season) == version:
+            return self._csv_cache[season]
+        data = {name: self._read(path) for name, path in paths.items()}
         self._csv_cache[season] = data
+        self._csv_versions[season] = version
+        self._story_cache.clear()
         return data
 
     @staticmethod

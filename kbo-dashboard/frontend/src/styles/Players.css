@@ -98,3 +98,32 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+.players-header input[type="search"] { min-width: 180px; max-width: 100%; }
+.players-table th button { border: 0; background: transparent; color: inherit; padding: 0; font: inherit; }
+.players-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+.players-glossary summary { cursor: pointer; color: var(--muted); }
+.players-glossary dl { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-top: 12px; }
+.players-glossary dl div { display: flex; gap: 8px; font-size: 13px; }
+.players-glossary dt { font-weight: 700; }
+.players-glossary dd { margin: 0; color: var(--muted); }
+.players-comparison { padding: 14px; border: 1px solid var(--line); }
+.players-comparison-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+.players-comparison-head h3 { font-size: 16px; }
+.players-comparison-head span { color: var(--muted); font-size: 13px; }
+.players-table caption { padding: 10px; text-align: left; white-space: normal; }
+
+.players-header .record-mode,
+.players-comparison-head button,
+.players-empty button {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.players-header .record-mode:hover,
+.players-comparison-head button:hover,
+.players-empty button:hover { background: var(--panel-soft); }

@@ -11,13 +11,16 @@ import SeasonBanner from '../components/SeasonBanner'
 import '../styles/Home.css'
 import '../styles/Teams.css'
 import { apiError } from '../lib/apiError'
+import { updateQuery } from '../lib/navigation'
 
 const TEAM_COUNT = 10
 const MONTH_LABEL = (m) => `${m}월`
 
 function Teams({ seasonInfo, initialTeam }) {
   const [season] = useState(seasonInfo.dataSeason)
-  const [team, setTeam] = useState(initialTeam || null)
+  const [defaultTeam, setDefaultTeam] = useState(null)
+  const team = initialTeam || defaultTeam
+  const setTeam = (value) => updateQuery({ team: value })
   const [d, setD] = useState({ history: [], monthly: [], games: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -47,7 +50,7 @@ function Teams({ seasonInfo, initialTeam }) {
           const dates = history.map((r) => r.Date).sort()
           const last = dates[dates.length - 1]
           const top = history.find((r) => r.Date === last && r['순위'] === 1)
-          setTeam(top?.['팀명'] || history[0]['팀명'])
+          setDefaultTeam(top?.['팀명'] || history[0]['팀명'])
         }
       } catch (err) {
         if (active) setError(apiError(err))
@@ -71,7 +74,7 @@ function Teams({ seasonInfo, initialTeam }) {
 
   // 순위 데이터가 없어 기본 팀이 안 정해졌으면 목록 첫 팀을 고른다.
   useEffect(() => {
-    if (!team && teams.length) setTeam(teams[0])
+    if (!team && teams.length) setDefaultTeam(teams[0])
   }, [teams, team])
 
   // 순위 변화: 날짜 인덱스 → 팀별 {index, rank} 시리즈.

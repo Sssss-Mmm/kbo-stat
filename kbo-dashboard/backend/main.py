@@ -11,9 +11,10 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy import text
 
-from database import init_db
+from database import init_db, engine
 from routers import analytics, arsenal, player_stats, players, rag, schedule, standings, story, today, zones
 
 
@@ -63,6 +64,16 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/ready")
+def readiness_check():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content={"status": "unavailable", "database": "unavailable"})
+    return {"status": "ready", "database": "available"}
 
 
 if __name__ == "__main__":
