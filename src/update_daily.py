@@ -17,17 +17,11 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import pandas as pd
-
 import build_team_game_results
-import csv_guard
 import crawl_kbo_attendance
 import crawl_kbo_game_time
 import crawl_kbo_schedule
 import crawl_kbo_team_rank
-
-
-RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
 
 
 def current_kbo_year() -> int:
@@ -39,7 +33,7 @@ def update_fast(year: int) -> None:
     """매일 바뀌는 핵심 데이터를 갱신한다(순위/일정·결과/관중/경기시간/타자지표)."""
     print(f"[daily] updating team standings for {year}")
     team_rank = crawl_kbo_team_rank.crawl(year)
-    save_team_rank_snapshot(team_rank, year)
+    crawl_kbo_team_rank.save_snapshot(team_rank, year)
 
     print(f"[daily] updating schedule/results for {year}")
     crawl_kbo_schedule.crawl(year)
@@ -60,41 +54,6 @@ def update_fast(year: int) -> None:
         build_hitter_metrics.build(year)
     except FileNotFoundError as exc:
         print(f"[daily] skip hitter metrics: {exc}")
-
-
-def save_team_rank_snapshot(df: pd.DataFrame, year: int) -> None:
-    """오늘자 순위표를 스냅샷으로 저장하고 연간 history CSV에 누적한다.
-
-    history는 (날짜+팀) 기준으로 같은 날 기존 행을 지우고 다시 넣어, 하루에
-    여러 번 돌려도 중복 없이 최신 스냅샷만 남도록 멱등하게 갱신한다.
-    """
-    snapshot_date = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
-    history_path = RAW_DIR / f"kbo_team_rank_history_{year}.csv"
-    snapshot_dir = RAW_DIR / "team_rank_snapshots"
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-
-    snapshot = df.copy()
-    snapshot.insert(1, "Date", snapshot_date)
-    snapshot_path = snapshot_dir / f"kbo_team_rank_{snapshot_date}.csv"
-    # 0행 스냅샷은 KBO 순위 페이지 파싱이 깨진 것 — history 를 오염시키기 전에 멈춘다.
-    csv_guard.save_csv(snapshot, snapshot_path, prefix="[daily]")
-
-    if history_path.exists():
-        history = pd.read_csv(history_path)
-        history = history[
-            ~(
-                (history["Date"].astype(str) == snapshot_date)
-                & (history["팀명"].isin(snapshot["팀명"]))
-            )
-        ]
-        history = pd.concat([history, snapshot], ignore_index=True)
-    else:
-        history = snapshot
-
-    history = history.sort_values(["Date", "순위", "팀명"])
-    csv_guard.save_csv(
-        history, history_path, prefix="[daily]", extra=f"snapshot={snapshot_date}"
-    )
 
 
 def update_players(year: int) -> None:

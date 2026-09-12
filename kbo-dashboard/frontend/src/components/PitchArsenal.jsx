@@ -6,7 +6,8 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { MiniTable, Note, SortHeader } from './MiniTable'
 import { fmtRate, fmtOne, fmtPct, fmtInt } from '../lib/format'
-import { sortRows, nextSort, listFilter } from '../lib/list'
+import { sortRows, nextSort, listFilter, listEmpty } from '../lib/list'
+import { matchesName } from '../lib/players'
 import { teamColor } from '../lib/teamColors'
 
 // 목록 필터의 폴백 하한. 규정충족 플래그가 없는 시즌(2025)에만 기준이 된다.
@@ -34,7 +35,7 @@ const LIST_COLS = [
   { key: 'types', label: '구종' },
 ]
 
-function PitchArsenal({ role, season }) {
+function PitchArsenal({ role, season, search = '' }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -100,10 +101,12 @@ function PitchArsenal({ role, season }) {
   const visible = useMemo(
     () =>
       sortRows(
-        players.filter((p) => (team === 'all' || p.team === team) && (showThin || filter.keep(p))),
+        players.filter((p) => (team === 'all' || p.team === team)
+          && (showThin || filter.keep(p))
+          && matchesName(p.name, search)),
         sort
       ),
-    [players, team, showThin, filter, sort]
+    [players, team, showThin, filter, sort, search]
   )
 
   const selectedId2 = visible.some((p) => p.id === selectedId) ? selectedId : visible[0]?.id ?? null
@@ -177,7 +180,7 @@ function PitchArsenal({ role, season }) {
         <div className="zone-list">
           {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
           {!visible.length ? (
-            <p className="zones-empty">{filter.empty}</p>
+            <p className="zones-empty">{listEmpty(filter, search)}</p>
           ) : (
             <table>
               <SortHeader cols={LIST_COLS} sort={sort} onSort={(key) => setSort((s) => nextSort(s, key))} />

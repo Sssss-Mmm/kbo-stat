@@ -4,11 +4,17 @@ export function playerKey(row) {
   return String(row.PlayerId ?? `${row['팀명']}:${row['선수명']}`)
 }
 
-export function filterPlayers(rows, { team = 'all', query = '', qualified = false }) {
+// 이름 부분 일치. 공백·전각/반각·대소문자를 무시하므로 '김 현수' 로도 '김현수' 가 잡힌다.
+// 빈 검색어는 항상 참 — 호출부가 매번 `!search ||` 를 쓰지 않아도 된다.
+export function matchesName(name, query) {
   const term = normalize(query)
+  return !term || normalize(name).includes(term)
+}
+
+export function filterPlayers(rows, { team = 'all', query = '', qualified = false }) {
   return rows.filter((row) => (team === 'all' || row['팀명'] === team)
     && (!qualified || row['규정충족'] === true)
-    && (!term || normalize(row['선수명']).includes(term)))
+    && matchesName(row['선수명'], query))
 }
 
 export function toggleComparison(selected, id) {

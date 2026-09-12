@@ -24,6 +24,9 @@
   letter-spacing: -0.01em;
 }
 
+/* 선수 검색. 세 탭(존·아스널·볼카운트)이 같은 입력을 공유한다. */
+.zones-search { min-width: 160px; max-width: 100%; }
+
 .zones-layout {
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;

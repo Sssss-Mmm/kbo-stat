@@ -10,11 +10,12 @@ import { MiniTable, Note, SortHeader } from './MiniTable'
 import Beeswarm from './charts/Beeswarm'
 import { fmtRate, fmtPct, fmtInt } from '../lib/format'
 import { teamColor } from '../lib/teamColors'
-import { sortRows, nextSort, listFilter } from '../lib/list'
+import { sortRows, nextSort, listFilter, listEmpty } from '../lib/list'
 import {
   indexRows, matrixRows, bucketTable, paEnough, pitchEnough,
   MIN_PA, MIN_BUCKET_PA, MIN_BUCKET_PITCHES, STRIKES,
 } from '../lib/count'
+import { matchesName } from '../lib/players'
 
 // 매트릭스에서 고를 수 있는 지표. grain 이 분모의 낟알이다 — 표본 하한이 달라진다.
 //   pa    = 이 카운트를 거친 타석의 결과 (도달 시점 이후를 포함한 타석 단위)
@@ -62,7 +63,7 @@ const LIST_COLS = [
   { key: 'firstSwing', label: '초구스윙' },
 ]
 
-function PitchCount({ season }) {
+function PitchCount({ season, search = '' }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -113,12 +114,14 @@ function PitchCount({ season }) {
     () =>
       sortRows(
         players
-          .filter((p) => (team === 'all' || p.team === team) && (showThin || filter.keep(p)))
+          .filter((p) => (team === 'all' || p.team === team)
+            && (showThin || filter.keep(p))
+            && matchesName(p.name, search))
           // 목록에 보이는 값만 정렬할 수 있게 초구 스윙률을 펼쳐 둔다.
           .map((p) => ({ ...p, firstSwing: p.buckets['초구']?.SwingRate ?? null })),
         sort
       ),
-    [players, team, showThin, filter, sort]
+    [players, team, showThin, filter, sort, search]
   )
 
   const selected = visible.find((p) => p.id === selectedId) || visible[0] || null
@@ -243,7 +246,7 @@ function PitchCount({ season }) {
         <div className="zone-list">
           {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
           {!visible.length ? (
-            <p className="zones-empty">{filter.empty}</p>
+            <p className="zones-empty">{listEmpty(filter, search)}</p>
           ) : (
             <table>
               <SortHeader cols={LIST_COLS} sort={sort} onSort={(key) => setSort((s) => nextSort(s, key))} />

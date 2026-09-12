@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import glob
 import math
 import re
 import time
@@ -33,6 +34,12 @@ import csv_guard
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw" / "naver"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
+SCHEDULE_DIR = Path(__file__).parent.parent / "data" / "raw" / "kbo_official"
+
+# --missing 이 한 번에 수집할 최대 일수. 매일 도는 cron 이 밀린 구멍을 발견해도
+# 하루 실행이 몇 시간짜리가 되지 않도록 막는 상한이다(구멍은 여러 날에 걸쳐 메워진다).
+# ponytail: 고정 상한. 백필은 --max-days 로 직접 올려 쓴다.
+MAX_MISSING_DAYS = 10
 
 API_BASE = "https://api-gw.sports.naver.com"
 # 이닝 요청 사이 대기(초). 백필처럼 수만 건을 순차로 때릴 때의 부하를 감안한 값
@@ -443,6 +450,62 @@ def crawl(start: date, end: date | None = None, pause_seconds: float = PAUSE_SEC
     return total
 
 
+def naver_game_id(kbo_game_id: str, season: int) -> str:
+    """KBO GameId -> 네이버 gameId.
+
+    두 사이트가 같은 ID 체계를 쓰고 네이버만 시즌을 뒤에 붙인다
+    (KBO 20260909KTSS0 / Naver 20260909KTSS02026). 2026 시즌 수집분 541경기
+    전량이 이 규칙으로 일치했다 — 그래서 경기 매핑 테이블이 따로 필요 없다.
+    """
+    return f"{kbo_game_id}{season}"
+
+
+def collected_game_ids(season: int) -> set[str]:
+    """이미 저장된 투구 CSV 들에 들어있는 네이버 gameId 집합.
+
+    파일명 연도로 먼저 걸러 다른 시즌 파일은 열지 않는다. 날짜가 없는 이름
+    (구버전 범위형 파일)은 판단이 안 되니 읽는다 — 덜 읽어 재수집하는 쪽보다
+    더 읽고 건너뛰는 쪽이 외부 요청을 아낀다.
+    """
+    ids: set[str] = set()
+    for path in sorted(glob.glob(str(RAW_DIR / "naver_kbo_pitches_*.csv"))):
+        years = set(re.findall(r"(\d{4})-\d{2}-\d{2}", Path(path).stem))
+        if years and str(season) not in years:
+            continue
+        try:
+            ids |= set(pd.read_csv(path, usecols=["GameId"])["GameId"].astype(str))
+        except (ValueError, KeyError, pd.errors.EmptyDataError) as exc:
+            # 컬럼이 없거나 깨진 파일은 "수집 안 된 것"으로 보고 지나간다.
+            print(f"[naver-pitch] skip unreadable {Path(path).name}: {exc}")
+    return ids
+
+
+def missing_dates(season: int) -> list[date]:
+    """투구 데이터가 아직 없는 종료 경기일을 이른 날짜부터 돌려준다.
+
+    KBO 일정 CSV 의 status=='final' 경기가 기준이다. 날짜 단위가 아니라
+    **경기 단위**로 비교하므로, 경기 하나가 진행 중일 때 수집돼 일부만 담긴
+    날짜도 다시 잡힌다(파일 존재 여부만 보면 그런 날은 영원히 안 채워진다).
+
+    이미 있는 경기는 요청하지 않으므로 창을 넓혀도 외부 요청이 늘지 않는다
+    — 고정 2일 창이 만들던 재수집 낭비와 영구 구멍을 동시에 없앤다.
+    """
+    schedule_path = SCHEDULE_DIR / f"kbo_schedule_{season}.csv"
+    if not schedule_path.exists():
+        raise FileNotFoundError(
+            f"일정 CSV 가 없어 누락 날짜를 판정할 수 없다: {schedule_path}"
+        )
+    schedule = pd.read_csv(schedule_path)
+    final = schedule[schedule["status"] == "final"].dropna(subset=["GameId"])
+    have = collected_game_ids(season)
+
+    pending: dict[str, None] = {}
+    for row in final.itertuples():
+        if naver_game_id(str(row.GameId), season) not in have:
+            pending[str(row.Date)] = None
+    return [parse_date(day) for day in sorted(pending)]
+
+
 def parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
@@ -564,7 +627,67 @@ def _selfcheck() -> None:
     summary = build_zone_summary(pd.DataFrame(rows))
     assert summary["Pitches"].sum() == 4, summary
 
+    _selfcheck_missing()
     print("crawl_naver_pitch_zones selfcheck OK")
+
+
+def _selfcheck_missing() -> None:
+    """누락 판정 불변식: 수집된 경기는 다시 요청하지 않고, 덜 받은 날은 다시 잡는다."""
+    import tempfile
+
+    global RAW_DIR, SCHEDULE_DIR
+    raw_orig, sched_orig = RAW_DIR, SCHEDULE_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        RAW_DIR = Path(tmp) / "naver"
+        SCHEDULE_DIR = Path(tmp) / "kbo_official"
+        RAW_DIR.mkdir()
+        SCHEDULE_DIR.mkdir()
+
+        # 2경기짜리 하루 + 2경기짜리 다음날, 전부 종료.
+        pd.DataFrame({
+            "Date": ["2026-04-01", "2026-04-01", "2026-04-02", "2026-04-02"],
+            "GameId": ["20260401KTLG0", "20260401NCHT0", "20260402KTLG0", "20260402NCHT0"],
+            "status": ["final"] * 4,
+        }).to_csv(SCHEDULE_DIR / "kbo_schedule_2026.csv", index=False)
+
+        # 아무것도 안 받은 상태 -> 두 날 다 누락.
+        assert [d.isoformat() for d in missing_dates(2026)] == ["2026-04-01", "2026-04-02"]
+
+        # 4/1 두 경기를 받았다 -> 4/1 은 더 이상 요청하지 않는다.
+        pd.DataFrame({"GameId": ["20260401KTLG02026", "20260401NCHT02026"]}).to_csv(
+            RAW_DIR / "naver_kbo_pitches_2026-04-01.csv", index=False
+        )
+        assert [d.isoformat() for d in missing_dates(2026)] == ["2026-04-02"]
+
+        # 4/2 를 한 경기만 받았다(수집 중 경기가 있던 날) -> 파일이 있어도 다시 잡힌다.
+        pd.DataFrame({"GameId": ["20260402KTLG02026"]}).to_csv(
+            RAW_DIR / "naver_kbo_pitches_2026-04-02.csv", index=False
+        )
+        assert [d.isoformat() for d in missing_dates(2026)] == ["2026-04-02"], (
+            "일부만 수집된 날짜를 건너뛰었다"
+        )
+
+        # 다른 시즌 파일은 열지 않는다(파일명 연도로 걸러짐).
+        pd.DataFrame({"GameId": ["20250402KTLG02025"]}).to_csv(
+            RAW_DIR / "naver_kbo_pitches_2025-04-02.csv", index=False
+        )
+        assert "20250402KTLG02025" not in collected_game_ids(2026)
+
+        # 예정 경기는 누락으로 세지 않는다.
+        pd.DataFrame({
+            "Date": ["2026-04-03"], "GameId": ["20260403KTLG0"], "status": ["scheduled"],
+        }).to_csv(SCHEDULE_DIR / "kbo_schedule_2026.csv", index=False)
+        assert missing_dates(2026) == []
+
+        # 일정 CSV 가 없으면 조용히 0일이 아니라 예외다(구멍을 못 본 채 성공하지 않는다).
+        (SCHEDULE_DIR / "kbo_schedule_2026.csv").unlink()
+        try:
+            missing_dates(2026)
+        except FileNotFoundError:
+            pass
+        else:
+            raise AssertionError("일정 CSV 없이 통과했다")
+    RAW_DIR, SCHEDULE_DIR = raw_orig, sched_orig
 
 
 def main() -> None:
@@ -578,11 +701,42 @@ def main() -> None:
         default=PAUSE_SECONDS,
         help=f"이닝 요청 사이 대기 초 (기본 {PAUSE_SECONDS}). 낮추지 말 것",
     )
+    parser.add_argument(
+        "--missing",
+        action="store_true",
+        help="일정 CSV 의 종료 경기 중 투구 데이터가 없는 날짜만 수집한다",
+    )
+    parser.add_argument(
+        "--season",
+        type=int,
+        default=None,
+        help=f"--missing 이 볼 시즌 (기본: 현재 KST 연도)",
+    )
+    parser.add_argument(
+        "--max-days",
+        type=int,
+        default=MAX_MISSING_DAYS,
+        help=f"--missing 이 한 번에 수집할 최대 일수 (기본 {MAX_MISSING_DAYS})",
+    )
     parser.add_argument("--selfcheck", action="store_true", help="파서 자가검증만 실행")
     args = parser.parse_args()
 
     if args.selfcheck:
         _selfcheck()
+        return
+
+    if args.missing:
+        season = args.season or current_kst_date().year
+        days = missing_dates(season)
+        if not days:
+            print(f"[naver-pitch] {season} 누락 없음 — 요청하지 않는다")
+            return
+        print(f"[naver-pitch] {season} 누락 {len(days)}일: {days[0]}~{days[-1]}")
+        for day in days[: args.max_days]:
+            crawl(day, day, args.pause)
+        left = len(days) - min(len(days), args.max_days)
+        if left:
+            print(f"[naver-pitch] {left}일 남음 — 다음 실행에서 이어서 수집한다")
         return
 
     if args.date:
