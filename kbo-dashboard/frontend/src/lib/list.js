@@ -40,6 +40,7 @@ export function listFilter(players, { min, unit, noun, sample }) {
   return {
     byRule,
     keep: (p) => (byRule ? p.qualified === true : sample(p) >= min),
+    noun,
     label: byRule ? '규정 미달 포함' : `표본 부족 ${noun} 포함(${min}${unit} 미만)`,
     // 필터 결과가 0명이면 빈 표로 침묵하지 않고 무엇을 끄면 되는지 말한다.
     empty: byRule
@@ -47,3 +48,8 @@ export function listFilter(players, { min, unit, noun, sample }) {
       : `${min}${unit} 이상인 ${noun}가 없습니다 — 위 체크박스를 켜면 전체가 보입니다.`,
   }
 }
+
+// 목록이 비었을 때의 안내. 검색 때문에 비었는데 "규정을 충족한 선수가 없습니다"
+// 라고 하면 엉뚱한 토글을 찾게 된다 — 비운 범인을 그대로 말한다.
+export const listEmpty = (filter, search) =>
+  (search ? `'${search}'에 해당하는 ${filter.noun}가 없습니다.` : filter.empty)

@@ -1,6 +1,6 @@
 // 목록 정렬/필터 자체 점검. `node src/lib/list.test.js` 로 실행.
 import assert from 'node:assert/strict'
-import { sortRows, nextSort, listFilter } from './list.js'
+import { sortRows, nextSort, listFilter, listEmpty } from './list.js'
 
 const rows = [
   { name: '가', pitches: 300, rate: 0.31, qualified: true },
@@ -38,3 +38,12 @@ assert.deepEqual(unknown.filter(fallback.keep).map((r) => r.name), ['가', '다'
 assert.match(fallback.label, /표본 부족 선수 포함\(100구 미만\)/)
 
 console.log('list.test.js OK')
+
+// 검색으로 비었으면 검색어를 탓하고, 아니면 기존 필터 안내를 그대로 쓴다.
+{
+  const f = listFilter([{ qualified: null, n: 1 }], { min: 100, unit: '구', noun: '선수', sample: (p) => p.n })
+  assert.equal(listEmpty(f, '김현수'), "'김현수'에 해당하는 선수가 없습니다.")
+  assert.equal(listEmpty(f, ''), f.empty)
+  const b = listFilter([{ qualified: false }], { min: 1, unit: '타석', noun: '타자', sample: () => 0 })
+  assert.equal(listEmpty(b, '오'), "'오'에 해당하는 타자가 없습니다.")
+}

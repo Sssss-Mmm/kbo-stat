@@ -19,7 +19,8 @@ import PitchCount from '../components/PitchCount'
 import SeasonBanner from '../components/SeasonBanner'
 import { SortHeader } from '../components/MiniTable'
 import { ZONE_SEASONS } from '../lib/season'
-import { sortRows, nextSort, listFilter } from '../lib/list'
+import { matchesName } from '../lib/players'
+import { sortRows, nextSort, listFilter, listEmpty } from '../lib/list'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
 import { apiError } from '../lib/apiError'
@@ -48,6 +49,8 @@ function Zones({ seasonInfo }) {
   )
   const [metric, setMetric] = useState('hit') // hit | swing
   const [team, setTeam] = useState('all')
+  // 세 탭이 공유하는 선수 검색어. 탭을 바꿔도 유지된다 — 같은 선수를 세 각도로 본다.
+  const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [showThin, setShowThin] = useState(false) // 필터 해제(표본 부족 / 규정 미달 포함)
   const [sort, setSort] = useState({ key: 'value', dir: 'desc' })
@@ -142,14 +145,20 @@ function Zones({ seasonInfo }) {
 
   const visiblePlayers = useMemo(() => {
     const list = players
-      .filter((agg) => (team === 'all' || agg.team === team) && (showThin || filter.keep(agg)))
+      .filter((agg) => (team === 'all' || agg.team === team)
+        && (showThin || filter.keep(agg))
+        && matchesName(agg.name, search))
       // 목록에 보이는 값만 정렬할 수 있게 대표 지표를 펼쳐 둔다(지표 토글에 따라 바뀐다).
       .map((agg) => ({ ...agg, value: overallMetric(agg) }))
     return sortRows(list, sort)
-  }, [players, team, metric, showThin, filter, sort])
+  }, [players, team, metric, showThin, filter, sort, search])
 
   // 선택이 비었으면 첫 선수 자동 선택.
-  const effectiveSelectedId = selectedId ?? (visiblePlayers[0]?.id ?? null)
+  // 검색·필터로 선택한 선수가 목록에서 빠지면 첫 행으로 옮긴다. 그러지 않으면
+  // 검색을 해도 오른쪽 히트맵이 그대로라 아무 일도 안 일어난 것처럼 보인다.
+  const effectiveSelectedId = visiblePlayers.some((p) => p.id === selectedId)
+    ? selectedId
+    : (visiblePlayers[0]?.id ?? null)
   const selectedCells = rows.filter((row) => row.PlayerId === effectiveSelectedId)
   const selectedAgg = selectedCells[0]
 
@@ -163,6 +172,14 @@ function Zones({ seasonInfo }) {
           <button className={view === 'arsenal' ? 'active' : ''} onClick={() => setView('arsenal')}>구종 아스널</button>
           <button className={view === 'count' ? 'active' : ''} onClick={() => setView('count')}>볼카운트</button>
         </div>
+        <input
+          type="search"
+          className="zones-search"
+          aria-label="선수명 검색"
+          placeholder="선수 이름 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <select value={season} onChange={(e) => setSeason(parseInt(e.target.value))}>
           {ZONE_SEASONS.map((year) => (
             <option key={year} value={year}>{year}시즌</option>
@@ -194,8 +211,8 @@ function Zones({ seasonInfo }) {
         )}
       </div>
 
-      {view === 'arsenal' && <PitchArsenal role={role} season={season} />}
-      {view === 'count' && <PitchCount season={season} />}
+      {view === 'arsenal' && <PitchArsenal role={role} season={season} search={search} />}
+      {view === 'count' && <PitchCount season={season} search={search} />}
 
       {view === 'zone' && loading && <p className="loading">로딩중...</p>}
       {view === 'zone' && error && <p className="error">{error}</p>}
@@ -208,7 +225,7 @@ function Zones({ seasonInfo }) {
             <div className="zone-list">
               {/* 필터로 0명이 되면 빈 표로 침묵하지 않는다. */}
               {!visiblePlayers.length ? (
-                <p className="zones-empty">{filter.empty}</p>
+                <p className="zones-empty">{listEmpty(filter, search)}</p>
               ) : (
                 <table>
                   <SortHeader
