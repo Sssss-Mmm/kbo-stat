@@ -2,6 +2,7 @@
 CSV 데이터를 PostgreSQL 데이터베이스로 마이그레이션하는 스크립트
 """
 import pandas as pd
+import re
 from pathlib import Path
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -14,6 +15,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import SessionLocal, init_db
 from models import Team, Standing, Schedule, Hitter, Pitcher
 from migrate_analytics import migrate_analytics
+
+
+def discover_seasons(*dirs: Path) -> list[int]:
+    """디스크에 있는 시즌을 CSV 파일명에서 찾아낸다.
+
+    시즌 범위를 하드코딩(range(2020, 2027))하면 두 가지가 깨진다.
+      - 과거 시즌을 백필해도 DB 에 안 들어가 화면에서 안 보인다,
+      - 새 시즌이 시작될 때마다 코드를 고쳐야 한다.
+    파일이 진실이므로 파일에서 읽는다. 파일이 없는 시즌은 각 migrator 가
+    조용히 건너뛴다(기존 동작 그대로).
+    """
+    years: set[int] = set()
+    for directory in dirs:
+        if not directory.exists():
+            continue
+        for path in directory.glob("*.csv"):
+            years |= {int(token) for token in re.findall(r"\d{4}", path.stem)}
+    return sorted(year for year in years if 1982 <= year <= 2100)
 
 
 def get_or_create_team(db: Session, cache: dict, team_name: str) -> Team:
@@ -180,7 +199,11 @@ def main():
 
     db = SessionLocal()
     team_cache: dict = {}
-    seasons = range(2020, 2027)
+    seasons = discover_seasons(data_path, processed_path)
+    if not seasons:
+        print("❌ CSV 에서 시즌을 찾지 못했습니다")
+        return
+    print(f"대상 시즌 {len(seasons)}개: {seasons[0]}~{seasons[-1]}")
 
     try:
         # 정규 도메인 (teams/standings/hitters/pitchers)

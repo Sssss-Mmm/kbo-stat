@@ -18,8 +18,6 @@ cd "${ROOT_DIR}"
 
 TODAY="$(TZ=Asia/Seoul date +%F)"
 YEAR="$(TZ=Asia/Seoul date +%Y)"
-YESTERDAY="$(TZ=Asia/Seoul date -d 'yesterday' +%F)"
-TWO_DAYS_AGO="$(TZ=Asia/Seoul date -d '2 days ago' +%F)"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] start daily KBO update season=${YEAR}"
 
@@ -29,7 +27,7 @@ echo "[official] standings/schedule/attendance/game-time/players"
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "DRY_RUN: ${PYTHON_BIN} src/update_daily.py --year ${YEAR} --players"
   echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_player_stats.py --year ${YEAR}"
-  echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_pitch_zones.py --from-date ${TWO_DAYS_AGO} --to-date ${YESTERDAY}"
+  echo "DRY_RUN: ${PYTHON_BIN} src/crawl_naver_pitch_zones.py --missing --season ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_zone_metrics.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_pitch_arsenal.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_count_metrics.py --year ${YEAR}"
@@ -43,10 +41,15 @@ fi
 echo "[naver-players] full-roster season stats (hitters/pitchers)"
 "${PYTHON_BIN}" src/crawl_naver_player_stats.py --year "${YEAR}"
 
-echo "[naver-pitch] refresh ${TWO_DAYS_AGO}..${YESTERDAY}"
-"${PYTHON_BIN}" src/crawl_naver_pitch_zones.py \
-  --from-date "${TWO_DAYS_AGO}" \
-  --to-date "${YESTERDAY}"
+# 고정 날짜 창(이틀 전~어제)을 쓰지 않는다. 그 방식은 양쪽으로 틀렸다:
+#   - 이미 받은 이틀 전을 매일 다시 긁어 하루 60여 요청을 낭비했고,
+#   - PC 가 3일 이상 꺼져 있으면 그 사이 경기는 다음 실행이 쳐다보지도 않아
+#     영구 구멍이 됐다(2026 시즌 실측 15일 누락).
+# --missing 은 일정 CSV 의 종료 경기와 이미 저장된 gameId 를 비교해 안 받은
+# 경기만 요청한다. 있는 건 요청하지 않으니 창을 넓혀도 요청량이 늘지 않는다.
+# 위 update_daily.py 가 일정 CSV 를 먼저 갱신하므로 판정 기준은 항상 최신이다.
+echo "[naver-pitch] collect missing game dates for ${YEAR}"
+"${PYTHON_BIN}" src/crawl_naver_pitch_zones.py --missing --season "${YEAR}"
 
 echo "[zones] rebuild hot/cold zone datasets season=${YEAR}"
 "${PYTHON_BIN}" src/build_zone_metrics.py --year "${YEAR}"
