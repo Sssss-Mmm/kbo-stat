@@ -27,9 +27,9 @@ try:
 except Exception as exc:
     print(f"[startup] database init skipped: {exc}")
 
-# CORS: 콤마로 구분된 CORS_ORIGINS 환경변수로 허용 출처 지정 (기본 "*").
+# CORS: 콤마로 구분된 CORS_ORIGINS 환경변수로 허용 출처 지정 (기본 로컬 프런트).
 # 와일드카드와 credentials 동시 사용은 브라우저가 무시하므로 함께 켜지 않는다.
-cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,

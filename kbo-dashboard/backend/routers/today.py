@@ -4,13 +4,15 @@
 CSV 파이프라인과 맞지 않으므로, 요청 시점에 Naver 를 직접 호출하고 짧게 캐싱한다.
 """
 import time
+from threading import Lock
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from security import limit_expensive_requests, validated_date
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(limit_expensive_requests)])
 
 NAVER_URL = "https://api-gw.sports.naver.com/schedule/games"
 HEADERS = {
@@ -40,6 +42,7 @@ HOME_STADIUM = {
 # 응답 캐시: date -> (timestamp, data). 라이브 데이터라 짧게만 캐싱.
 _cache: dict[str, tuple[float, list]] = {}
 _TTL = 60.0
+_fetch_lock = Lock()
 
 
 def _normalize(g: dict) -> dict:
@@ -77,6 +80,12 @@ def _normalize(g: dict) -> dict:
 
 
 def _fetch(date: str) -> list:
+    with _fetch_lock:
+        return _fetch_locked(date)
+
+
+def _fetch_locked(date: str) -> list:
+    date = validated_date(date)
     now = time.time()
     cached = _cache.get(date)
     if cached and now - cached[0] < _TTL:
@@ -97,16 +106,18 @@ def _fetch(date: str) -> list:
         )
         resp.raise_for_status()
         games = resp.json().get("result", {}).get("games") or []
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail=f"Naver 일정 조회 실패: {exc}")
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Naver 일정 조회 실패") from None
     data = [_normalize(g) for g in games]
     data.sort(key=lambda x: (x["time"], x["gameId"] or ""))
+    if len(_cache) >= 128:
+        _cache.pop(next(iter(_cache)))
     _cache[date] = (now, data)
     return data
 
 
 @router.get("/today-games")
-async def today_games(date: str = None):
+def today_games(date: str = None):
     """특정 날짜(기본: 오늘 KST)의 KBO 경기 카드 정보를 반환한다."""
     date = date or datetime.now(KST).strftime("%Y-%m-%d")
     data = _fetch(date)

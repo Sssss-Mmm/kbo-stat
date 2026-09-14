@@ -10,12 +10,15 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      QA_MODEL: ${QA_MODEL:-gpt-4.1-mini}
+      AI_MAX_CALLS_PER_DAY: ${AI_MAX_CALLS_PER_DAY:-20}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     volumes:
       # 호스트 data/ 를 마운트해 일일 크롤링 결과가 컨테이너에 바로 반영되게 한다.
       # (빌드타임 COPY data 스냅샷을 덮어쓴다.)
-      - ../data:/app/data
+      - ../data:/app/data:ro
     networks:
       - kbo_network
     depends_on:
@@ -47,7 +50,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -65,7 +68,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     networks:
       - kbo_network
     depends_on:
