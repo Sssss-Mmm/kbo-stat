@@ -160,6 +160,17 @@
 .ask-container .pos { color: var(--accent); }
 .ask-container .neg { color: var(--accent-2); }
 
+.ask-conversation-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+.ask-conversation-head button { background: var(--panel-soft); color: var(--text); border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; }
+.ask-history, .ask-evidence-list { display: grid; gap: 8px; }
+.ask-history details, .ask-evidence-list details { background: var(--panel-soft); border: 1px solid var(--line); padding: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.ask-history summary, .ask-evidence-list summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.ask-history p, .ask-evidence-list p { margin-top: 8px; font-size: 13px; }
+.ask-scope { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+.ask-limits { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.7; }
+.ask-limits ul { padding-left: 18px; margin-top: 6px; }
+.ask-followups { margin-top: 16px; }
+
 @media (max-width: 480px) {
   .ask-container { padding: 12px; }
   .ask-header h2 { font-size: 20px; }
