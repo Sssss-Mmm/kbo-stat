@@ -10,14 +10,18 @@ from __future__ import annotations
 
 import os
 import time
+from threading import Lock
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from services.csv_cache import file_versions
+from services.ai_budget import ai_budget
 
 from routers.today import _fetch  # 라이브 경기 카드(네이버 프록시) 재사용
+
+BUDGET_MESSAGE = "오늘의 AI 생성 한도에 도달했습니다. 경기 기록을 확인해 주세요."
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -62,9 +66,14 @@ class StoryService:
         # story 캐시: cache_key -> (저장시각, story dict). 종료 경기는 TTL 무한.
         self._story_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._preview_ttl = 600.0  # 프리뷰/진행중 경기는 10분만 캐싱
+        self._lock = Lock()
 
     # ── 공개 API ──────────────────────────────────────────────────────────
     def stories_for_date(self, date: str, season: int) -> dict[str, Any]:
+        with self._lock:
+            return self._stories_for_date(date, season)
+
+    def _stories_for_date(self, date: str, season: int) -> dict[str, Any]:
         games = _fetch(date)  # today.py 가 60초 캐싱 + 네이버 호출 처리
         csv = self._load_csv(season)
         stories = [self._story_for_game(g, csv) for g in games]
@@ -99,6 +108,10 @@ class StoryService:
             "winProb": None if kind == "review" else win_prob(context, self._league_era(csv)),
             "cached": False,
         }
+        if story["story"] == BUDGET_MESSAGE:
+            return story  # 한도가 풀리면 다시 생성해야 하므로 캐싱하지 않는다.
+        if len(self._story_cache) >= 2048:
+            self._story_cache.pop(next(iter(self._story_cache)))
         self._story_cache[key] = (time.time(), story)
         return story
 
@@ -201,9 +214,12 @@ class StoryService:
         if not os.getenv("OPENAI_API_KEY"):
             return self._mock(context, kind)
 
+        if not ai_budget.take():
+            return BUDGET_MESSAGE
+
         from openai import OpenAI  # 키가 있을 때만 import (의존성 선택적)
 
-        client = OpenAI()
+        client = OpenAI(timeout=20.0, max_retries=0)
         user_prompt = self._render_prompt(context, kind)
         resp = client.chat.completions.create(
             model=MODEL,
@@ -268,9 +284,11 @@ class StoryService:
         if season in self._csv_cache and self._csv_versions.get(season) == version:
             return self._csv_cache[season]
         data = {name: self._read(path) for name, path in paths.items()}
+        changed = season in self._csv_versions
         self._csv_cache[season] = data
         self._csv_versions[season] = version
-        self._story_cache.clear()
+        if changed:
+            self._story_cache.clear()
         return data
 
     @staticmethod
