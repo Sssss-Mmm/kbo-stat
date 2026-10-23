@@ -83,8 +83,8 @@ def migrate_standings(db: Session, data_path: Path, season: int, team_cache: dic
         )
         db.add(standing)
     
-    db.commit()
-    print(f"✅ {season}년 순위표 마이그레이션 완료")
+    db.flush()
+    print(f"… {season}년 순위표 flush (최종 commit 대기)")
 
 
 def migrate_hitters(db: Session, data_path: Path, season: int, team_cache: dict):
@@ -131,8 +131,8 @@ def migrate_hitters(db: Session, data_path: Path, season: int, team_cache: dict)
         )
         db.add(hitter)
     
-    db.commit()
-    print(f"✅ {season}년 타자 통계 마이그레이션 완료")
+    db.flush()
+    print(f"… {season}년 타자 통계 flush (최종 commit 대기)")
 
 
 def migrate_pitchers(db: Session, data_path: Path, season: int, team_cache: dict):
@@ -174,8 +174,8 @@ def migrate_pitchers(db: Session, data_path: Path, season: int, team_cache: dict
         )
         db.add(pitcher)
     
-    db.commit()
-    print(f"✅ {season}년 투수 통계 마이그레이션 완료")
+    db.flush()
+    print(f"… {season}년 투수 통계 flush (최종 commit 대기)")
 
 
 def main():
@@ -214,6 +214,7 @@ def main():
 
         # 분석 도메인 (history/games/monthly/metrics/attendance/game_time)
         migrate_analytics(db, data_path, processed_path, seasons)
+        db.commit()  # 전 테이블·전 시즌을 한 트랜잭션으로 확정
 
         print("\n" + "=" * 50)
         print("✅ 모든 마이그레이션 완료!")

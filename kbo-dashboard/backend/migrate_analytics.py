@@ -56,7 +56,7 @@ def _load(db: Session, model, rows, *, season=None):
     query.delete(synchronize_session=False)
     if rows:
         db.bulk_save_objects([model(**row) for row in rows])
-    db.commit()
+    db.flush()
 
 
 def migrate_team_rank_history(db: Session, raw_dir: Path, season: int):
@@ -84,7 +84,7 @@ def migrate_team_rank_history(db: Session, raw_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, TeamRankHistory, rows, season=season)
-    print(f"✅ {season}년 순위 히스토리 {len(rows)}행")
+    print(f"… {season}년 순위 히스토리 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_team_games(db: Session, processed_dir: Path, season: int):
@@ -113,7 +113,7 @@ def migrate_team_games(db: Session, processed_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, TeamGame, rows, season=season)
-    print(f"✅ {season}년 팀 경기결과 {len(rows)}행")
+    print(f"… {season}년 팀 경기결과 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_team_monthly(db: Session, processed_dir: Path, season: int):
@@ -138,7 +138,7 @@ def migrate_team_monthly(db: Session, processed_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, TeamMonthly, rows, season=season)
-    print(f"✅ {season}년 팀 월간집계 {len(rows)}행")
+    print(f"… {season}년 팀 월간집계 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_hitter_metrics(db: Session, processed_dir: Path, season: int):
@@ -165,7 +165,7 @@ def migrate_hitter_metrics(db: Session, processed_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, HitterMetric, rows, season=season)
-    print(f"✅ {season}년 타자 지표 {len(rows)}행")
+    print(f"… {season}년 타자 지표 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_attendance(db: Session, raw_dir: Path, season: int):
@@ -187,7 +187,7 @@ def migrate_attendance(db: Session, raw_dir: Path, season: int):
         )
     if rows:
         _load(db, Attendance, rows, season=season)
-        print(f"✅ {season}년 관중 {len(rows)}행")
+        print(f"… {season}년 관중 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_game_time_team(db: Session, raw_dir: Path, season: int):
@@ -207,7 +207,7 @@ def migrate_game_time_team(db: Session, raw_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, GameTimeTeam, rows, season=season)
-    print(f"✅ {season}년 팀 경기시간 {len(rows)}행")
+    print(f"… {season}년 팀 경기시간 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_game_time_yearly(db: Session, raw_dir: Path):
@@ -226,7 +226,7 @@ def migrate_game_time_yearly(db: Session, raw_dir: Path):
         for _, r in df.iterrows()
     ]
     _load(db, GameTimeYearly, rows)  # season=None -> 전체 교체
-    print(f"✅ 연도별 경기시간 {len(rows)}행")
+    print(f"… 연도별 경기시간 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_schedule(db: Session, raw_dir: Path, season: int):
@@ -251,7 +251,7 @@ def migrate_schedule(db: Session, raw_dir: Path, season: int):
         for _, r in df.iterrows()
     ]
     _load(db, ScheduleGame, rows, season=season)
-    print(f"✅ {season}년 일정 {len(rows)}행")
+    print(f"… {season}년 일정 {len(rows)}행 flush (최종 commit 대기)")
 
 
 def migrate_analytics(db: Session, raw_dir: Path, processed_dir: Path, seasons) -> None:
