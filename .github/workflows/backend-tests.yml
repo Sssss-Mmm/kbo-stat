@@ -20,6 +20,8 @@ jobs:
         working-directory: kbo-dashboard/backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -29,4 +31,17 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python -m unittest discover -s tests -v
+      # unittest discover 는 테스트를 0개 찾아도 성공으로 끝날 수 있어 개수를 직접 확인한다.
+      - name: 테스트 실행
+        run: |
+          python - <<'EOF'
+          import sys, unittest
+
+          suite = unittest.TestLoader().discover("tests")
+          count = suite.countTestCases()
+          if count == 0:
+              sys.exit("tests/ 에서 테스트를 하나도 찾지 못했다.")
+          print(f"{count}개 테스트 발견", flush=True)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() else 1)
+          EOF
