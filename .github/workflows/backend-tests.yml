@@ -1,0 +1,47 @@
+# main 대상 PR 과 main push 에서 백엔드 회귀 테스트를 돌린다.
+# 테스트는 DB·OpenAI·네이버를 모두 mock 하므로 Secrets 나 PostgreSQL 이 필요 없다.
+name: 백엔드 테스트
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: kbo-dashboard/backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: kbo-dashboard/backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # unittest discover 는 테스트를 0개 찾아도 성공으로 끝날 수 있어 개수를 직접 확인한다.
+      - name: 테스트 실행
+        run: |
+          python - <<'EOF'
+          import sys, unittest
+
+          suite = unittest.TestLoader().discover("tests")
+          count = suite.countTestCases()
+          if count == 0:
+              sys.exit("tests/ 에서 테스트를 하나도 찾지 못했다.")
+          print(f"{count}개 테스트 발견", flush=True)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() else 1)
+          EOF
