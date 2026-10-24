@@ -17,6 +17,7 @@ import { apiError } from '../lib/apiError'
 import { useRoute } from '../lib/useRoute'
 import { updateQuery } from '../lib/navigation'
 import { fetchSeasons, intParam } from '../lib/v2'
+import { PLAYER_MEAN_BABIP_NOTE, qualifiedSimpleMean } from '../lib/p2d'
 import { useV2 } from '../components/V2Bits'
 
 const TEAM_COUNT = 10
@@ -181,7 +182,7 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
       obp: mean(h.map((x) => x.OBP).filter(Number.isFinite)),
       slg: mean(h.map((x) => x.SLG).filter(Number.isFinite)),
       ops: mean(h.map((x) => x.OPS).filter(Number.isFinite)),
-      babip: mean(h.map((x) => x.BABIP).filter(Number.isFinite)),
+      babip: qualifiedSimpleMean(d.hitters, 'BABIP'),  // 선수 BABIP 단순 평균(같은 계산 — 이름만 정확히)
       era: mean(p.map((x) => x.ERA).filter(Number.isFinite)),
       whip: mean(p.map((x) => x.WHIP).filter(Number.isFinite)),
       kPct: pa ? sum(d.hitters, (x) => x.SO) / pa : NaN,
@@ -388,7 +389,8 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
           <section className="panel-grid-4">
             <article className="panel">
               <div className="panel-head"><h3>리그 타격 평균</h3></div>
-              <StatRows rows={[['AVG', fmtRate(league.avg)], ['OBP', fmtRate(league.obp)], ['SLG', fmtRate(league.slg)], ['OPS', fmtRate(league.ops)], ['BABIP', fmtRate(league.babip)]]} />
+              <StatRows rows={[['AVG', fmtRate(league.avg)], ['OBP', fmtRate(league.obp)], ['SLG', fmtRate(league.slg)], ['OPS', fmtRate(league.ops)], ['선수 BABIP 단순 평균', fmtRate(league.babip)]]} />
+              <p className="approx-note">{PLAYER_MEAN_BABIP_NOTE}</p>
             </article>
             <article className="panel">
               <div className="panel-head"><h3>리그 투구 평균</h3></div>

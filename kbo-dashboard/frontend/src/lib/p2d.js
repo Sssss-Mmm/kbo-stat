@@ -205,3 +205,13 @@ export function advancedPercentile(rows, key, m, better) {
   const pool = advancedPool(rows, key, m.status)
   return pool.length < MIN_ADVANCED_POOL ? null : percentile(pool, m.value, better)
 }
+
+// ---------------------------------------------------------------- 홈 '선수 BABIP 단순 평균'(P3-A 4단계)
+
+/** 홈 리그 카드의 BABIP: 규정 충족(`규정충족` true) 타자의 출처(네이버) BABIP 를 선수 수로 나눈 **단순 평균**.
+ *  타석 가중이 아니고, 값이 숫자가 아닌 선수는 뺀다. 리그 전체 BABIP(분자 합/분모 합)가 아니다. 대상이 없으면 NaN. */
+export function qualifiedSimpleMean(rows, key) {
+  const vals = (rows || []).filter((r) => r['규정충족'] === true).map((r) => r[key]).filter(Number.isFinite)
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN
+}
+export const PLAYER_MEAN_BABIP_NOTE = '선수 BABIP 단순 평균: 규정 타석을 채운 타자의 네이버 BABIP 값을 선수 수로 나눈 평균입니다(타석 수 가중 아님, 값이 없는 선수 제외). 리그 전체 BABIP가 아닙니다.'

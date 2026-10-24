@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {
   betterSide, commonSeasons, gameLine, leaguePool, percentile, playerLabel, recordPct, recordText, seasonLine, seasonSpan,
   toNumber, verificationSummary, latestCollected, fmtAdvanced, comparableAdvanced, advancedPool, advancedPercentile,
-  advancedOf, COMPARE_METRICS, MIN_ADVANCED_POOL,
+  advancedOf, COMPARE_METRICS, MIN_ADVANCED_POOL, qualifiedSimpleMean,
 } from './p2d.js'
 
 // 숫자: 이닝 '180 2/3' 은 1/3 단위, 없는 값은 null(0 이 아님)
@@ -101,5 +101,13 @@ assert.equal(advancedOf({ stats: {} }, 'iso'), undefined)
 const iso = COMPARE_METRICS.batter.find((m) => m.label === 'ISO')
 assert.equal(iso.adv, 'iso')
 assert.deepEqual(COMPARE_METRICS.batter.filter((m) => m.adv).map((m) => m.adv), ['iso', 'babip', 'babip_source', 'bb_pct', 'k_pct'])
+
+// 홈 '선수 BABIP 단순 평균': 규정 충족만, 결측 제외, 선수별 값의 평균(가중 아님)
+const hitters = [{ 규정충족: true, BABIP: 0.3 }, { 규정충족: true, BABIP: 0.4 }, { 규정충족: false, BABIP: 0.9 },
+  { 규정충족: true, BABIP: null }, { 규정충족: true }]
+assert.ok(Math.abs(qualifiedSimpleMean(hitters, 'BABIP') - 0.35) < 1e-12)
+assert.ok(Number.isNaN(qualifiedSimpleMean([{ 규정충족: false, BABIP: 0.3 }], 'BABIP')))
+assert.ok(Number.isNaN(qualifiedSimpleMean([], 'BABIP')))
+assert.ok(Math.abs(qualifiedSimpleMean([{ 규정충족: true, BABIP: 0.2, PA: 600 }, { 규정충족: true, BABIP: 0.4, PA: 10 }], 'BABIP') - 0.3) < 1e-12)  // 타석 가중이 아님
 
 console.log('p2d ok')
