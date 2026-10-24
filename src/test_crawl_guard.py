@@ -18,7 +18,7 @@ import csv_guard
 import crawl_kbo_hitter
 import crawl_kbo_pitcher
 
-GOOD = pd.DataFrame({"선수명": ["김도영", "노시환"], "팀명": ["KIA", "한화"], "AVG": [0.347, 0.301]})
+GOOD = pd.DataFrame({"선수명": ["타자A", "타자B"], "팀명": ["KIA", "한화"], "AVG": [0.347, 0.301]})
 
 
 def _setup(mod, tmp, filename, fetch):
@@ -67,7 +67,7 @@ def check_fetch_error_is_loud(mod, filename):
 
 def check_good_data_still_saves(mod, filename):
     """정상 데이터는 그대로 저장된다(가드가 과하게 막지 않는다)."""
-    fresh = pd.concat([GOOD, GOOD.assign(선수명=["박민우", "손아섭"])], ignore_index=True)
+    fresh = pd.concat([GOOD, GOOD.assign(선수명=["타자C", "타자D"])], ignore_index=True)
     with tempfile.TemporaryDirectory() as d:
         path, restore = _setup(mod, Path(d), filename, lambda s, y: fresh)
         try:

@@ -188,7 +188,7 @@ python3 src/csv_guard.py        # 자체 점검 (0행 거부 · V-01~08 위반 �
 `scripts/update_kbo_daily.sh`를 cron에 등록해 매일 **02:00 KST**에 자동 갱신합니다.
 
 ```cron
-0 2 * * * cd /home/sssssmmm/kbo-stat && PYTHON_BIN=/usr/bin/python3 scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
+0 2 * * * cd $HOME/kbo-stat && PYTHON_BIN=/usr/bin/python3 scripts/update_kbo_daily.sh >> logs/update_kbo_daily.log 2>&1
 ```
 
 스크립트가 하는 일: 공식 순위·일정·관중·경기시간·선수 → 네이버 시즌 기록 → 네이버 투구 데이터(직전 2일) →
