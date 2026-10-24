@@ -64,19 +64,23 @@ def _naver_paths(season: int) -> list[Path]:
 FIELDERS = ("내야수", "외야수", "포수")
 
 
+BATTING_COUNTS = ("AB", "H", "2B", "3B", "HR", "RBI", "R", "SB", "BB", "HBP", "SO")
+
+
 def _is_pitcher_batting(line: dict, pitching_games: int | None) -> bool:
     """투구 기록도 있는 선수의 타자 줄이 '투수의 타석'인가. 야수 포지션이면 아니다, '투수'면 맞다.
-    포지션이 비었거나 다른 값이면(2007–2023 은 대부분 빈칸) **타석 기록이 전혀 없고(AB·BB·HBP 모두 0) 타격 경기 ≤ 투구 경기**일
-    때만 투수의 타석으로 본다 — 실제 타석 기록이 있는 애매한 줄은 지우지 않는다(추정으로 기록을 없애지 않음).
-    (2007–2026: 빈칸·기타 중 타격 경기 ≤ 투구 경기 759행 — AB 0 이고 BB·HBP 도 0 인 713행만 제외, AB 1–3 의 46행은 남김.
-    타격 경기 > 투구 경기인 10행은 투수로 1–3경기 나온 야수·AB 17–540.)"""
+    포지션이 비었거나 다른 값이면(2007–2023 은 대부분 빈칸) **명확히 빈 타격 줄(모든 개수 0, 결측 없음)이고 타격 경기 ≤ 투구 경기**일
+    때만 투수의 타석으로 본다 — 기록이 하나라도 있거나(타석·득점·타점 — 희생타·대주자 포함) 값이 비어 판정할 수 없으면 지우지 않는다.
+    (2007–2026: 빈칸·기타 중 타격 경기 ≤ 투구 경기 759행 — 모든 개수 0 인 707행만 제외. AB 1–3 의 46행, AB 0 이지만 득점·타점이 있는
+    6행은 남김. 타격 경기 > 투구 경기인 10행은 투수로 1–3경기 나온 야수·AB 17–540.)"""
     if line["position"] in FIELDERS:
         return False
     if line["position"] == "투수":
         return True
     stats = line["stats"]
-    empty = not any((stats.get(k) or 0) for k in ("AB", "BB", "HBP"))
-    return empty and (stats["G"] or 0) <= (pitching_games or 0)
+    if any(stats.get(k) is None or stats[k] != 0 for k in BATTING_COUNTS):
+        return False
+    return stats["G"] is not None and pitching_games is not None and stats["G"] <= pitching_games
 
 
 @lru_cache(maxsize=64)

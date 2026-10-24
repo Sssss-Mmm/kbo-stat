@@ -18,7 +18,9 @@ PIT = "Season,PlayerId,선수명,팀명,포지션,등번호,G,W,L,SV,HLD,IP,ERA,
 REG = "RosterDate,TeamCode,Team,BackNo,PlayerId,PlayerName,Position,PitchBat,BirthDate,HeightCm,WeightKg,Body,DetailUrl,RecordType\n"
 
 
-def hitter(pid, name, team, pos, war, ab=100, g=40, bb=8, hbp=1):
+def hitter(pid, name, team, pos, war, ab=100, g=40, bb=8, hbp=1, empty=False):
+    if empty:  # 모든 개수 0 — 명확히 빈 타격 줄
+        return f"2025,{pid},{name},{team},{pos},7,{g},0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{war},False\n"
     return f"2025,{pid},{name},{team},{pos},7,{g},0.3,{ab},30,5,0,3,10,9,1,{bb},{hbp},20,0.36,0.45,0.81,0.15,0.33,0.35,120.0,0.5,{war},True\n"
 
 
@@ -34,9 +36,9 @@ class ServiceTest(unittest.TestCase):
         raw.mkdir(parents=True)
         (tmp / "processed" / "kbo_naver_hitters_2025.csv").write_text(
             HIT + hitter(1, "김민수", "LG", "내야수", "2.5") + hitter(2, "김민수", "두산", "외야수", "")  # WAR 미확정
-            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", ab=0, g=3, bb=0, hbp=0)
+            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", g=3, empty=True)
             + hitter(8, "야수등판", "LG", "", "2.0", ab=300, g=120)  # 포지션 빈칸 야수가 1경기 등판
-            + hitter(9, "코치투수", "LG", "2군 투수코치", "0.0", ab=0, g=2, bb=0, hbp=0), encoding="utf-8-sig")
+            + hitter(9, "코치투수", "LG", "2군 투수코치", "0.0", g=2, empty=True), encoding="utf-8-sig")
         (tmp / "processed" / "kbo_naver_pitchers_2025.csv").write_text(
             PIT + pitcher(4, "박투수", "LG", "1.2") + pitcher(5, "최투수", "LG", "3.3", era="")
             + pitcher(8, "야수등판", "LG", "0.0", g=1, pos="") + pitcher(9, "코치투수", "LG", "0.5", g=30, pos="2군 투수코치"),
@@ -70,12 +72,20 @@ class ServiceTest(unittest.TestCase):
 
     def test_ambiguous_line_with_real_plate_appearances_is_kept(self):
         # Codex 재현: 포지션 빈칸·타격 1경기·4타수·투구 2경기 — 경기 수만으로는 투수로 단정하지 않는다(실제 타석 기록은 남긴다)
-        line = {"position": None, "stats": {"G": 1, "AB": 4, "BB": 0, "HBP": 0}}
-        self.assertFalse(tp._is_pitcher_batting(line, 2))
-        self.assertFalse(tp._is_pitcher_batting({"position": "", "stats": {"G": 1, "AB": 0, "BB": 1, "HBP": 0}}, 5))
-        self.assertTrue(tp._is_pitcher_batting({"position": None, "stats": {"G": 2, "AB": 0, "BB": 0, "HBP": 0}}, 30))
-        self.assertTrue(tp._is_pitcher_batting({"position": "투수", "stats": {"G": 2, "AB": 3, "BB": 0, "HBP": 0}}, 30))
-        self.assertFalse(tp._is_pitcher_batting({"position": "내야수", "stats": {"G": 1, "AB": 0, "BB": 0, "HBP": 0}}, 30))
+        empty = dict.fromkeys(tp.BATTING_COUNTS, 0)
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 1, "AB": 4}}, 2))
+        self.assertFalse(tp._is_pitcher_batting({"position": "", "stats": {**empty, "G": 1, "BB": 1}}, 5))
+        empty = dict.fromkeys(tp.BATTING_COUNTS, 0)
+        self.assertTrue(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 2}}, 30))
+        self.assertTrue(tp._is_pitcher_batting({"position": "투수", "stats": {**empty, "G": 2, "AB": 3}}, 30))
+        self.assertFalse(tp._is_pitcher_batting({"position": "내야수", "stats": {**empty, "G": 1}}, 30))
+        # AB·BB·HBP 0 이어도 타점(희생플라이·스퀴즈)·득점(대주자)이 있으면 실제 기록 — 남긴다
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 1, "RBI": 1}}, 30))
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 1, "R": 1}}, 30))
+        # 값이 비어 판정할 수 없으면 지우지 않는다
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 1, "SO": None}}, 30))
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": None}}, 30))
+        self.assertFalse(tp._is_pitcher_batting({"position": None, "stats": {**empty, "G": 1}}, None))
 
     def test_pitcher_batting_line_is_dropped(self):
         roles = [s["role"] for s in tp.search("박투수", None, None, None)["data"][0]["seasons"]]
@@ -135,7 +145,7 @@ class PitcherBattingBoundaryTest(unittest.TestCase):
         (tmp / "processed").mkdir()
         (tmp / "raw" / "kbo_official").mkdir(parents=True)
         (tmp / "processed" / "kbo_naver_hitters_2025.csv").write_text(
-            HIT + hitter(10, "동명선수", "LG", "", "0.0", ab=0, g=2, bb=0, hbp=0) + hitter(11, "동명선수", "두산", "", "1.5", ab=300, g=100),
+            HIT + hitter(10, "동명선수", "LG", "", "0.0", g=2, empty=True) + hitter(11, "동명선수", "두산", "", "1.5", ab=300, g=100),
             encoding="utf-8-sig")
         (tmp / "processed" / "kbo_naver_pitchers_2025.csv").write_text(
             PIT + pitcher(10, "동명선수", "LG", "1.0", g=30, pos="") + pitcher(11, "동명선수", "두산", "0.0", g=1, pos=""),
