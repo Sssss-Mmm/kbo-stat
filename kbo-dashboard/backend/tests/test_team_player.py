@@ -18,12 +18,12 @@ PIT = "Season,PlayerId,선수명,팀명,포지션,등번호,G,W,L,SV,HLD,IP,ERA,
 REG = "RosterDate,TeamCode,Team,BackNo,PlayerId,PlayerName,Position,PitchBat,BirthDate,HeightCm,WeightKg,Body,DetailUrl,RecordType\n"
 
 
-def hitter(pid, name, team, pos, war, ab=100):
-    return f"2025,{pid},{name},{team},{pos},7,40,0.3,{ab},30,5,0,3,10,9,1,8,1,20,0.36,0.45,0.81,0.15,0.33,0.35,120.0,0.5,{war},True\n"
+def hitter(pid, name, team, pos, war, ab=100, g=40):
+    return f"2025,{pid},{name},{team},{pos},7,{g},0.3,{ab},30,5,0,3,10,9,1,8,1,20,0.36,0.45,0.81,0.15,0.33,0.35,120.0,0.5,{war},True\n"
 
 
-def pitcher(pid, name, team, war, era="3.5"):
-    return f"2025,{pid},{name},{team},투수,40,20,5,4,0,0,60 1/3,{era},50,55,4,25,23,18,2,1.21,3,7.5,2.7,2.78,0.3,{war},False\n"
+def pitcher(pid, name, team, war, era="3.5", g=20, pos="투수"):
+    return f"2025,{pid},{name},{team},{pos},40,{g},5,4,0,0,60 1/3,{era},50,55,4,25,23,18,2,1.21,3,7.5,2.7,2.78,0.3,{war},False\n"
 
 
 class ServiceTest(unittest.TestCase):
@@ -34,9 +34,13 @@ class ServiceTest(unittest.TestCase):
         raw.mkdir(parents=True)
         (tmp / "processed" / "kbo_naver_hitters_2025.csv").write_text(
             HIT + hitter(1, "김민수", "LG", "내야수", "2.5") + hitter(2, "김민수", "두산", "외야수", "")  # WAR 미확정
-            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", ab=0), encoding="utf-8-sig")
+            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", ab=0, g=3)
+            + hitter(8, "야수등판", "LG", "", "2.0", ab=300, g=120)  # 포지션 빈칸 야수가 1경기 등판
+            + hitter(9, "코치투수", "LG", "2군 투수코치", "0.0", ab=0, g=2), encoding="utf-8-sig")
         (tmp / "processed" / "kbo_naver_pitchers_2025.csv").write_text(
-            PIT + pitcher(4, "박투수", "LG", "1.2") + pitcher(5, "최투수", "LG", "3.3", era=""), encoding="utf-8-sig")
+            PIT + pitcher(4, "박투수", "LG", "1.2") + pitcher(5, "최투수", "LG", "3.3", era="")
+            + pitcher(8, "야수등판", "LG", "0.0", g=1, pos="") + pitcher(9, "코치투수", "LG", "0.5", g=30, pos="2군 투수코치"),
+            encoding="utf-8-sig")
         (raw / "kbo_registered_players_2026-06-11.csv").write_text(
             REG + "2026-06-11,LG,LG,7,1,김민수,내야수,우투우타,1999-01-01,180,80,,u,hitter\n", encoding="utf-8-sig")
         self.enterContext(patch.object(tp, "PROCESSED_DIR", tmp / "processed"))
@@ -52,9 +56,17 @@ class ServiceTest(unittest.TestCase):
 
     def test_search_ignores_spaces_and_filters(self):
         self.assertEqual([p["player_id"] for p in tp.search("홍길동", None, None, None)["data"]], [3])
-        self.assertEqual({p["player_id"] for p in tp.search(None, "LG", 2025, None)["data"]}, {1, 3, 4, 5})
-        self.assertEqual({p["player_id"] for p in tp.search(None, "LG", None, "pitcher")["data"]}, {4, 5})
+        self.assertEqual({p["player_id"] for p in tp.search(None, "LG", 2025, None)["data"]}, {1, 3, 4, 5, 8, 9})
+        self.assertEqual({p["player_id"] for p in tp.search(None, "LG", None, "pitcher")["data"]}, {4, 5, 8, 9})
         self.assertEqual(tp.search("김민수", None, 2024, None)["data"], [])
+
+    def test_position_player_who_pitched_keeps_batting_line(self):
+        # 포지션 빈칸이어도 타격 경기 > 투구 경기면 야수 — 타격 기록을 지우지 않는다(규정 타석 타자가 빠진 실제 사례가 있었다)
+        roles = sorted(s["role"] for s in tp.search("야수등판", None, None, None)["data"][0]["seasons"])
+        self.assertEqual(roles, ["batter", "pitcher"])
+        # 야수가 아닌 다른 포지션 값(코치 등)은 경기 수로 — 타격 2 ≤ 투구 30 이면 투수의 타석
+        roles = [s["role"] for s in tp.search("코치투수", None, None, None)["data"][0]["seasons"]]
+        self.assertEqual(roles, ["pitcher"])
 
     def test_pitcher_batting_line_is_dropped(self):
         roles = [s["role"] for s in tp.search("박투수", None, None, None)["data"][0]["seasons"]]
@@ -80,8 +92,8 @@ class ServiceTest(unittest.TestCase):
                               ("2025-03-22", None, "W", "away")])
             p = d["players"]
             self.assertEqual(p["basis"], "naver_season_stats")
-            self.assertEqual([x["player_id"] for x in p["key_batters"]], [3, 1])  # WAR 순, 투수 타석 줄 없음
-            self.assertEqual([x["player_id"] for x in p["key_pitchers"]], [5, 4])
+            self.assertEqual([x["player_id"] for x in p["key_batters"]], [3, 1, 8])  # WAR 순, 투수 타석 줄 없음
+            self.assertEqual([x["player_id"] for x in p["key_pitchers"]], [5, 4, 9])
             # 원본이 같은 시각 더블헤더를 2차전부터 적어도 1차전 → 2차전 순서로 본다
             conn.execute(text("UPDATE official.schedule_game SET row_no = 10 - row_no, game_time = '14:00' "
                               "WHERE game_date = '2025-03-26'"))

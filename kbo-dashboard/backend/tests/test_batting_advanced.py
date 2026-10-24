@@ -34,6 +34,9 @@ class FormulaTest(unittest.TestCase):
         m = ba.iso(row(), PROV)
         self.assertEqual((m["status"], m["display"]), (ba.CALCULATED, 0.19))   # (5 + 2·1 + 3·4) / 100
         self.assertEqual(m["provenance"], PROV)
+        self.assertEqual(m["fraction"], {"numerator": 19, "denominator": 100, "scale": 1})
+        import json
+        json.dumps(m)  # Fraction 이 섞이지 않는다
 
     def test_babip_needs_sf_and_keeps_precision(self):
         m = ba.babip(row(AB=7, H=3, HR=0, SO=1, SF=0, **{"2B": 0, "3B": 0}), PROV)  # 3 / 6

@@ -68,19 +68,23 @@ def _ints(c: dict, keys) -> dict:
     return {k: _count(c.get(k)) for k in keys}
 
 
-def metric(name: str, value: Fraction | None, status: str, provenance: dict, reason: str | None = None) -> dict:
-    """지표 하나. value = 정밀값(float), display = 표시용 반올림값(% 지표는 ×100)."""
+def metric(name: str, value: Fraction | None, status: str, provenance: dict, reason: str | None = None,
+           fraction: tuple[int, int] | None = None) -> dict:
+    """지표 하나(JSON 직렬화 가능). value = 정밀값(float), display = 표시용 반올림값(% 지표는 ×100),
+    fraction = 직접 계산일 때 정확한 분자·분모(value = 분자/분모 × 배율). Fraction 객체는 내보내지 않는다."""
     spec = METRICS[name]
     scaled = None if value is None else value * spec["scale"]
     return {"metric": name, "value": None if scaled is None else float(scaled),
             "display": round_half_up(scaled, spec["digits"]), "status": status, "reason": reason,
+            "fraction": None if fraction is None else {"numerator": fraction[0], "denominator": fraction[1],
+                                                         "scale": spec["scale"]},
             "provenance": provenance}
 
 
 def _ratio(name: str, num: int, den: int, provenance: dict) -> dict:
     if den == 0:
-        return metric(name, None, ZERO_DENOMINATOR, provenance, "분모 0")
-    return metric(name, Fraction(num, den), CALCULATED, provenance)
+        return metric(name, None, ZERO_DENOMINATOR, provenance, "분모 0", fraction=(num, den))
+    return metric(name, Fraction(num, den), CALCULATED, provenance, fraction=(num, den))
 
 
 def iso(c: dict, provenance: dict) -> dict:
