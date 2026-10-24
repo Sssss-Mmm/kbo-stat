@@ -1,8 +1,11 @@
 """/api/v2 PostgreSQL 실데이터 통합 테스트 (읽기 전용). V2_PG_TESTS=1 일 때만 돈다.
 
-실행(백엔드 이미지·compose 환경변수로):
-  docker compose -f kbo-dashboard/docker-compose.yml run --rm --no-deps -T -e V2_PG_TESTS=1 \
-    -v "$PWD/kbo-dashboard/backend:/app/kbo-dashboard/backend" -v "$PWD/src:/app/src:ro" backend \
+대상은 TEST_DATABASE_URL 로만 명시한다 — PostgreSQL 이고 DB 이름이 `_test` 로 끝나야 한다(운영 백업을 복원한 격리 DB 등).
+운영·개발용 DATABASE_URL·.env 는 테스트에서 쓰지 않는다(database/__init__.py). 조건이 안 맞으면 접속하지 않고 실패한다.
+
+실행 예(격리 네트워크의 테스트 전용 DB):
+  docker run --rm --network <격리 네트워크> -v "$PWD/src:/app/src:ro" -v <data>:/data:ro -e KBO_DATA_DIR=/data \
+    -e V2_PG_TESTS=1 -e TEST_DATABASE_URL=postgresql://t:<pw>@<db 호스트>:5432/kbo_p3a_test <백엔드 이미지> \
     python -m unittest tests.test_v2_pg -v
 """
 import os
@@ -11,8 +14,37 @@ from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 
 RUN = os.environ.get("V2_PG_TESTS") == "1"
+
+
+def check_test_pg_url(url):
+    """실제 DB 에 접속하는 테스트의 대상이 테스트 전용인지 — 아니면 접속 전에 이유를 돌려준다(None 이면 통과)."""
+    if not url:
+        return "TEST_DATABASE_URL 이 없다 — 테스트 전용 PostgreSQL 을 명시해야 한다"
+    parsed = make_url(url)
+    if not parsed.drivername.startswith("postgresql"):
+        return f"PostgreSQL 이 아니다({parsed.drivername})"
+    if not (parsed.database or "").endswith("_test"):
+        return f"DB 이름 '{parsed.database}' 이 '_test' 로 끝나지 않는다 — 테스트 전용 DB 만 허용"
+    return None
+
+
+def setUpModule():
+    if RUN:
+        problem = check_test_pg_url(os.environ.get("TEST_DATABASE_URL"))
+        if problem:
+            raise RuntimeError(f"V2_PG_TESTS=1 이지만 {problem}")
+
+
+class TestPgUrlGuardTest(unittest.TestCase):
+    def test_only_explicit_postgres_test_db_is_allowed(self):
+        self.assertIsNotNone(check_test_pg_url(None))
+        self.assertIsNotNone(check_test_pg_url("sqlite://"))
+        self.assertIsNotNone(check_test_pg_url("postgresql://u:p@localhost:5432/kbo_dashboard"))
+        self.assertIsNotNone(check_test_pg_url("postgresql://u:p@localhost:5432/test_kbo"))
+        self.assertIsNone(check_test_pg_url("postgresql://u:p@db:5432/kbo_p3a_test"))
 
 
 @unittest.skipUnless(RUN, "V2_PG_TESTS=1 일 때만(실제 PostgreSQL 필요)")
