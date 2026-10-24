@@ -182,6 +182,25 @@ class AdvancedListTest(BattingApiBase):
         self.assertLessEqual(many, 4)  # 기록실 1 + 빌드 선택 1 + 시즌 합 1 (+ 여유)
 
 
+class ProfileQueryCountTest(BattingApiBase):
+    def test_profile_queries_do_not_grow_with_seasons(self):
+        """Codex 교차검증 지적: 프로필이 시즌마다 빌드 선택·집계를 따로 하면 1 + 2N 쿼리 — 시즌 수와 무관해야 한다."""
+        statements = []
+        listener = lambda *a: statements.append(a[2])  # noqa: E731
+        event.listen(self.engine, "before_cursor_execute", listener)
+        try:
+            tp.batting_context(self.engine, [2025], 1)
+            one = len(statements)
+            statements.clear()
+            ctx = tp.batting_context(self.engine, list(range(2007, 2026)), 1)
+            many = len(statements)
+        finally:
+            event.remove(self.engine, "before_cursor_execute", listener)
+        self.assertEqual(one, many)
+        self.assertLessEqual(many, 3)
+        self.assertEqual(ctx["calc"][2025][1]["games"], 10)  # 한 번에 모아도 시즌·선수별 합은 그대로
+
+
 class DbUnavailableTest(BattingApiBase):
     def test_db_failure_degrades_instead_of_failing(self):
         def boom(*a, **k):

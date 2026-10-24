@@ -18,8 +18,8 @@ PIT = "Season,PlayerId,선수명,팀명,포지션,등번호,G,W,L,SV,HLD,IP,ERA,
 REG = "RosterDate,TeamCode,Team,BackNo,PlayerId,PlayerName,Position,PitchBat,BirthDate,HeightCm,WeightKg,Body,DetailUrl,RecordType\n"
 
 
-def hitter(pid, name, team, pos, war, ab=100, g=40):
-    return f"2025,{pid},{name},{team},{pos},7,{g},0.3,{ab},30,5,0,3,10,9,1,8,1,20,0.36,0.45,0.81,0.15,0.33,0.35,120.0,0.5,{war},True\n"
+def hitter(pid, name, team, pos, war, ab=100, g=40, bb=8, hbp=1):
+    return f"2025,{pid},{name},{team},{pos},7,{g},0.3,{ab},30,5,0,3,10,9,1,{bb},{hbp},20,0.36,0.45,0.81,0.15,0.33,0.35,120.0,0.5,{war},True\n"
 
 
 def pitcher(pid, name, team, war, era="3.5", g=20, pos="투수"):
@@ -34,9 +34,9 @@ class ServiceTest(unittest.TestCase):
         raw.mkdir(parents=True)
         (tmp / "processed" / "kbo_naver_hitters_2025.csv").write_text(
             HIT + hitter(1, "김민수", "LG", "내야수", "2.5") + hitter(2, "김민수", "두산", "외야수", "")  # WAR 미확정
-            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", ab=0, g=3)
+            + hitter(3, "홍 길동", "LG", "내야수", "4.1") + hitter(4, "박투수", "LG", "", "0.0", ab=0, g=3, bb=0, hbp=0)
             + hitter(8, "야수등판", "LG", "", "2.0", ab=300, g=120)  # 포지션 빈칸 야수가 1경기 등판
-            + hitter(9, "코치투수", "LG", "2군 투수코치", "0.0", ab=0, g=2), encoding="utf-8-sig")
+            + hitter(9, "코치투수", "LG", "2군 투수코치", "0.0", ab=0, g=2, bb=0, hbp=0), encoding="utf-8-sig")
         (tmp / "processed" / "kbo_naver_pitchers_2025.csv").write_text(
             PIT + pitcher(4, "박투수", "LG", "1.2") + pitcher(5, "최투수", "LG", "3.3", era="")
             + pitcher(8, "야수등판", "LG", "0.0", g=1, pos="") + pitcher(9, "코치투수", "LG", "0.5", g=30, pos="2군 투수코치"),
@@ -67,6 +67,15 @@ class ServiceTest(unittest.TestCase):
         # 야수가 아닌 다른 포지션 값(코치 등)은 경기 수로 — 타격 2 ≤ 투구 30 이면 투수의 타석
         roles = [s["role"] for s in tp.search("코치투수", None, None, None)["data"][0]["seasons"]]
         self.assertEqual(roles, ["pitcher"])
+
+    def test_ambiguous_line_with_real_plate_appearances_is_kept(self):
+        # Codex 재현: 포지션 빈칸·타격 1경기·4타수·투구 2경기 — 경기 수만으로는 투수로 단정하지 않는다(실제 타석 기록은 남긴다)
+        line = {"position": None, "stats": {"G": 1, "AB": 4, "BB": 0, "HBP": 0}}
+        self.assertFalse(tp._is_pitcher_batting(line, 2))
+        self.assertFalse(tp._is_pitcher_batting({"position": "", "stats": {"G": 1, "AB": 0, "BB": 1, "HBP": 0}}, 5))
+        self.assertTrue(tp._is_pitcher_batting({"position": None, "stats": {"G": 2, "AB": 0, "BB": 0, "HBP": 0}}, 30))
+        self.assertTrue(tp._is_pitcher_batting({"position": "투수", "stats": {"G": 2, "AB": 3, "BB": 0, "HBP": 0}}, 30))
+        self.assertFalse(tp._is_pitcher_batting({"position": "내야수", "stats": {"G": 1, "AB": 0, "BB": 0, "HBP": 0}}, 30))
 
     def test_pitcher_batting_line_is_dropped(self):
         roles = [s["role"] for s in tp.search("박투수", None, None, None)["data"][0]["seasons"]]
@@ -115,6 +124,27 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(p["basis"], "v1_qualified")
         self.assertEqual((p["batters"][0]["name"], p["batters"][0]["avg"], p["batters"][0]["home_runs"]), ("옛타자", 0.31, None))
         self.assertEqual(p["pitchers"][0]["era"], 2.5)
+
+
+class PitcherBattingBoundaryTest(unittest.TestCase):
+    """'투수의 타석' 판정은 선수 ID 마다 한다 — 같은 이름·포지션 빈칸인 투수와 '투수로 1경기 나온 야수'가 섞이지 않는다.
+    이적해도(시즌 기록은 한 팀) 같은 규칙."""
+
+    def test_same_name_pitcher_and_fielder_are_judged_per_id(self):
+        tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (tmp / "processed").mkdir()
+        (tmp / "raw" / "kbo_official").mkdir(parents=True)
+        (tmp / "processed" / "kbo_naver_hitters_2025.csv").write_text(
+            HIT + hitter(10, "동명선수", "LG", "", "0.0", ab=0, g=2, bb=0, hbp=0) + hitter(11, "동명선수", "두산", "", "1.5", ab=300, g=100),
+            encoding="utf-8-sig")
+        (tmp / "processed" / "kbo_naver_pitchers_2025.csv").write_text(
+            PIT + pitcher(10, "동명선수", "LG", "1.0", g=30, pos="") + pitcher(11, "동명선수", "두산", "0.0", g=1, pos=""),
+            encoding="utf-8-sig")
+        with patch.object(tp, "PROCESSED_DIR", tmp / "processed"), patch.object(tp, "RAW_DIR", tmp / "raw" / "kbo_official"):
+            found = {p["player_id"]: sorted(x["role"] for x in p["seasons"]) for p in tp.search("동명선수", None, None, None)["data"]}
+            self.assertEqual(found, {10: ["pitcher"], 11: ["batter", "pitcher"]})
+            self.assertEqual([p["same_name"] for p in tp.search("동명선수", None, None, None)["data"]], [1, 1])
+            self.assertEqual({x["player_id"] for x in tp.naver_lines(2025, "batter")}, {11})
 
 
 class RouteTest(unittest.TestCase):

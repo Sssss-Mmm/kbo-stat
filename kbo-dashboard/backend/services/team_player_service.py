@@ -17,7 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from services import batting_advanced as ba
 from services import season_service as ss
-from services.v2_service import _rows, pick_build
+from services.v2_service import _rows
 from utils import PROCESSED_DIR
 
 RAW_DIR = PROCESSED_DIR.parent / "raw" / "kbo_official"
@@ -66,13 +66,17 @@ FIELDERS = ("내야수", "외야수", "포수")
 
 def _is_pitcher_batting(line: dict, pitching_games: int | None) -> bool:
     """투구 기록도 있는 선수의 타자 줄이 '투수의 타석'인가. 야수 포지션이면 아니다, '투수'면 맞다.
-    포지션이 비었거나 다른 값이면(2007–2023 은 대부분 빈칸) 경기 수로 가른다 — 타격 경기 ≤ 투구 경기면 투수.
-    (2007–2026 확인: 빈칸 763행 중 753행은 타격 경기 ≤ 투구 경기·AB 0–3, 10행은 투구 1–3경기의 야수·AB 17–540.)"""
+    포지션이 비었거나 다른 값이면(2007–2023 은 대부분 빈칸) **타석 기록이 전혀 없고(AB·BB·HBP 모두 0) 타격 경기 ≤ 투구 경기**일
+    때만 투수의 타석으로 본다 — 실제 타석 기록이 있는 애매한 줄은 지우지 않는다(추정으로 기록을 없애지 않음).
+    (2007–2026: 빈칸·기타 중 타격 경기 ≤ 투구 경기 759행 — AB 0 이고 BB·HBP 도 0 인 713행만 제외, AB 1–3 의 46행은 남김.
+    타격 경기 > 투구 경기인 10행은 투수로 1–3경기 나온 야수·AB 17–540.)"""
     if line["position"] in FIELDERS:
         return False
     if line["position"] == "투수":
         return True
-    return (line["stats"]["G"] or 0) <= (pitching_games or 0)
+    stats = line["stats"]
+    empty = not any((stats.get(k) or 0) for k in ("AB", "BB", "HBP"))
+    return empty and (stats["G"] or 0) <= (pitching_games or 0)
 
 
 @lru_cache(maxsize=64)
@@ -207,19 +211,22 @@ def batting_context(engine, seasons: list[int], player_id: int | None = None) ->
         ctx["warnings"].append(f"KBO 기록실 PA 를 읽지 못함({type(exc).__name__}) — BB%·K% 는 조립 PA 만 사용")
     try:
         with engine.connect() as conn:
-            for s in seasons:
-                build = pick_build(conn, "player_game", s, None)
-                if build is None:
-                    continue
-                ctx["builds"][s] = build
+            # 시즌별 최신 계산 빌드를 한 번에 고른다(v2 의 빌드 선택과 같은 순서: loaded_at, build_id 내림차순) — 시즌 수와 무관하게 1회
+            q = text("""SELECT build_id, season, calc_rule, loaded_at FROM derived.build
+                        WHERE kind = 'player_game' AND season IN :seasons ORDER BY loaded_at DESC, build_id DESC""")
+            for r in conn.execute(q.bindparams(bindparam("seasons", expanding=True)), {"seasons": seasons}).mappings():
+                ctx["builds"].setdefault(r["season"], dict(r))
+            if ctx["builds"]:
                 who = "AND player_id = :pid" if player_id is not None else ""
-                q = text(f"""SELECT player_id, COUNT(*) AS games,
-                                      SUM(CASE WHEN stats_complete THEN 1 ELSE 0 END) AS complete_games,
-                                      SUM(ab) AS "AB", SUM(hbp) AS "HBP", SUM(sf) AS "SF", SUM(sh) AS "SH"
-                               FROM derived.player_game WHERE build_id = :b AND role = 'batter' {who}
-                               GROUP BY player_id""")
-                for r in conn.execute(q, {"b": build["build_id"], "pid": player_id}).mappings():
-                    ctx["calc"][s][int(r["player_id"])] = {k: r[k] for k in ("games", "complete_games", "AB", "HBP", "SF", "SH")}
+                q = text(f"""SELECT season, player_id, COUNT(*) AS games,
+                                    SUM(CASE WHEN stats_complete THEN 1 ELSE 0 END) AS complete_games,
+                                    SUM(ab) AS "AB", SUM(hbp) AS "HBP", SUM(sf) AS "SF", SUM(sh) AS "SH"
+                             FROM derived.player_game WHERE build_id IN :builds AND role = 'batter' {who}
+                             GROUP BY season, player_id""")
+                builds = [b["build_id"] for b in ctx["builds"].values()]
+                for r in conn.execute(q.bindparams(bindparam("builds", expanding=True)), {"builds": builds, "pid": player_id}).mappings():
+                    ctx["calc"].setdefault(r["season"], {})[int(r["player_id"])] = {
+                        k: r[k] for k in ("games", "complete_games", "AB", "HBP", "SF", "SH")}
     except SQLAlchemyError as exc:
         ctx["warnings"].append(f"투구 계산 자료를 읽지 못함({type(exc).__name__}) — BABIP 직접 계산·조립 PA 불가")
     return ctx

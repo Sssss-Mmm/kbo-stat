@@ -29,13 +29,24 @@ COUNT_KEYS = ("PA", "AB", "H", "2B", "3B", "HR", "BB", "HBP", "SO", "SF", "SH") 
 
 
 def _count(v):
-    """개수 하나: None·NaN·빈 값 → None. 정수가 아니면 ValueError(불가능한 값)."""
+    """개수 하나: None·NaN·빈 값 → None. 숫자가 아니거나 정수가 아니면 ValueError(불가능한 값)."""
     if v is None or v == "" or (isinstance(v, float) and math.isnan(v)):
         return None
-    f = float(v)
-    if not f.is_integer():
+    try:
+        f = float(v)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f"숫자가 아닌 개수 {v!r}") from None
+    if math.isinf(f) or not f.is_integer():
         raise ValueError(f"정수가 아닌 개수 {v}")
     return int(f)
+
+
+def _safe_count(v):
+    """연결 키·비교용: 잘못된 값이면 None(그 행은 연결하지 않는다) — 예외로 응답 전체를 실패시키지 않는다."""
+    try:
+        return _count(v)
+    except ValueError:
+        return None
 
 
 def counts_problem(c: dict, needed: tuple[str, ...]) -> str | None:
@@ -135,6 +146,8 @@ def source_babip(id_row: dict, provenance: dict) -> dict:
     """출처(네이버) BABIP. 출처는 분모가 0 일 수 있는 행(타수 0 등)에도 0.000 을 적는다(2007–2026 확인) — 정의되지 않는 값을
     0 으로 쓴 것이므로 그대로 쓰지 않는다. AB−SO−HR ≤ 0 이고 출처 값이 0 이면 unavailable. 그 밖에는 status=source."""
     m = source_value("babip", id_row.get("BABIP"), provenance)
+    if m["status"] == SOURCE and not 0 <= m["value"] <= 1:  # BABIP 는 0–1 — 범위 밖 출처 값은 쓰지 않는다
+        return metric("babip", None, UNAVAILABLE, provenance, f"출처 값이 범위(0–1) 밖: {m['value']}")
     if m["status"] == SOURCE and m["value"] == 0:
         try:
             ab, so, hr = (_count(id_row.get(k)) for k in ("AB", "SO", "HR"))
@@ -164,7 +177,8 @@ def link_kbo_records(kbo_rows: list[dict], id_rows: list[dict], season: int) -> 
     (그 PA 는 쓰지 않는다). 팀명이 없으면 연결하지 않는다. 이적 등으로 팀이 다르면 후보가 없어 unmatched.
     행 키: 기록실 {Season, 선수명, 팀명, AB, H, BB, SO, PA, HBP} · ID 자료 {Season, PlayerId, 선수명, 팀명, AB, H, BB, SO}."""
     def key(r):
-        return (_count(r.get("Season")), _norm(r.get("선수명")), _norm(r.get("팀명")), _count(r.get("AB")), _count(r.get("H")))
+        return (_safe_count(r.get("Season")), _norm(r.get("선수명")), _norm(r.get("팀명")), _safe_count(r.get("AB")),
+                _safe_count(r.get("H")))
 
     candidates: dict[tuple, list[dict]] = {}
     for r in id_rows:
@@ -179,7 +193,7 @@ def link_kbo_records(kbo_rows: list[dict], id_rows: list[dict], season: int) -> 
         elif k[2] is None:
             out.append({"index": i, "player_id": None, "status": TEAM_MISSING, "reason": "기록실 행에 팀명 없음"})
         elif None in k:
-            out.append({"index": i, "player_id": None, "status": UNMATCHED, "reason": "이름·AB·H 중 빈 값"})
+            out.append({"index": i, "player_id": None, "status": UNMATCHED, "reason": "이름·AB·H 중 빈 값 또는 잘못된 값"})
         else:
             found = {int(c["PlayerId"]) for c in candidates.get(k, [])}
             if not found:
@@ -195,7 +209,7 @@ def link_kbo_records(kbo_rows: list[dict], id_rows: list[dict], season: int) -> 
             claimed[link["player_id"]] = claimed.get(link["player_id"], 0) + 1
     by_id = {}
     for r in id_rows:
-        if _count(r.get("Season")) == season and r.get("PlayerId") is not None:
+        if _safe_count(r.get("Season")) == season and r.get("PlayerId") is not None:
             by_id.setdefault(int(r["PlayerId"]), []).append(r)
     for link in out:
         if link["status"] != LINKED:
@@ -205,7 +219,7 @@ def link_kbo_records(kbo_rows: list[dict], id_rows: list[dict], season: int) -> 
             link.update(player_id=None, status=AMBIGUOUS, reason="같은 선수 ID 에 기록실 행이 여럿")
             continue
         r, idr = kbo_rows[link["index"]], by_id[pid][0]
-        diff = [c for c in ("BB", "SO") if _count(r.get(c)) != _count(idr.get(c))]
+        diff = [c for c in ("BB", "SO") if _safe_count(r.get(c)) is None or _safe_count(r.get(c)) != _safe_count(idr.get(c))]
         if diff:
             link.update(status=RECORD_MISMATCH, reason="연결 후 기록 불일치: " + ", ".join(diff))
     return out

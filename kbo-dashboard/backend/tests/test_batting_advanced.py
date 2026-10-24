@@ -115,6 +115,30 @@ class SourceBabipTest(unittest.TestCase):
         self.assertEqual(ba.source_babip(row(), PROV)["status"], ba.SOURCE)
 
 
+class RobustnessTest(unittest.TestCase):
+    """Codex 교차검증 지적: 잘못된 개수 값이 예외로 응답 전체를 실패시키지 않는다 · 출처 BABIP 범위 검사."""
+
+    def test_malformed_values_in_link_key_do_not_raise(self):
+        links = ba.link_kbo_records([kbo(AB="bad"), kbo(H=float("inf")), kbo(Season="x")], [row()], 2099)
+        self.assertEqual([lk["status"] for lk in links], [ba.UNMATCHED] * 3)
+        self.assertIsNone(links[0]["player_id"])
+        bad_bb = ba.link_kbo_records([kbo(BB="?")], [row()], 2099)[0]  # 키는 맞고 BB 가 잘못된 값 → 연결 PA 를 쓰지 않음
+        self.assertEqual(bad_bb["status"], ba.RECORD_MISMATCH)
+
+    def test_malformed_counts_become_unavailable(self):
+        for bad in ("abc", [1], float("inf")):
+            m = ba.iso(row(AB=bad), PROV)
+            self.assertEqual((m["status"], m["value"]), (ba.UNAVAILABLE, None))
+            self.assertIn("불가능한 값", m["reason"])
+
+    def test_source_babip_out_of_range_is_not_used(self):
+        for bad in (-0.1, 1.2):
+            m = ba.source_babip(row(BABIP=bad), PROV)
+            self.assertEqual((m["status"], m["value"]), (ba.UNAVAILABLE, None))
+            self.assertIn("범위", m["reason"])
+        self.assertEqual(ba.source_babip(row(BABIP=1.0), PROV)["status"], ba.SOURCE)
+
+
 class LinkTest(unittest.TestCase):
     def ids(self, *rows):
         return list(rows)
