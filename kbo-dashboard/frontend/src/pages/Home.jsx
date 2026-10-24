@@ -45,6 +45,9 @@ function StatRows({ rows }) {
   )
 }
 
+// 리그 근사 BB%·K% 안내(P3-A 정책 — docs/P3A_DESIGN.md 8.4)
+const APPROX_RATE_NOTE = '타석 대신 타수·볼넷·사구의 합을 사용한 근삿값입니다. 희생플라이와 희생번트가 제외되어 실제 비율보다 높게 나타날 수 있습니다.'
+
 // 시즌 하이라이트 한 줄(부문 라벨 + 선수 + 값).
 function HlItem({ label, player, val }) {
   const team = player?.['팀명']
@@ -389,7 +392,9 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
             </article>
             <article className="panel">
               <div className="panel-head"><h3>리그 투구 평균</h3></div>
-              <StatRows rows={[['ERA', fmtTwo(league.era)], ['WHIP', fmtTwo(league.whip)], ['K%', fmtPct(league.kPct)], ['BB%', fmtPct(league.bbPct)], ['HR/9', fmtTwo(league.hr9)]]} />
+              <StatRows rows={[['ERA', fmtTwo(league.era)], ['WHIP', fmtTwo(league.whip)], ['근사 K%', fmtPct(league.kPct)], ['근사 BB%', fmtPct(league.bbPct)], ['HR/9', fmtTwo(league.hr9)]]} />
+              {/* P3-A: 정확한 리그 BB%·K% 가 아니다 — 계산은 그대로 두고 근삿값임을 밝힌다 */}
+              <p className="approx-note">{APPROX_RATE_NOTE}</p>
             </article>
             <article className="panel">
               <div className="panel-head"><h3>시즌 하이라이트</h3></div>

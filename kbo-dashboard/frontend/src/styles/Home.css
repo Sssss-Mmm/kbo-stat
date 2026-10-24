@@ -480,3 +480,6 @@
 }
 .home-shortcuts button:hover,
 .favorite-summary button:hover { background: var(--panel-soft); }
+
+/* P3-A: 근사 BB%·K% 안내 */
+.approx-note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
