@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import requests
+from kbo_access import requests  # KBO 자동 요청은 승인 전 차단(kbo_access.py)
 
 import csv_guard
 

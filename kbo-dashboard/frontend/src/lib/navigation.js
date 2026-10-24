@@ -1,4 +1,6 @@
-export const PAGES = ['home', 'standings', 'race', 'teams', 'schedule', 'players', 'zones', 'ops', 'ask']
+// v1 화면 + /api/v2 화면(leaders·player·game·quality) + P2-D(team·search·compare). 기존 경로는 그대로 둔다.
+export const PAGES = ['home', 'standings', 'race', 'teams', 'schedule', 'players', 'zones', 'ops', 'ask',
+  'leaders', 'player', 'game', 'quality', 'team', 'search', 'compare']
 
 export function pageFromPath(pathname) {
   const page = pathname.replace(/^\/+|\/+$/g, '')

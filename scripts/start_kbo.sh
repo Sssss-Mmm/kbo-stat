@@ -9,14 +9,34 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${ROOT_DIR}/kbo-dashboard/docker-compose.yml"
-LOG_DIR="${ROOT_DIR}/logs"
+LOG_DIR="${LOG_DIR:-${ROOT_DIR}/logs}"  # 테스트는 임시 폴더로 바꾼다(실제 마커를 건드리지 않게)
 MARKER="${LOG_DIR}/.last_update_date"
 LOG_FILE="${LOG_DIR}/update_kbo_daily.log"
 
 mkdir -p "${LOG_DIR}"
 
+. "${ROOT_DIR}/scripts/docker_engine.sh"
+require_kbo_engine || exit 5
+
+# --no-recreate 는 예전 설정으로 만든 컨테이너의 포트 바인딩을 그대로 둔다. 켜기 전에, 이미 있는 컨테이너
+# (정지 포함)가 외부 공개 금지(127.0.0.1 전용)를 지키는지 본다. 아니면 아무것도 켜지 않고 멈춘다.
+# 새로 만들어지는 컨테이너는 compose 설정(127.0.0.1)을 그대로 따른다.
+EXISTING="$(docker compose -f "${COMPOSE_FILE}" ps -aq)"
+EXPOSED=""
+if [[ -n "${EXISTING}" ]]; then
+  EXPOSED="$(docker inspect --format '{{.Name}} {{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}' \
+    ${EXISTING} | grep -E ' (:|0\.0\.0\.0:|\[?::\]?:)[0-9]' || true)"
+fi
+if [[ -n "${EXPOSED}" ]]; then
+  echo "[error] start: 모든 인터페이스에 열리도록 만들어진 컨테이너 — ${EXPOSED}"
+  echo "[error] start: 승인 후 재생성으로 127.0.0.1 바인딩을 적용: docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate <서비스>"
+  exit 4
+fi
+
 echo "[start] bringing up KBO dashboard stack"
-docker compose -f "${COMPOSE_FILE}" up -d
+# --no-recreate: 이미 있는 컨테이너는 켜기만 한다. 새 이미지·설정으로 교체하려면(승인 후)
+#   docker compose -f kbo-dashboard/docker-compose.yml up -d --force-recreate <서비스>
+docker compose -f "${COMPOSE_FILE}" up -d --no-recreate
 
 TODAY="$(TZ=Asia/Seoul date +%F)"
 LAST="$(cat "${MARKER}" 2>/dev/null || true)"

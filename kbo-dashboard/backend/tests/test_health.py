@@ -11,6 +11,13 @@ class ReadinessTest(unittest.TestCase):
         with patch('database.init_db'):
             cls.app_module = importlib.import_module('main')
 
+    def setUp(self):
+        # DB 판정만 본다 — 데이터 준비 판정은 고정(로컬 data/ 유무와 무관하게). 데이터 쪽은 test_data_check 가 본다.
+        ready = {'ready': True, 'mount': 'image', 'season': 2026, 'problems': [], 'optional_missing': [], 'required': {}}
+        patcher = patch.object(self.app_module.data_check, 'check', return_value=ready)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_available_database_is_ready(self):
         connection = MagicMock()
         with patch.object(self.app_module.engine, 'connect') as connect:

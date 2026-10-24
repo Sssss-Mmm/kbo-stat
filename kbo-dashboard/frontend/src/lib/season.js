@@ -67,7 +67,7 @@ function build(state, season, dataSeason, today, opening, closing, daysToOpening
 
   const notes = []
   if (state === 'preseason') notes.push(`${dataSeason} 시즌 최종 기록을 표시합니다`)
-  if (state === 'postseason') notes.push('포스트시즌 진행 중 · 표시 기록은 정규시즌 최종')
+  if (state === 'postseason') notes.push('정규시즌 종료 · 포스트시즌 기록은 수집 범위 밖')
   if (state === 'offseason') notes.push('시즌 종료 · 정규시즌 최종 기록')
   // DR-06 AC2: 활성 시즌이 직전 시즌으로 폴백된 사실을 화면에 알린다.
   if (isFallback) notes.push(`${Number(today.slice(0, 4))}시즌 데이터가 없어 직전 시즌으로 표시합니다`)

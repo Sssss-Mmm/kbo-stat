@@ -11,6 +11,7 @@
   둘 다 실패        → 사이트나 파서 쪽 변경. 차단 문제가 아니다
 
 데이터를 저장하지 않는다. 읽기만 한다.
+2026-10-24 부터 KBO 요청은 src/kbo_access.py 스위치(KBO_AUTOMATED_FETCH_APPROVED=1, 승인 후)로만 나간다.
 실행: python scripts/probe_kbo_reachable.py
 """
 
@@ -24,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import crawl_kbo_team_rank as tr  # noqa: E402
 import csv_guard  # noqa: E402
+import kbo_access  # noqa: E402 — KBO 요청은 승인 전 차단(egress_ip 의 ipify 요청만 일반 requests)
 
 
 def egress_ip() -> str:
@@ -40,7 +42,10 @@ def main() -> int:
 
     started = time.monotonic()
     try:
-        response = requests.get(tr.TEAM_RANK_URL, headers=tr.HEADERS, timeout=20)
+        response = kbo_access.requests.get(tr.TEAM_RANK_URL, headers=tr.HEADERS, timeout=20)
+    except kbo_access.KboFetchDisabled as exc:
+        print(f"\n판정: 중단 — {exc}")
+        return 2
     except requests.RequestException as exc:
         print(f"\n판정: 실패 — 요청 자체가 안 됐다 ({type(exc).__name__}: {exc})")
         return 1

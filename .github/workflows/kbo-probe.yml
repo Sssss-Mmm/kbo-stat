@@ -8,14 +8,10 @@
 # 데이터를 저장하거나 커밋하지 않는다. 받아지는지만 본다.
 name: KBO 접근 프로브
 
+# 2026-10-24: KBO robots.txt 가 승인 없는 자동 수집을 금지해 push 자동 실행을 뺐다. 수동 실행해도
+# src/kbo_access.py 가 KBO_AUTOMATED_FETCH_APPROVED=1 없이는 요청을 막는다(승인 후에만 켤 것).
 on:
   workflow_dispatch:
-  # workflow_dispatch 는 기본 브랜치에 있는 워크플로만 UI 에 뜬다.
-  # 이 프로브는 기능 브랜치에서 바로 돌려봐야 하므로 자기 자신이 바뀔 때도 돈다.
-  push:
-    paths:
-      - .github/workflows/kbo-probe.yml
-      - scripts/probe_kbo_reachable.py
 
 jobs:
   probe:

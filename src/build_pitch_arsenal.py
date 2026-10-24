@@ -176,7 +176,7 @@ def build(season: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     """투구 원본에서 투수 아스널 / 타자 상대 구종 데이터셋 2종을 만든다."""
     pitches = load_pitches(season)
     if pitches.empty:
-        print(f"[arsenal] no pitch data for {season}")
+        print(f"[skip:input] arsenal: no pitch data for {season} — 기존 산출물 유지")
         return pd.DataFrame(), pd.DataFrame()
 
     pitches = ensure_teams(pitches)

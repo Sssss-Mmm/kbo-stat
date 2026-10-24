@@ -52,6 +52,7 @@
 .nav {
   display: flex;
   gap: 0;
+  min-width: 0; /* flex 자식이라 기본 min-width:auto 면 줄어들지 않아 좁은 화면에서 헤더·페이지 전체가 화면보다 넓어진다 */
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;

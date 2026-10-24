@@ -49,13 +49,15 @@ def _month(value):
 
 
 def _load(db: Session, model, rows, *, season=None):
-    """기존 행을 (시즌 기준) 삭제하고 새 행을 일괄 삽입한다."""
+    """기존 행을 (시즌 기준) 삭제하고 새 행을 일괄 삽입한다. 새 행이 0개면 지우지 않는다(빈 데이터 덮어쓰기 방지)."""
+    if not rows:
+        print(f"[skip:input] {model.__tablename__} season={season}: 새 행 0 — 기존 DB 행 유지")
+        return
     query = db.query(model)
     if season is not None and hasattr(model, "season"):
         query = query.filter(model.season == season)
     query.delete(synchronize_session=False)
-    if rows:
-        db.bulk_save_objects([model(**row) for row in rows])
+    db.bulk_save_objects([model(**row) for row in rows])
     db.flush()
 
 

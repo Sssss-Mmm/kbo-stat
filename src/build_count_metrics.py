@@ -179,7 +179,7 @@ def build(season: int) -> pd.DataFrame:
     """투구 원본에서 볼카운트 데이터셋 1종을 만든다."""
     pitches = load_pitches(season)
     if pitches.empty:
-        print(f"[count] no pitch data for {season}")
+        print(f"[skip:input] count: no pitch data for {season} — 기존 산출물 유지")
         return pd.DataFrame()
 
     pitches = ensure_teams(pitches)

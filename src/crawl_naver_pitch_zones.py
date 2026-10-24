@@ -28,7 +28,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import requests
+import naver_access
+from naver_access import requests  # 네이버 자동 요청은 승인 전 차단(naver_access.py)
 
 import csv_guard
 
@@ -118,20 +119,31 @@ def fetch_relay(game_id: str, inning: int) -> dict:
     return result.get("textRelayData", {})
 
 
-def fetch_name_map(game_id: str) -> dict[str, str]:
+def fetch_name_map(game_id: str, keep_raw: bool = False) -> dict[str, str]:
     """Build a playerId -> name map from the game record box scores.
 
     The relay payload only carries player ids (and the batter name in the
     at-bat header). The record endpoint's batter/pitcher box scores list every
     player who appeared, with both pcode/playerCode and name, so it gives a
     complete id->name lookup for the game.
+
+    keep_raw: 받은 응답 원본을 crawl_naver_boxscore 로 보존한다(추가 요청 없음).
+    보존이 실패해도 이름 맵과 투구 수집에는 영향이 없다.
     """
     referer = f"https://m.sports.naver.com/game/{game_id}/record"
     url = f"{API_BASE}/schedule/games/{game_id}/record"
     try:
-        record = get_json(url, referer=referer).get("recordData", {})
+        result = get_json(url, referer=referer)
     except (requests.RequestException, RuntimeError):
         return {}
+    if keep_raw:
+        try:
+            import crawl_naver_boxscore  # 순환 import 를 피해 여기서 부른다
+
+            crawl_naver_boxscore.keep(game_id[:-4], int(game_id[-4:]), result, run_id="pitch-crawl")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[naver-pitch] warn: record 원본 보존 실패 {game_id}: {exc}")
+    record = result.get("recordData") or {}
 
     name_map: dict[str, str] = {}
     for key in ("battersBoxscore", "pitchersBoxscore"):
@@ -372,7 +384,7 @@ def crawl_date(game_date: date, pause_seconds: float = PAUSE_SECONDS) -> pd.Data
         if game.get("roundCode") in SKIP_ROUND_CODES:
             print(f"[naver-pitch] skip {game_id} roundCode={game.get('roundCode')}")
             continue
-        name_map = fetch_name_map(game_id)
+        name_map = fetch_name_map(game_id, keep_raw=game.get("statusCode") in {"RESULT", "ENDED"})
         for inning in range(1, 13):
             relay = fetch_relay(game_id, inning)
             relays = relay.get("textRelays", [])
@@ -723,6 +735,9 @@ def main() -> None:
 
     if args.selfcheck:
         _selfcheck()
+        return
+    if not naver_access.allowed():
+        naver_access.skip("pitch relay/box score crawl")
         return
 
     if args.missing:

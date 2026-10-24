@@ -10,3 +10,13 @@ __pycache__/
 .claude
 CLAUDE.md
 .mcp.json
+
+# 개인 작업 환경·로컬 전용 기록 — 공개 저장소에 올리지 않는다(로컬 경로·이 PC 의 다른 프로젝트 보안 상태 포함)
+.ai-review/
+scripts/cross-review.sh
+docs/reports/external_db_exposure.md
+docs/reports/P2C_stabilization.md
+# DB 백업
+*.sql
+*.sql.gz
+*.dump

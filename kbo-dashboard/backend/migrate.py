@@ -35,6 +35,14 @@ def discover_seasons(*dirs: Path) -> list[int]:
     return sorted(year for year in years if 1982 <= year <= 2100)
 
 
+def keep_existing(df: pd.DataFrame, file_path: Path) -> bool:
+    """0행 CSV 로 시즌을 지우지 않는다(빈 데이터 덮어쓰기 방지). 적재해도 되면 True."""
+    if len(df):
+        return True
+    print(f"[skip:input] {file_path.name}: 0행 — 기존 DB 행 유지")
+    return False
+
+
 def get_or_create_team(db: Session, cache: dict, team_name: str) -> Team:
     """팀을 캐시/DB에서 찾거나 새로 생성합니다. (팀명은 시즌 무관 고유)"""
     if team_name in cache:
@@ -54,12 +62,14 @@ def migrate_standings(db: Session, data_path: Path, season: int, team_cache: dic
 
     file_path = data_path / f"kbo_team_rank_{season}.csv"
     if not file_path.exists():
-        print(f"⚠️  파일 없음: {file_path}")
+        print(f"[skip:input] 파일 없음: {file_path} — 기존 DB 행 유지")
         return
 
     df = pd.read_csv(file_path)
 
     # 재실행 시 중복 삽입 방지: 해당 시즌 기존 행 삭제 후 적재
+    if not keep_existing(df, file_path):
+        return
     db.query(Standing).filter(Standing.season == season).delete()
 
     for _, row in df.iterrows():
@@ -93,12 +103,14 @@ def migrate_hitters(db: Session, data_path: Path, season: int, team_cache: dict)
 
     file_path = data_path / f"kbo_{season}.csv"
     if not file_path.exists():
-        print(f"⚠️  파일 없음: {file_path}")
+        print(f"[skip:input] 파일 없음: {file_path} — 기존 DB 행 유지")
         return
 
     df = pd.read_csv(file_path)
 
     # 재실행 시 중복 삽입 방지
+    if not keep_existing(df, file_path):
+        return
     db.query(Hitter).filter(Hitter.season == season).delete()
 
     for _, row in df.iterrows():
@@ -141,12 +153,14 @@ def migrate_pitchers(db: Session, data_path: Path, season: int, team_cache: dict
 
     file_path = data_path / f"kbo_pitcher_{season}.csv"
     if not file_path.exists():
-        print(f"⚠️  파일 없음: {file_path}")
+        print(f"[skip:input] 파일 없음: {file_path} — 기존 DB 행 유지")
         return
 
     df = pd.read_csv(file_path)
 
     # 재실행 시 중복 삽입 방지
+    if not keep_existing(df, file_path):
+        return
     db.query(Pitcher).filter(Pitcher.season == season).delete()
 
     for _, row in df.iterrows():
