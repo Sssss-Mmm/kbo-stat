@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import {
   betterSide, commonSeasons, gameLine, leaguePool, percentile, playerLabel, recordPct, recordText, seasonLine, seasonSpan,
-  toNumber, verificationSummary, latestCollected,
+  toNumber, verificationSummary, latestCollected, fmtAdvanced, comparableAdvanced, advancedPool, advancedPercentile,
+  advancedOf, COMPARE_METRICS, MIN_ADVANCED_POOL, qualifiedSimpleMean,
 } from './p2d.js'
 
 // 숫자: 이닝 '180 2/3' 은 1/3 단위, 없는 값은 null(0 이 아님)
@@ -64,5 +65,49 @@ assert.equal(verificationSummary(null, 'pitcher'), null)
 assert.equal(latestCollected([{ collected_at: '2026-09-13T00:00:00+00:00' }, {}, { collected_at: '2026-10-22T00:00:00+00:00' }]),
   '2026-10-22T00:00:00+00:00')
 assert.equal(latestCollected([]), null)
+
+// ---- P3-A 고급 지표 표시: 계산 불가·분모 0 은 '-'(0.000·0.0% 가 아님), 출처 값은 계산값과 다른 종류
+const calc = (value, display = value) => ({ status: 'calculated', value, display, reason: null })
+assert.deepEqual(fmtAdvanced('iso', calc(0.21428, 0.214)), { text: '.214', kind: 'calculated', note: '계산값' })
+assert.equal(fmtAdvanced('bb_pct', calc(10.5263, 10.5)).text, '10.5%')
+assert.equal(fmtAdvanced('k_pct', calc(0.25, 0.3)).text, '0.3%')       // 표시값(서버 ROUND_HALF_UP)을 쓴다
+assert.equal(fmtAdvanced('babip', calc(1, 1)).text, '1.000')
+const src = fmtAdvanced('babip_source', { status: 'source', value: 0.341, display: 0.341 })
+assert.equal(src.kind, 'source'); assert.equal(src.text, '.341'); assert.match(src.note, /직접 계산 아님/)
+const na = fmtAdvanced('babip', { status: 'unavailable', value: null, display: null, reason: 'SF 자료 없음' })
+assert.deepEqual(na, { text: '-', kind: 'unavailable', note: 'SF 자료 없음' })
+const zero = fmtAdvanced('iso', { status: 'zero_denominator', value: null, display: null, reason: '분모 0' })
+assert.equal(zero.text, '-'); assert.equal(zero.kind, 'zero_denominator')
+assert.equal(fmtAdvanced('iso', undefined).kind, 'missing')       // 고급 지표가 없는 시즌·옛 응답
+for (const m of [na, zero]) assert.ok(!/0\.0/.test(m.text))
+
+// 직접 비교: 같은 시즌·같은 상태만
+const s = (status, value) => ({ status, value })
+assert.equal(comparableAdvanced(s('calculated', 0.3), s('calculated', 0.2), 2025, 2025), true)
+assert.equal(comparableAdvanced(s('calculated', 0.3), s('source', 0.2), 2025, 2025), false)   // 계산값 vs 출처 값
+assert.equal(comparableAdvanced(s('calculated', 0.3), s('calculated', 0.2), 2025, 2024), false) // 다른 시즌
+assert.equal(comparableAdvanced(s('unavailable', null), s('calculated', 0.2), 2025, 2025), false)
+
+// 백분위 모집단: 같은 상태만, 최소 인원 미만이면 null
+const rows = (n, status, key = 'iso') => Array.from({ length: n }, (_, i) => ({ metrics: { [key]: s(status, i / 100) } }))
+assert.equal(advancedPool([...rows(3, 'calculated'), ...rows(2, 'source')], 'iso', 'source').length, 2)
+assert.equal(advancedPercentile(rows(MIN_ADVANCED_POOL - 1, 'calculated'), 'iso', s('calculated', 0.1), 'high'), null)
+assert.equal(typeof advancedPercentile(rows(MIN_ADVANCED_POOL, 'calculated'), 'iso', s('calculated', 0.1), 'high'), 'number')
+assert.equal(advancedPercentile(rows(50, 'source'), 'iso', s('calculated', 0.1), 'high'), null)   // 다른 상태 모집단은 안 쓴다
+assert.equal(advancedPercentile(rows(50, 'calculated'), 'iso', s('unavailable', null), 'high'), null)
+assert.deepEqual(advancedOf({ advanced: { metrics: { iso: s('calculated', 0.2) } } }, 'iso'), s('calculated', 0.2))
+assert.equal(advancedOf({ stats: {} }, 'iso'), undefined)
+// 비교 지표: ISO 는 출처 열이 아니라 자체 계산(adv)
+const iso = COMPARE_METRICS.batter.find((m) => m.label === 'ISO')
+assert.equal(iso.adv, 'iso')
+assert.deepEqual(COMPARE_METRICS.batter.filter((m) => m.adv).map((m) => m.adv), ['iso', 'babip', 'babip_source', 'bb_pct', 'k_pct'])
+
+// 홈 '선수 BABIP 단순 평균': 규정 충족만, 결측 제외, 선수별 값의 평균(가중 아님)
+const hitters = [{ 규정충족: true, BABIP: 0.3 }, { 규정충족: true, BABIP: 0.4 }, { 규정충족: false, BABIP: 0.9 },
+  { 규정충족: true, BABIP: null }, { 규정충족: true }]
+assert.ok(Math.abs(qualifiedSimpleMean(hitters, 'BABIP') - 0.35) < 1e-12)
+assert.ok(Number.isNaN(qualifiedSimpleMean([{ 규정충족: false, BABIP: 0.3 }], 'BABIP')))
+assert.ok(Number.isNaN(qualifiedSimpleMean([], 'BABIP')))
+assert.ok(Math.abs(qualifiedSimpleMean([{ 규정충족: true, BABIP: 0.2, PA: 600 }, { 규정충족: true, BABIP: 0.4, PA: 10 }], 'BABIP') - 0.3) < 1e-12)  // 타석 가중이 아님
 
 console.log('p2d ok')

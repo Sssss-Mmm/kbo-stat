@@ -3,17 +3,20 @@
 // URL 쿼리: role, a, b, sa, sb, metric.
 import { useState } from 'react'
 import TrendLine from '../components/charts/TrendLine'
-import { LoadState, SourceLine, Stat, useV2 } from '../components/V2Bits'
+import { AdvancedLegend, AdvancedValue, LoadState, SourceLine, Stat, useV2 } from '../components/V2Bits'
 import { useRoute } from '../lib/useRoute'
 import { followLink, pageUrl, updateQuery } from '../lib/navigation'
 import { fetchPlayerSeason, fetchSeasons, intParam } from '../lib/v2'
-import { betterSide, COMPARE_METRICS, fetchLeague, fetchProfile, latestCollected, leaguePool, NAVER_SEASON_LABEL, percentile,
-  playerLabel, ROLE_LABEL, searchPlayers, seasonLine, toNumber, verificationSummary } from '../lib/p2d'
+import { advancedOf, advancedPercentile, betterSide, comparableAdvanced, COMPARE_METRICS, fetchBattingAdvanced, fetchLeague,
+  fetchProfile, fmtAdvanced, latestCollected, leaguePool, MIN_ADVANCED_POOL, NAVER_SEASON_LABEL, percentile, playerLabel, ROLE_LABEL,
+  searchPlayers, seasonLine, toNumber, verificationSummary } from '../lib/p2d'
 import '../styles/V2.css'
 import '../styles/P2D.css'
 
 const SIDES = { a: 'var(--series-1)', b: 'var(--series-2)' }
 const DEFAULT_METRIC = { batter: 'OPS', pitcher: 'ERA' }
+// 추이: 계산값 지표는 계산값만, 출처 지표는 출처 값만 잇는다(상태가 섞이지 않게)
+const trendValue = (m, key) => (m && m.status === (key === 'babip_source' ? 'source' : 'calculated') ? m.value : null)
 
 function Picker({ side, role, onPick }) {
   const [q, setQ] = useState('')
@@ -40,10 +43,14 @@ function useSide(id, role, seasonParam, boxSeasons) {
   const mine = (profile.data?.data.seasons || []).filter((s) => s.role === role).map((s) => s.season)
   const season = seasonParam && mine.includes(seasonParam) ? seasonParam : mine[0] ?? null
   const league = useV2(() => (season ? fetchLeague(role, season) : Promise.resolve(null)), [role, season])
+  // P3-A 고급 지표 백분위 모집단(그 시즌 규정 충족 타자) — 실패하면 백분위만 비운다
+  const advLeague = useV2(() => (season && role === 'batter' ? fetchBattingAdvanced(season).catch(() => []) : Promise.resolve([])),
+    [role, season])
   const hasBox = season !== null && boxSeasons.includes(season)
   const box = useV2(() => (id && hasBox ? fetchPlayerSeason(id, { season }).catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e)))
     : Promise.resolve(null)), [id, season, hasBox])
   return { id, profile, seasons: mine, season, line: seasonLine(profile.data, season, role), league: league.data || [], hasBox,
+    advLeague: advLeague.data || [],
     verification: verificationSummary(box.data, role) }
 }
 
@@ -73,7 +80,15 @@ function Compare() {
   const B = useSide(intParam(query, 'b'), role, intParam(query, 'sb'), boxSeasons)
   const sides = { a: A, b: B }
   const metric = metrics.find((m) => m.key === metricKey)
-  const pct = (side, m) => percentile(leaguePool(side.league, m.key), side.line?.stats[m.key], m.better)
+  const pct = (side, m) => (m.adv ? advancedPercentile(side.advLeague, m.adv, advancedOf(side.line, m.adv), m.better)
+    : percentile(leaguePool(side.league, m.key), side.line?.stats[m.key], m.better))
+  // 고급 지표는 같은 시즌·같은 상태끼리만 우열을 표시한다
+  const winner = (m) => {
+    if (!m.adv) return betterSide(A.line.stats[m.key], B.line.stats[m.key], m.better)
+    const a = advancedOf(A.line, m.adv)
+    const b = advancedOf(B.line, m.adv)
+    return comparableAdvanced(a, b, A.season, B.season) ? betterSide(a.value, b.value, m.better) : null
+  }
 
   return (
     <div className="v2-page p2d-compare">
@@ -129,7 +144,7 @@ function Compare() {
                   <th>{B.profile.data.data.player.name} ({B.season})</th><th className="lalign">백분위</th></tr></thead>
                 <tbody>
                   {metrics.map((m) => {
-                    const win = betterSide(A.line.stats[m.key], B.line.stats[m.key], m.better)
+                    const win = winner(m)
                     return (
                       <tr key={m.key}>
                         <td className="lalign">{m.label}{m.advanced && <span className="v2-metric"> 고급</span>}</td>
@@ -138,7 +153,9 @@ function Compare() {
                           const p = pct(side, m)
                           return [
                             <td key={`${k}v`} className={win === k ? 'p2d-win' : undefined}>
-                              {m.innings ? (side.line.stats[m.key] ?? <Stat value={null} />) : <Stat value={side.line.stats[m.key]} rate={m.rate} digits={m.digits ?? null} />}
+                              {m.adv ? <AdvancedValue metricKey={m.adv} m={advancedOf(side.line, m.adv)} showNote />
+                                : m.innings ? (side.line.stats[m.key] ?? <Stat value={null} />)
+                                  : <Stat value={side.line.stats[m.key]} rate={m.rate} digits={m.digits ?? null} />}
                             </td>,
                             <td key={`${k}p`} className="lalign">
                               {p === null ? <span className="v2-unknown">-</span> : (
@@ -157,6 +174,14 @@ function Compare() {
             </div>
             <p className="v2-foot">리그 기준: {A.season} 규정 충족 {leaguePool(A.league, metrics[0].key).length}명
               {B.season !== A.season && ` · ${B.season} 규정 충족 ${leaguePool(B.league, metrics[0].key).length}명`}</p>
+            {role === 'batter' && (
+              <>
+                <p className="v2-note">고급 지표(ISO·BABIP·BB%·K%)는 <b>같은 시즌·같은 상태</b>(계산값끼리 또는 출처 값끼리)일 때만 우세를 굵게 표시합니다.
+                  {' '}백분위는 그 시즌 규정 충족 타자 중 같은 상태의 값이 {MIN_ADVANCED_POOL}명 이상일 때만 매깁니다 — 적으면 '-'.
+                  {' '}BABIP(계산)은 희생플라이 자료가 있는 경우(2025 투구 데이터 완결 선수)만, BB%·K% 는 타석 수가 확인된 선수만 계산합니다.</p>
+                <AdvancedLegend />
+              </>
+            )}
           </section>
 
           <section className="p2d-section">
@@ -167,11 +192,13 @@ function Compare() {
               </select>
             </div>
             <TrendLine yLabel={metric.label} xTickStep={2}
-              fmt={(v) => (metric.rate ? v.toFixed(3).replace(/^0/, '') : metric.digits ? v.toFixed(metric.digits) : Math.round(v))}
+              fmt={(v) => (metric.adv ? fmtAdvanced(metric.adv, { status: 'calculated', value: v, display: v }).text
+                : metric.rate ? v.toFixed(3).replace(/^0/, '') : metric.digits ? v.toFixed(metric.digits) : Math.round(v))}
               series={['a', 'b'].map((k) => ({
                 label: sides[k].profile.data.data.player.name, color: SIDES[k], dash: k === 'b' ? '6 4' : undefined,
                 points: sides[k].profile.data.data.seasons.filter((s) => s.role === role)
-                  .map((s) => ({ x: s.season, y: toNumber(s.stats[metric.key]) })).filter((p) => p.y !== null),
+                  .map((s) => ({ x: s.season, y: metric.adv ? trendValue(advancedOf(s, metric.adv), metric.adv) : toNumber(s.stats[metric.key]) }))
+                  .filter((p) => p.y !== null),
               }))} />
             <p className="v2-foot">기록이 없는 시즌은 0 으로 그리지 않고 건너뜁니다 — 앞뒤 시즌을 직선으로 잇습니다.</p>
           </section>

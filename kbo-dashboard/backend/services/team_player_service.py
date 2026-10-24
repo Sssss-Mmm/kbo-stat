@@ -12,7 +12,10 @@ from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
+from sqlalchemy import bindparam, text
+from sqlalchemy.exc import SQLAlchemyError
 
+from services import batting_advanced as ba
 from services import season_service as ss
 from services.v2_service import _rows
 from utils import PROCESSED_DIR
@@ -58,18 +61,39 @@ def _naver_paths(season: int) -> list[Path]:
     return [PROCESSED_DIR / NAVER[r].format(season=season) for r in ("batter", "pitcher")]
 
 
+FIELDERS = ("내야수", "외야수", "포수")
+
+
+BATTING_COUNTS = ("AB", "H", "2B", "3B", "HR", "RBI", "R", "SB", "BB", "HBP", "SO")
+
+
+def _is_pitcher_batting(line: dict, pitching_games: int | None) -> bool:
+    """투구 기록도 있는 선수의 타자 줄이 '투수의 타석'인가. 야수 포지션이면 아니다, '투수'면 맞다.
+    포지션이 비었거나 다른 값이면(2007–2023 은 대부분 빈칸) **명확히 빈 타격 줄(모든 개수 0, 결측 없음)이고 타격 경기 ≤ 투구 경기**일
+    때만 투수의 타석으로 본다 — 기록이 하나라도 있거나(타석·득점·타점 — 희생타·대주자 포함) 값이 비어 판정할 수 없으면 지우지 않는다.
+    (2007–2026: 빈칸·기타 중 타격 경기 ≤ 투구 경기 759행 — 모든 개수 0 인 707행만 제외. AB 1–3 의 46행, AB 0 이지만 득점·타점이 있는
+    6행은 남김. 타격 경기 > 투구 경기인 10행은 투수로 1–3경기 나온 야수·AB 17–540.)"""
+    if line["position"] in FIELDERS:
+        return False
+    if line["position"] == "투수":
+        return True
+    stats = line["stats"]
+    if any(stats.get(k) is None or stats[k] != 0 for k in BATTING_COUNTS):
+        return False
+    return stats["G"] is not None and pitching_games is not None and stats["G"] <= pitching_games
+
+
 @lru_cache(maxsize=64)
 def _season_lines(season: int, key: tuple) -> tuple[dict, ...]:
-    """한 시즌 타자·투수 줄. 투수 기록이 있는 선수의 타자 줄(투수 타석)은 뺀다 — 포지션이 야수로 적힌 경우만 남긴다
-    (2007–2023 은 포지션이 대부분 비어 있다)."""
+    """한 시즌 타자·투수 줄. 투수의 타석(_is_pitcher_batting)인 타자 줄은 뺀다 — 투수로 한두 번 나온 야수의 타격 기록은 남긴다."""
     lines = []
     for role, (path, _) in zip(("batter", "pitcher"), key):
         lines += [{"player_id": r["PlayerId"], "name": r["선수명"], "season": season, "role": role, "team": r["팀명"],
                    "position": r["포지션"], "back_no": r["등번호"], "qualified": r["규정충족"],
                    "stats": {k: r.get(k) for k in STATS[role]}} for r in _read(path) if r["PlayerId"] is not None]
-    pitchers = {x["player_id"] for x in lines if x["role"] == "pitcher"}
-    return tuple(x for x in lines if x["role"] == "pitcher" or x["player_id"] not in pitchers
-                 or x["position"] not in (None, "투수"))
+    pitching_games = {x["player_id"]: x["stats"]["G"] for x in lines if x["role"] == "pitcher"}
+    return tuple(x for x in lines if x["role"] == "pitcher" or x["player_id"] not in pitching_games
+                 or not _is_pitcher_batting(x, pitching_games[x["player_id"]]))
 
 
 def naver_lines(season: int, role: str | None = None) -> list[dict]:
@@ -134,8 +158,9 @@ def search(q: str | None, team: str | None, season: int | None, role: str | None
                      + [{"source": "kbo_registered_players", "note": REGISTRY_NOTE}]}}
 
 
-def profile(player_id: int) -> dict | None:
-    """한 선수의 시즌·역할별 네이버 시즌 기록(비교·상세용). 없으면 None."""
+def profile(player_id: int, engine=None) -> dict | None:
+    """한 선수의 시즌·역할별 네이버 시즌 기록(비교·상세용). 없으면 None.
+    engine 을 주면 타자 시즌 줄에 P3-A 고급 지표(`advanced`)를 붙인다 — 기존 키는 그대로, 투수 줄에는 붙이지 않는다."""
     lines = [line for line in _all_lines() if line["player_id"] == player_id]
     if not lines:
         return None
@@ -143,9 +168,131 @@ def profile(player_id: int) -> dict | None:
     latest = lines[0]
     identity = {"player_id": player_id, "name": latest["name"], "team": latest["team"], "position": latest["position"],
                 **registry().get(player_id, {"birth_date": None, "pitch_bat": None, "roster_date": None})}
-    return {"data": {"player": identity, "seasons": lines},
-            "meta": {"sources": [naver_source(x["season"], x["role"]) for x in lines]
-                     + ([{"source": "kbo_registered_players", "note": REGISTRY_NOTE}] if identity["roster_date"] else [])}}
+    meta = {"sources": [naver_source(x["season"], x["role"]) for x in lines]
+            + ([{"source": "kbo_registered_players", "note": REGISTRY_NOTE}] if identity["roster_date"] else [])}
+    batting = sorted({x["season"] for x in lines if x["role"] == "batter"})
+    if engine is not None and batting:
+        ctx = batting_context(engine, batting, player_id)
+        advanced = {s: season_advanced(s, ctx, only=player_id) for s in batting}
+        # 캐시된 줄을 고치지 않도록 복사해서 붙인다
+        lines = [dict(x) | {"advanced": advanced[x["season"]].get(player_id)} if x["role"] == "batter" else x
+                 for x in lines]
+        meta |= {"advanced": advanced_meta(ctx)}
+    return {"data": {"player": identity, "seasons": lines}, "meta": meta}
+
+
+# ---------------------------------------------------------------- P3-A 타자 고급 지표(services/batting_advanced.py)
+
+ADVANCED_RULES = {
+    "iso": "(2B + 2·3B + 3·HR) / AB — 개수 기반 정확 계산. 네이버 ISO 는 '반올림 SLG − 반올림 AVG' 라 표시값이 0.001 다를 수 있다",
+    "babip": "(H − HR) / (AB − SO − HR + SF) — SF 는 투구 데이터 계산에만 있어, 시즌 전 경기가 완결된 선수만 직접 계산",
+    "babip_source": "네이버가 준 BABIP — 직접 계산 아님. 분모 0 가능 행의 0.000 은 쓰지 않는다",
+    "bb_pct": "BB / PA × 100", "k_pct": "SO / PA × 100",
+    "pa": "① KBO 기록실 PA(선수 ID 1:1 연결·BB·SO 일치) ② 조립 PA = AB + BB + HBP + SF + SH(투구 계산 완결 선수) ③ 없으면 계산하지 않음",
+    "display": "ROUND_HALF_UP — ISO·BABIP 소수 3자리, BB%·K% 소수 1자리. value 는 반올림 전 정밀값",
+    "status": "calculated · source · unavailable · zero_denominator — 계산할 수 없으면 0 이 아니라 null + reason",
+}
+
+
+def _id_row(line: dict) -> dict:
+    """네이버 시즌 줄 → 계산 모듈 입력(행 키)."""
+    return {"Season": line["season"], "PlayerId": line["player_id"], "선수명": line["name"], "팀명": line["team"],
+            **line["stats"]}
+
+
+def batting_context(engine, seasons: list[int], player_id: int | None = None) -> dict:
+    """시즌들의 KBO 기록실 행(규정 이상)과 투구 계산 시즌 합을 읽는다. 쿼리 수는 시즌 수에만 비례(선수 수와 무관).
+    DB 를 못 읽으면 그 부분은 빈 자료 + 경고 — 응답 전체를 실패시키지 않는다."""
+    ctx = {"seasons": seasons, "kbo": {s: [] for s in seasons}, "calc": {s: {} for s in seasons}, "builds": {}, "warnings": []}
+    try:
+        with engine.connect() as conn:
+            q = text("""SELECT h.season AS "Season", h.player_name AS "선수명", t.name AS "팀명", h.pa AS "PA", h.ab AS "AB",
+                              h.hits AS "H", h.bb AS "BB", h.so AS "SO", h.hbp AS "HBP"
+                       FROM hitters h JOIN teams t ON t.id = h.team_id WHERE h.season IN :seasons""")
+            for r in conn.execute(q.bindparams(bindparam("seasons", expanding=True)), {"seasons": seasons}).mappings():
+                ctx["kbo"][r["Season"]].append(dict(r))
+    except SQLAlchemyError as exc:
+        ctx["warnings"].append(f"KBO 기록실 PA 를 읽지 못함({type(exc).__name__}) — BB%·K% 는 조립 PA 만 사용")
+    try:
+        with engine.connect() as conn:
+            # 시즌별 최신 계산 빌드를 한 번에 고른다(v2 의 빌드 선택과 같은 순서: loaded_at, build_id 내림차순) — 시즌 수와 무관하게 1회
+            q = text("""SELECT build_id, season, calc_rule, loaded_at FROM derived.build
+                        WHERE kind = 'player_game' AND season IN :seasons ORDER BY loaded_at DESC, build_id DESC""")
+            for r in conn.execute(q.bindparams(bindparam("seasons", expanding=True)), {"seasons": seasons}).mappings():
+                ctx["builds"].setdefault(r["season"], dict(r))
+            if ctx["builds"]:
+                who = "AND player_id = :pid" if player_id is not None else ""
+                q = text(f"""SELECT season, player_id, COUNT(*) AS games,
+                                    SUM(CASE WHEN stats_complete THEN 1 ELSE 0 END) AS complete_games,
+                                    SUM(ab) AS "AB", SUM(hbp) AS "HBP", SUM(sf) AS "SF", SUM(sh) AS "SH"
+                             FROM derived.player_game WHERE build_id IN :builds AND role = 'batter' {who}
+                             GROUP BY season, player_id""")
+                builds = [b["build_id"] for b in ctx["builds"].values()]
+                for r in conn.execute(q.bindparams(bindparam("builds", expanding=True)), {"builds": builds, "pid": player_id}).mappings():
+                    ctx["calc"].setdefault(r["season"], {})[int(r["player_id"])] = {
+                        k: r[k] for k in ("games", "complete_games", "AB", "HBP", "SF", "SH")}
+    except SQLAlchemyError as exc:
+        ctx["warnings"].append(f"투구 계산 자료를 읽지 못함({type(exc).__name__}) — BABIP 직접 계산·조립 PA 불가")
+    return ctx
+
+
+def season_advanced(season: int, ctx: dict, only: int | None = None) -> dict[int, dict]:
+    """한 시즌 타자의 고급 지표 {player_id: {...}}. 선수 연결은 늘 시즌 전체로 판정한다(필터 전에 — 유일성 보장).
+    only 를 주면 지표는 그 선수만 계산한다(프로필)."""
+    id_rows = [_id_row(line) for line in naver_lines(season, "batter")]
+    kbo_rows = ctx["kbo"].get(season, [])
+    links = ba.link_kbo_records(kbo_rows, id_rows, season)
+    by_pid = {lk["player_id"]: (kbo_rows[lk["index"]], lk) for lk in links if lk["player_id"] is not None}
+    out = {}
+    for r in id_rows:
+        pid = r["PlayerId"]
+        if only is not None and pid != only:
+            continue
+        kbo_row, link = by_pid.get(pid, (None, None))
+        res = ba.player_season(r, season, kbo_row=kbo_row, link=link, calc=ctx["calc"].get(season, {}).get(pid))
+        out[pid] = {"pa": res["pa"],
+                    "kbo_record_link": {"status": link["status"], "reason": link["reason"]} if link
+                    else {"status": "not_listed", "reason": "KBO 기록실(규정 이상) 명단에 연결되는 행 없음"},
+                    "metrics": {k: res[k] for k in ("iso", "babip", "babip_source", "bb_pct", "k_pct")}}
+    return out
+
+
+def advanced_meta(ctx: dict) -> dict:
+    sources = [{"source": "kbo_record_season", "note": "KBO 기록실 시즌 기록(규정 이상, v1 적재) — PA 출처",
+                "seasons": [s for s in ctx["seasons"] if ctx["kbo"].get(s)]}]
+    sources += [{"source": "pitch_relay_calc", "season": s, "build_id": b["build_id"], "calc_rule": b["calc_rule"],
+                 "note": "투구 데이터 계산 경기 기록의 시즌 합 — SF·SH 출처"} for s, b in sorted(ctx["builds"].items())]
+    return {"rules": ADVANCED_RULES, "sources": sources, "warnings": ctx["warnings"],
+            "publication": "private_pending_rights"}
+
+
+def batting_advanced_list(engine, season: int, team: str | None, qualified: bool | None, limit: int, offset: int) -> dict:
+    """GET /api/v2/batting/advanced — 시즌 타자 전원의 원본 기록·PA·고급 지표. 정렬: AB 내림차순, 같으면 player_id."""
+    lines = naver_lines(season, "batter")
+    if not lines:
+        return {"data": [], "season": season, "reason": "no_batting_data",
+                "page": {"limit": limit, "offset": offset, "total": 0, "next_offset": None},
+                "meta": {"rules": ADVANCED_RULES, "sources": [], "warnings": [], "publication": "private_pending_rights"}}
+    ctx = batting_context(engine, [season])
+    advanced = season_advanced(season, ctx)
+    rows = [x for x in lines if (not team or x["team"] == team) and (qualified is None or x["qualified"] is qualified)]
+    rows.sort(key=lambda x: (-(x["stats"]["AB"] or 0), x["player_id"]))
+    page = rows[offset:offset + limit]
+    data = [{"player_id": x["player_id"], "name": x["name"], "team": x["team"], "season": season,
+             "position": x["position"], "qualified": x["qualified"],
+             "record": {"source": "naver_season_stats", **{k: x["stats"][k] for k in ("G", "AB", "H", "2B", "3B", "HR", "BB", "HBP", "SO")}},
+             **advanced[x["player_id"]]} for x in page]
+    counts: dict[str, dict[str, int]] = {}
+    for x in rows:
+        for k, m in advanced[x["player_id"]]["metrics"].items():
+            counts.setdefault(k, {}).setdefault(m["status"], 0)
+            counts[k][m["status"]] += 1
+    meta = advanced_meta(ctx)
+    meta["sources"].insert(0, naver_source(season, "batter"))
+    return {"data": data, "season": season, "reason": None, "status_counts": counts,
+            "page": {"limit": limit, "offset": offset, "total": len(rows),
+                     "next_offset": offset + limit if offset + limit < len(rows) else None},
+            "meta": meta}
 
 
 def _team_games(conn, team: str, season: int) -> list[dict]:

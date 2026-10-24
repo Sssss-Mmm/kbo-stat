@@ -11,6 +11,9 @@ export const fetchProfile = (id) => get(`/api/v2/players/${encodeURIComponent(id
 /** 리그 비교 기준(그 시즌 전 선수). v1 /api/player-stats — 네이버 시즌 기록, 같은 열 이름. */
 export const fetchLeague = (role, season) =>
   get('/api/player-stats', { role: role === 'batter' ? 'hitter' : 'pitcher', season }).then((d) => d.data || [])
+/** P3-A 시즌 타자 고급 지표(규정 충족 타자) — 백분위 모집단. */
+export const fetchBattingAdvanced = (season) =>
+  get('/api/v2/batting/advanced', { season, qualified: true, limit: 200 }).then((d) => d.data || [])
 
 export const ROLE_LABEL = { batter: '타자', pitcher: '투수' }
 export const NAVER_SEASON_LABEL = '네이버 시즌 기록 (자동 수집 · KBO 원본 직접 대조 안 함 · 외부 공개 전)'
@@ -24,7 +27,12 @@ export const COMPARE_METRICS = {
     { key: 'OPS', label: 'OPS', rate: true, better: 'high' },
     { key: 'wOBA', label: 'wOBA', rate: true, better: 'high', advanced: true },
     { key: 'wRC+', label: 'wRC+', digits: 1, better: 'high', advanced: true },
-    { key: 'ISO', label: 'ISO', rate: true, better: 'high', advanced: true },
+    // P3-A: 프로필 advanced 에서 읽는 지표(adv). ISO 는 출처 값이 아니라 개수 기반 자체 계산값
+    { key: 'iso', adv: 'iso', label: 'ISO', better: 'high', advanced: true },
+    { key: 'babip', adv: 'babip', label: 'BABIP(계산)', better: 'high', advanced: true },
+    { key: 'babip_source', adv: 'babip_source', label: 'BABIP(출처)', better: 'high', advanced: true },
+    { key: 'bb_pct', adv: 'bb_pct', label: 'BB%', better: 'high', advanced: true },
+    { key: 'k_pct', adv: 'k_pct', label: 'K%', better: 'low', advanced: true },
     { key: 'HR', label: '홈런', better: 'high' },
     { key: 'SB', label: '도루', better: 'high' },
     { key: 'WAR', label: 'WAR', digits: 2, better: 'high', advanced: true },
@@ -149,3 +157,61 @@ export function verificationSummary(seasonBody, role) {
 export function latestCollected(sources) {
   return (sources || []).map((s) => s?.collected_at).filter(Boolean).sort().at(-1) ?? null
 }
+
+// ---------------------------------------------------------------- P3-A 타자 고급 지표 표시 규칙
+
+/** 지표별 표시: ISO·BABIP 소수 3자리, BB%·K% 소수 1자리 + %. */
+export const ADVANCED_FORMAT = { iso: { digits: 3 }, babip: { digits: 3 }, babip_source: { digits: 3 },
+  bb_pct: { digits: 1, pct: true }, k_pct: { digits: 1, pct: true } }
+/** 상태 → 화면 문구. 출처 값과 계산값은 같은 상태로 보이지 않는다. */
+export const ADVANCED_STATUS = {
+  calculated: '계산값', source: '출처 제공값(네이버) — 직접 계산 아님',
+  unavailable: '계산 불가', zero_denominator: '분모 0 — 계산할 수 없음', missing: '고급 지표 자료 없음',
+}
+/** 백분위를 매기는 최소 모집단(같은 상태의 값 수). 이보다 적으면 백분위를 보이지 않는다. */
+export const MIN_ADVANCED_POOL = 20
+
+/** 지표 객체(API metrics.*) → {text, kind, note}. 계산 불가·분모 0 은 '-'(0 으로 보이지 않게), 사유는 note. */
+export function fmtAdvanced(key, m) {
+  if (!m) return { text: '-', kind: 'missing', note: ADVANCED_STATUS.missing }
+  if (m.status === 'unavailable') return { text: '-', kind: 'unavailable', note: m.reason || ADVANCED_STATUS.unavailable }
+  if (m.status === 'zero_denominator') return { text: '-', kind: 'zero_denominator', note: ADVANCED_STATUS.zero_denominator }
+  const spec = ADVANCED_FORMAT[key] || { digits: 3 }
+  const v = m.display ?? m.value
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) return { text: '-', kind: 'unavailable', note: m.reason || ADVANCED_STATUS.unavailable }
+  const n = Number(v).toFixed(spec.digits)
+  const text = spec.pct ? `${n}%` : n.replace(/^0(?=\.)/, '')
+  return { text, kind: m.status === 'source' ? 'source' : 'calculated',
+    note: m.status === 'source' ? ADVANCED_STATUS.source : ADVANCED_STATUS.calculated }
+}
+
+/** 선수 시즌 줄의 고급 지표 하나(없으면 undefined). */
+export const advancedOf = (line, key) => line?.advanced?.metrics?.[key]
+
+/** 두 값을 직접 비교해도 되는가: 같은 시즌 · 같은 상태(계산값끼리 또는 출처 값끼리) · 값이 있음. */
+export function comparableAdvanced(a, b, seasonA, seasonB) {
+  return Boolean(a && b && seasonA === seasonB && a.status === b.status && ['calculated', 'source'].includes(a.status)
+    && a.value !== null && b.value !== null)
+}
+
+/** 모집단: 같은 상태인 값만(계산값과 출처 값을 섞지 않는다). */
+export function advancedPool(rows, key, status) {
+  return rows.map((r) => r.metrics?.[key]).filter((m) => m && m.status === status && m.value !== null).map((m) => m.value)
+}
+
+/** 백분위 — 모집단이 MIN_ADVANCED_POOL 보다 작거나 값이 계산·출처 상태가 아니면 null. */
+export function advancedPercentile(rows, key, m, better) {
+  if (!m || !['calculated', 'source'].includes(m.status) || m.value === null) return null
+  const pool = advancedPool(rows, key, m.status)
+  return pool.length < MIN_ADVANCED_POOL ? null : percentile(pool, m.value, better)
+}
+
+// ---------------------------------------------------------------- 홈 '선수 BABIP 단순 평균'(P3-A 4단계)
+
+/** 홈 리그 카드의 BABIP: 규정 충족(`규정충족` true) 타자의 출처(네이버) BABIP 를 선수 수로 나눈 **단순 평균**.
+ *  타석 가중이 아니고, 값이 숫자가 아닌 선수는 뺀다. 리그 전체 BABIP(분자 합/분모 합)가 아니다. 대상이 없으면 NaN. */
+export function qualifiedSimpleMean(rows, key) {
+  const vals = (rows || []).filter((r) => r['규정충족'] === true).map((r) => r[key]).filter(Number.isFinite)
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN
+}
+export const PLAYER_MEAN_BABIP_NOTE = '선수 BABIP 단순 평균: 규정 타석을 채운 타자의 네이버 BABIP 값을 선수 수로 나눈 평균입니다(타석 수 가중 아님, 값이 없는 선수 제외). 리그 전체 BABIP가 아닙니다.'

@@ -137,4 +137,12 @@ def player_search(q: Annotated[str | None, Query(max_length=30)] = None, team: A
 
 @router.get("/players/{player_id}/profile")
 def player_profile(player_id: PlayerId):
-    return _found(tp.profile(player_id), "player")
+    # P3-A: 타자 시즌 줄에 고급 지표 — DB 를 못 읽어도 프로필은 응답한다(해당 지표만 unavailable + meta.advanced.warnings)
+    return _found(tp.profile(player_id, engine), "player")
+
+
+# P3-A — 타자 고급 지표(ISO · BABIP · BB% · K%). 계산·판정은 services/batting_advanced.py
+@router.get("/batting/advanced")
+def batting_advanced(season: Season, team: Annotated[str | None, Query(max_length=20)] = None, qualified: bool | None = None,
+                     limit: Annotated[int, Query(ge=1, le=200)] = 50, offset: Annotated[int, Query(ge=0)] = 0):
+    return tp.batting_advanced_list(engine, season, team, qualified, limit, offset)

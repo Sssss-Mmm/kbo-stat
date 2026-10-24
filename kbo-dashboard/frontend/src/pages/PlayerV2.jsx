@@ -2,10 +2,10 @@
 // P2-D: 시즌별 기록(네이버 시즌 기록, 2007–) — 박스스코어 자료가 없는 시즌에도 보인다.
 import { useRoute } from '../lib/useRoute'
 import { followLink, pageUrl, updateQuery } from '../lib/navigation'
-import { COMPARE_METRICS, fetchProfile, latestCollected, NAVER_SEASON_LABEL, playerLabel, ROLE_LABEL } from '../lib/p2d'
+import { advancedOf, COMPARE_METRICS, fetchProfile, latestCollected, NAVER_SEASON_LABEL, playerLabel, ROLE_LABEL } from '../lib/p2d'
 import { CALC_SOURCE_LABEL, fetchPlayerGames, fetchPlayerSeason, inningsFromOuts, intParam, kstInputToIso,
   notFoundMessage, OFFICIAL_SOURCE_LABEL, playerGamesParams, recentTrend, verificationInfo } from '../lib/v2'
-import { GameLink, KboBadge, LoadState, SourceLine, Stat, TimeControls, useV2, VerificationBadge } from '../components/V2Bits'
+import { AdvancedLegend, AdvancedValue, GameLink, KboBadge, LoadState, SourceLine, Stat, TimeControls, useV2, VerificationBadge } from '../components/V2Bits'
 import TrendLine from '../components/charts/TrendLine'
 import '../styles/V2.css'
 
@@ -135,13 +135,15 @@ function SeasonHistory({ id, role, season }) {
                     <td className="lalign">{s.season}</td>
                     <td className="lalign"><a href={pageUrl('team', { team: s.team, season: s.season })} onClick={followLink}>{s.team}</a></td>
                     {cols.map(([k, , m]) => (
-                      <td key={k} className="v2-num">{m.innings ? (s.stats[k] ?? <Stat value={null} />)
-                        : <Stat value={s.stats[k]} rate={m.rate} digits={m.digits ?? null} />}</td>))}
+                      <td key={k} className="v2-num">{m.adv ? <AdvancedValue metricKey={m.adv} m={advancedOf(s, m.adv)} />
+                        : m.innings ? (s.stats[k] ?? <Stat value={null} />)
+                          : <Stat value={s.stats[k]} rate={m.rate} digits={m.digits ?? null} />}</td>))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {shown === 'batter' && <AdvancedLegend />}
           <SourceLine label={NAVER_SEASON_LABEL} fetchedAt={latestCollected(state.data.meta.sources)} />
         </>
       )}

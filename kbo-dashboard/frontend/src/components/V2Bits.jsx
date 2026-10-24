@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { apiError } from '../lib/apiError'
 import { followLink, pageUrl } from '../lib/navigation'
 import { fetchSeasons, fmtKst, fmtStat, kboLabel, TIME_HELP, UNKNOWN, verificationInfo } from '../lib/v2'
+import { ADVANCED_STATUS, fmtAdvanced } from '../lib/p2d'
 
 /** 비동기 조회. deps 가 바뀌면 다시 부르고, 늦게 온 이전 응답은 버린다. */
 export function useV2(fetcher, deps) {
@@ -98,6 +99,30 @@ export function DataBasisBar() {
       자료 기준 <b>{fmtKst(meta.last_collected_at)}</b> 수집
       {latest.schedule?.last_played_date && <> · {latest.season} 마지막 경기 <b>{latest.schedule.last_played_date}</b></>}
       {' '}· 자동 수집 중단 — 실시간 정보가 아닙니다 · 포스트시즌 자료 없음
+    </p>
+  )
+}
+
+/** P3-A 타자 고급 지표 값 하나. 계산 불가·분모 0 은 '-'(0 으로 보이지 않게) + 사유, 출처 값은 '출처' 배지로 계산값과 구분. */
+export function AdvancedValue({ metricKey, m, showNote = false }) {
+  const f = fmtAdvanced(metricKey, m)
+  const empty = f.text === '-'
+  return (
+    <span className={`p3a-adv p3a-${f.kind}`} title={f.note} aria-label={`${empty ? '값 없음' : f.text} — ${f.note}`}>
+      {f.text}
+      {f.kind === 'source' && <span className="v2-badge v2-info p3a-src">출처</span>}
+      {showNote && empty && <small className="p3a-note">{f.note}</small>}
+    </span>
+  )
+}
+
+/** 고급 지표 표 아래 범례. */
+export function AdvancedLegend() {
+  return (
+    <p className="v2-note p3a-legend">
+      고급 지표: 숫자 = {ADVANCED_STATUS.calculated}(개수로 직접 계산) · <span className="v2-badge v2-info">출처</span> = {ADVANCED_STATUS.source}
+      {' '}· '-' = 계산 불가 또는 분모 0(사유는 값에 표시·툴팁). 계산할 수 없는 값은 0 으로 표시하지 않습니다.
+      {' '}ISO 는 자체 계산값이라 출처(네이버) ISO 와 0.001 다를 수 있습니다 — 출처는 반올림한 장타율에서 반올림한 타율을 빼서 계산합니다.
     </p>
   )
 }
