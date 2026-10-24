@@ -7,13 +7,17 @@ import axios from 'axios'
 import Scatter from '../components/charts/Scatter'
 import Beeswarm from '../components/charts/Beeswarm'
 import RankRace from '../components/charts/RankRace'
-import TodayGames from '../components/TodayGames'
+import LastGames from '../components/LastGames'
 import SeasonBanner from '../components/SeasonBanner'
 import { teamColor, teamEmblem, TEAM_COLORS } from '../lib/teamColors'
 import { MiniTable, BarList, TeamCell, Note } from '../components/MiniTable'
 import { fmtRate, fmtOne, fmtTwo, fmtInt, fmtPct, fmtMinutes, parseRecord, recordWinRate, streakScore, recentWinRate } from '../lib/format'
 import '../styles/Home.css'
 import { apiError } from '../lib/apiError'
+import { useRoute } from '../lib/useRoute'
+import { updateQuery } from '../lib/navigation'
+import { fetchSeasons, intParam } from '../lib/v2'
+import { useV2 } from '../components/V2Bits'
 
 const TEAM_COUNT = 10
 
@@ -57,8 +61,11 @@ function HlItem({ label, player, val }) {
 }
 
 function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
-  // 순위·관중·경기시간은 백엔드가 판정한 활성 시즌 하나뿐이라 고를 게 없다.
-  const season = seasonInfo.dataSeason
+  // 시즌은 URL(season) 하나로 모든 카드에 같이 쓴다. 없으면 v1 활성 시즌. 고를 수 있는 시즌 = 일정 자료가 있는 시즌.
+  const { query } = useRoute()
+  const season = intParam(query, 'season', seasonInfo.dataSeason)
+  const seasons = useV2(fetchSeasons, [])
+  const held = (seasons.data?.data || []).filter((s) => s.schedule).map((s) => s.season)
   const [favorite, setFavorite] = useState(() => {
     try { return localStorage.getItem('favoriteTeam') || '' } catch { return '' }
   })
@@ -232,6 +239,10 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
 
   const favoriteStanding = d.standings.find((row) => row.team === favorite)
   const through = d.teamGames.map((row) => row.Date).filter(Boolean).sort().at(-1)
+  // 선택한 시즌에 자료가 없는 출처(요청 실패와 구분 — 실패는 위 오류 줄로 따로 알린다)
+  const missing = [['순위', d.standings], ['경기 결과', d.teamGames], ['타자 기록', d.hitters], ['투수 기록', d.pitchers],
+    ['관중', d.attendance], ['경기시간', d.gameTime]]
+    .filter(([label, rows]) => !rows.length && !d.failed?.includes(label)).map(([label]) => label)
 
   const RULES = [
     ['승부치기', '연장 10회부터 무사 1·2루로 시작하는 KBO 연장 규정.'],
@@ -246,7 +257,15 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
         <div>
           <h2>한눈에 보는 {season} 시즌</h2>
         </div>
+        {held.length > 0 && (
+          <select value={season} onChange={(e) => updateQuery({ season: e.target.value })} aria-label="시즌 (홈 전체에 적용)">
+            {[...held].reverse().map((s) => <option key={s} value={s}>{s} 시즌</option>)}
+          </select>
+        )}
       </section>
+      {!loading && missing.length > 0 && (
+        <p className="players-note">{season} 시즌에 없는 자료: {missing.join(' · ')} — 해당 카드는 비어 있거나 &apos;-&apos; 로 표시됩니다.</p>
+      )}
 
       {/* NFR-06: 일부 요청만 실패한 경우 나머지 패널은 그대로 두고 실패 사실만 알린다. */}
       {d.failed?.length > 0 && (
@@ -255,24 +274,8 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
 
       <SeasonBanner info={seasonInfo} selected={season} />
 
-      {/* FR-12: 정규시즌·포스트시즌에만 오늘의 경기를 띄운다.
-          오프시즌·개막전에는 경기가 없으므로 안내 + 아래 최종 순위/기록으로 대신한다. */}
-      {seasonInfo.storyEnabled ? (
-        <TodayGames
-          standings={d.standings}
-          storyEnabled={seasonInfo.storyEnabled}
-          note={seasonInfo.state === 'postseason' ? 'PO 진행 중 · 포스트시즌 경기 데이터는 수집 범위 밖입니다.' : ''}
-        />
-      ) : (
-        <section className="season-notice">
-          <h3>{seasonInfo.state === 'preseason' ? `${seasonInfo.season} 시즌 개막까지 D-${seasonInfo.daysToOpening}` : '시즌 종료'}</h3>
-          <p>
-            {seasonInfo.state === 'preseason'
-              ? `개막일 ${seasonInfo.opening} · 아래는 ${seasonInfo.dataSeason} 시즌 최종 순위와 기록입니다.`
-              : `아래는 ${seasonInfo.dataSeason} 정규시즌 최종 순위와 기록입니다.`}
-          </p>
-        </section>
-      )}
+      {/* P2-C: 수집이 멈춰 있어 실시간 '오늘의 경기' 대신 보유 자료의 마지막 경기일 결과를 띄운다. */}
+      <LastGames season={season} />
 
       <section className="panel home-favorite">
         <div className="panel-head">
@@ -289,7 +292,7 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
             <span>{favoriteStanding.wins}승 {favoriteStanding.draws}무 {favoriteStanding.losses}패</span>
             <span>최근 10경기 {favoriteStanding.last_10_games || '-'}</span>
             <span>{favoriteStanding.streak || '-'}</span>
-            <button onClick={() => onTeamClick(favorite)}>팀 분석 보기 →</button>
+            <button onClick={() => onTeamClick(favorite, season)}>팀 상세 보기 →</button>
           </div>
         ) : <p className="players-note">{favorite ? (loading ? '팀 성적을 불러오는 중입니다.' : '선택한 팀의 순위 데이터를 확인할 수 없습니다.') : '응원팀을 선택하면 다음 방문에도 성적을 바로 확인할 수 있습니다.'}</p>}
       </section>
@@ -309,7 +312,7 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
           {/* 요약 카드 */}
           <section className="card-grid">
             <article className="stat-card primary">
-              <span className="kicker">현재 1위</span>
+              <span className="kicker">{season} 정규시즌 1위</span>
               <h3>{summary.leader?.team || '-'}</h3>
               <p>{summary.leader ? `${summary.leader.wins}승 ${summary.leader.losses}패 ${summary.leader.draws}무 · 승률 ${fmtRate(summary.leader.win_rate)}` : '-'}</p>
             </article>
@@ -495,7 +498,7 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
             </article>
             <article className="panel ops-summary">
               <div className="panel-head">
-                <h3>운영 요약</h3>
+                <h3>운영 요약 <small>{season}시즌</small></h3>
                 {/* 상세(월별 관중·연도별 경기시간)는 리그 운영 화면으로 보낸다 */}
                 {onOpsClick && <button className="panel-link" onClick={onOpsClick}>리그 운영 →</button>}
               </div>

@@ -14,8 +14,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import text
 
+import data_check
 from database import init_db, engine
-from routers import analytics, arsenal, player_stats, players, rag, schedule, standings, story, today, zones
+from routers import analytics, arsenal, player_stats, players, rag, schedule, standings, story, today, v2, zones
 
 
 app = FastAPI(title="KBO Dashboard API")
@@ -48,6 +49,7 @@ app.include_router(arsenal.router, prefix="/api", tags=["arsenal"])
 app.include_router(player_stats.router, prefix="/api", tags=["player-stats"])
 app.include_router(today.router, prefix="/api", tags=["today"])
 app.include_router(story.router, prefix="/api", tags=["story"])
+app.include_router(v2.router, prefix="/api", tags=["v2"])
 
 
 @app.exception_handler(OperationalError)
@@ -68,12 +70,17 @@ async def health_check():
 
 @app.get("/ready")
 def readiness_check():
+    """DB 연결 + 필수 데이터(data_check). /health 는 프로세스 생존만 본다. 선택 자료 누락은 준비 완료로 친다."""
+    data = data_check.check()
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
+        database = "available"
     except SQLAlchemyError:
-        return JSONResponse(status_code=503, content={"status": "unavailable", "database": "unavailable"})
-    return {"status": "ready", "database": "available"}
+        database = "unavailable"
+    body = {"status": "ready" if database == "available" and data["ready"] else "unavailable", "database": database,
+            "data": {k: data[k] for k in ("ready", "mount", "season", "problems", "optional_missing")}}
+    return body if body["status"] == "ready" else JSONResponse(status_code=503, content=body)
 
 
 if __name__ == "__main__":

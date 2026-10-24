@@ -75,7 +75,7 @@ function StandingsTable({ data, onTeamClick }) {
               {COLUMNS.map((c) => (
                 <td key={c.key} className={[c.cls, c.left ? 'lalign' : ''].filter(Boolean).join(' ')}>
                   {c.key === 'team' ? (
-                    <button type="button" className="team-link" onClick={() => onTeamClick?.(team.team)} title={`${team.team} 팀 분석 보기`}>
+                    <button type="button" className="team-link" onClick={() => onTeamClick?.(team.team)} title={`${team.team} 팀 상세 보기`}>
                       {teamEmblem(team.team) && <img className="team-emblem" src={teamEmblem(team.team)} alt="" loading="lazy" />}
                       {team.team}
                     </button>

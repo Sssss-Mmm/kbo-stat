@@ -3,6 +3,8 @@ import { pageFromPath, pageUrl, navigate, updateQuery, followLink } from './navi
 
 assert.equal(pageFromPath('/players/'), 'players')
 assert.equal(pageFromPath('/unknown'), 'home')
+for (const page of ['leaders', 'player', 'game', 'quality', 'team', 'search', 'compare']) assert.equal(pageFromPath(`/${page}`), page)
+assert.equal(pageUrl('player', { id: 55730, season: 2025, role: null }), '/player?id=55730&season=2025')
 assert.equal(pageUrl('home'), '/')
 const url = new URL(pageUrl('players', { team: '삼성', sort: 'WAR', q: '김 현수' }), 'http://localhost')
 assert.equal(url.searchParams.get('team'), '삼성')

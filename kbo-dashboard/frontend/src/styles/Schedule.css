@@ -138,7 +138,7 @@
   background: var(--panel-soft);
 }
 
-.cal-cell.today {
+.cal-cell.selected { /* 선택한 날짜(URL date). 실시간 자료가 아니라 '오늘' 강조는 두지 않는다 */
   background: var(--hover);
   box-shadow: inset 0 0 0 2px var(--rule-key);
 }

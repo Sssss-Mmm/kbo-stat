@@ -6,6 +6,8 @@ services:
       context: ..
       dockerfile: kbo-dashboard/backend/Dockerfile
     container_name: kbo_backend
+    # Docker Desktop 재시작(2026-10-23, 전 컨테이너 exit 255) 뒤 자동 복귀. 다음 up 때 컨테이너가 재생성된다.
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -13,6 +15,8 @@ services:
       QA_MODEL: ${QA_MODEL:-gpt-4.1-mini}
       AI_MAX_CALLS_PER_DAY: ${AI_MAX_CALLS_PER_DAY:-20}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # data 바인드 마운트가 없으면(이미지 스냅샷) 준비 안 됨으로 본다 — data_check.py
+      KBO_DATA_MOUNT_REQUIRED: "1"
     ports:
       - "127.0.0.1:8001:8001"
     volumes:
@@ -25,7 +29,8 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)\""]
+      # /ready = DB + 필수 데이터. 데이터 마운트가 비면 unhealthy(/health 는 프로세스 생존만)
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=3)\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,8 +39,9 @@ services:
     build:
       context: ./frontend
     container_name: kbo_frontend
+    # 로컬에서만: KBO 수집 자료는 이용 권한 확인 전이라 외부 공개 금지(nginx 가 /api/ 전체를 프록시한다).
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     networks:
       - kbo_network
     depends_on:
@@ -45,6 +51,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: kbo_dashboard_db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-/usr/bin/python3}"
-LOG_DIR="${ROOT_DIR}/logs"
+LOG_DIR="${LOG_DIR:-${ROOT_DIR}/logs}"  # 테스트는 임시 폴더로 바꾼다(실제 마커·잠금 파일을 건드리지 않게)
 LOCK_FILE="${LOG_DIR}/update_kbo_daily.lock"
 
 mkdir -p "${LOG_DIR}"
@@ -31,7 +31,8 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "DRY_RUN: ${PYTHON_BIN} src/build_zone_metrics.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_pitch_arsenal.py --year ${YEAR}"
   echo "DRY_RUN: ${PYTHON_BIN} src/build_count_metrics.py --year ${YEAR}"
-  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} up -d backend   # only if container is down"
+  echo "DRY_RUN: docker compose version / docker info   # exit 5 if compose plugin or daemon is missing"
+  echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} up -d --no-recreate backend   # only if container is down"
   echo "DRY_RUN: docker compose -f ${COMPOSE_FILE} exec -T backend python migrate.py   # exit 3/4 on failure"
   exit 0
 fi
@@ -71,27 +72,44 @@ backend_running() {
 }
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "[db] FAIL: docker not found — CSVs are updated but the DB was NOT reloaded" >&2
+  echo "[error] db: docker not found — CSVs are updated but the DB was NOT reloaded" >&2
   exit 3
+fi
+
+# compose 플러그인이 Docker Desktop 의 WSL 마운트(/mnt/wsl/docker-desktop/...)를 가리키는 링크라,
+# Desktop 이 꺼져 있으면 플러그인도 데몬도 없다. 그 상태를 "백엔드 다운"으로 오판하지 않게 먼저 본다.
+# `docker compose version` 은 플러그인이 없어도 종료코드 0 이라 stdout 문구로 확인한다.
+if ! docker compose version 2>/dev/null | grep -q '^Docker Compose version' || ! docker info >/dev/null 2>&1; then
+  echo "[error] db: docker compose 플러그인 또는 Docker 데몬을 쓸 수 없다(Docker Desktop 미실행?) —" >&2
+  echo "[error] db:   CSVs are updated but the DB was NOT reloaded. Docker Desktop 을 띄운 뒤 다시 실행할 것" >&2
+  exit 5
+fi
+
+. "${ROOT_DIR}/scripts/docker_engine.sh"
+if ! require_kbo_engine; then
+  echo "[error] db:   CSVs are updated but the DB was NOT reloaded (wrong Docker engine)" >&2
+  exit 5
 fi
 
 if ! backend_running; then
   echo "[db] backend container not running — trying to start it once"
-  docker compose -f "${COMPOSE_FILE}" up -d backend || true
+  # --no-recreate: 꺼진 컨테이너를 켜기만 한다. compose 설정·이미지가 바뀌었다고 DB·백엔드를 재생성하지 않는다
+  # (2026-10-24 02:00 재시작 정책 추가 직후 cron 이 두 컨테이너를 재생성한 사건). 교체는 별도 승인 후 수동으로.
+  docker compose -f "${COMPOSE_FILE}" up -d --no-recreate backend || true
   # ponytail: 고정 대기. backend 는 postgres service_healthy 를 기다린 뒤 뜨므로
   # 보통 충분하다. 부족하면 healthcheck 폴링 루프로 올릴 것.
   sleep 5
 fi
 
 if ! backend_running; then
-  echo "[db] FAIL: backend container is down and could not be started —" >&2
-  echo "[db]       CSVs are updated but the DB was NOT reloaded (stale API data)." >&2
-  echo "[db]       fix: bash scripts/start_kbo.sh" >&2
+  echo "[error] db: backend container is down and could not be started —" >&2
+  echo "[error] db:   CSVs are updated but the DB was NOT reloaded (stale API data)." >&2
+  echo "[error] db:   fix: bash scripts/start_kbo.sh" >&2
   exit 3
 fi
 
 if ! docker compose -f "${COMPOSE_FILE}" exec -T backend python migrate.py; then
-  echo "[db] FAIL: migrate.py exited non-zero — CSVs are updated but the DB reload failed" >&2
+  echo "[error] db: migrate.py exited non-zero — CSVs are updated but the DB reload failed" >&2
   exit 4
 fi
 

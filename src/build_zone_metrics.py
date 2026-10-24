@@ -157,7 +157,7 @@ def build(season: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     """투구 데이터에서 타자/투수의 GRID_N×GRID_N 존별 핫/콜드 데이터셋 2종을 만든다."""
     pitches = load_pitches(season)
     if pitches.empty:
-        print(f"[zones] no pitch data for {season}")
+        print(f"[skip:input] zones: no pitch data for {season} — 기존 산출물 유지")
         return pd.DataFrame(), pd.DataFrame()
 
     pitches = ensure_teams(pitches)

@@ -11,6 +11,14 @@ import Players from './pages/Players'
 import Zones from './pages/Zones'
 import Ops from './pages/Ops'
 import Ask from './pages/Ask'
+import Leaders from './pages/Leaders'
+import PlayerV2 from './pages/PlayerV2'
+import GameBox from './pages/GameBox'
+import DataQuality from './pages/DataQuality'
+import TeamDetail from './pages/TeamDetail'
+import PlayerSearch from './pages/PlayerSearch'
+import Compare from './pages/Compare'
+import { DataBasisBar } from './components/V2Bits'
 import { seasonState, kstToday } from './lib/season'
 import './App.css'
 import { useRoute } from './lib/useRoute'
@@ -27,6 +35,8 @@ function App() {
   const { page: currentPage, query } = useRoute()
   const setCurrentPage = (page) => navigate(pageUrl(page))
   const openTeam = (team) => navigate(pageUrl('teams', { team }))
+  // 시즌을 고르는 화면(순위표·홈)은 그 화면이 실제로 보여 주는 시즌의 팀 상세로(URL 에 시즌이 없을 때의 기본값 포함)
+  const openTeamSeason = (team, season) => navigate(pageUrl('team', { team, season }))
   const [theme, setTheme] = useState(getInitialTheme)
   const [seasonInfo, setSeasonInfo] = useState(null)  // 시즌 상태 판정 결과(FR-12). 앱 전체가 공유.
 
@@ -132,6 +142,30 @@ function App() {
           >
             질의응답
           </a>
+          <a
+            className={['search', 'compare'].includes(currentPage) ? 'active' : ''}
+            aria-current={currentPage === 'search' ? 'page' : undefined}
+            href={pageUrl('search')}
+            onClick={followLink}
+          >
+            선수 찾기
+          </a>
+          <a
+            className={['leaders', 'player', 'game'].includes(currentPage) ? 'active' : ''}
+            aria-current={currentPage === 'leaders' ? 'page' : undefined}
+            href={pageUrl('leaders')}
+            onClick={followLink}
+          >
+            박스스코어 기록
+          </a>
+          <a
+            className={currentPage === 'quality' ? 'active' : ''}
+            aria-current={currentPage === 'quality' ? 'page' : undefined}
+            href={pageUrl('quality')}
+            onClick={followLink}
+          >
+            데이터 검증
+          </a>
         </nav>
         <button
           className="theme-toggle"
@@ -143,11 +177,12 @@ function App() {
         </button>
       </header>
       <main className="main">
+        <DataBasisBar />
         {/* 페이지들이 시즌 상태를 초기값으로 쓰므로 판정 전에는 렌더하지 않는다. */}
         {!seasonInfo && <p className="loading">로딩중...</p>}
-        {seasonInfo && currentPage === 'home' && <Home seasonInfo={seasonInfo} onOpsClick={() => setCurrentPage('ops')} onNavigate={setCurrentPage} onTeamClick={openTeam} />}
+        {seasonInfo && currentPage === 'home' && <Home seasonInfo={seasonInfo} onOpsClick={() => setCurrentPage('ops')} onNavigate={setCurrentPage} onTeamClick={openTeamSeason} />}
         {seasonInfo && currentPage === 'standings' && (
-          <Standings seasonInfo={seasonInfo} onTeamClick={openTeam} />
+          <Standings seasonInfo={seasonInfo} onTeamClick={openTeamSeason} />
         )}
         {seasonInfo && currentPage === 'race' && (
           <Race seasonInfo={seasonInfo} onTeamClick={openTeam} />
@@ -158,6 +193,14 @@ function App() {
         {seasonInfo && currentPage === 'zones' && <Zones seasonInfo={seasonInfo} />}
         {seasonInfo && currentPage === 'ops' && <Ops seasonInfo={seasonInfo} />}
         {seasonInfo && currentPage === 'ask' && <Ask seasonInfo={seasonInfo} />}
+        {/* /api/v2 화면: 시즌 판정(v1 일정)에 기대지 않는다 — v2 데이터가 적재된 시즌을 직접 고른다. */}
+        {currentPage === 'leaders' && <Leaders />}
+        {currentPage === 'player' && <PlayerV2 />}
+        {currentPage === 'game' && <GameBox />}
+        {currentPage === 'quality' && <DataQuality />}
+        {currentPage === 'team' && <TeamDetail />}
+        {currentPage === 'search' && <PlayerSearch />}
+        {currentPage === 'compare' && <Compare />}
       </main>
     </div>
   )

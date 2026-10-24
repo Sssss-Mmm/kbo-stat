@@ -28,7 +28,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import requests
+import naver_access
+from naver_access import requests  # 네이버 자동 요청은 승인 전 차단(naver_access.py)
 
 import csv_guard
 
@@ -118,20 +119,31 @@ def fetch_relay(game_id: str, inning: int) -> dict:
     return result.get("textRelayData", {})
 
 
-def fetch_name_map(game_id: str) -> dict[str, str]:
+def fetch_name_map(game_id: str, keep_raw: bool = False) -> dict[str, str]:
     """Build a playerId -> name map from the game record box scores.
 
     The relay payload only carries player ids (and the batter name in the
     at-bat header). The record endpoint's batter/pitcher box scores list every
     player who appeared, with both pcode/playerCode and name, so it gives a
     complete id->name lookup for the game.
+
+    keep_raw: 받은 응답 원본을 crawl_naver_boxscore 로 보존한다(추가 요청 없음).
+    보존이 실패해도 이름 맵과 투구 수집에는 영향이 없다.
     """
     referer = f"https://m.sports.naver.com/game/{game_id}/record"
     url = f"{API_BASE}/schedule/games/{game_id}/record"
     try:
-        record = get_json(url, referer=referer).get("recordData", {})
+        result = get_json(url, referer=referer)
     except (requests.RequestException, RuntimeError):
         return {}
+    if keep_raw:
+        try:
+            import crawl_naver_boxscore  # 순환 import 를 피해 여기서 부른다
+
+            crawl_naver_boxscore.keep(game_id[:-4], int(game_id[-4:]), result, run_id="pitch-crawl")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[naver-pitch] warn: record 원본 보존 실패 {game_id}: {exc}")
+    record = result.get("recordData") or {}
 
     name_map: dict[str, str] = {}
     for key in ("battersBoxscore", "pitchersBoxscore"):
@@ -372,7 +384,7 @@ def crawl_date(game_date: date, pause_seconds: float = PAUSE_SECONDS) -> pd.Data
         if game.get("roundCode") in SKIP_ROUND_CODES:
             print(f"[naver-pitch] skip {game_id} roundCode={game.get('roundCode')}")
             continue
-        name_map = fetch_name_map(game_id)
+        name_map = fetch_name_map(game_id, keep_raw=game.get("statusCode") in {"RESULT", "ENDED"})
         for inning in range(1, 13):
             relay = fetch_relay(game_id, inning)
             relays = relay.get("textRelays", [])
@@ -510,13 +522,13 @@ def parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
-# 실제 응답 한 타석을 그대로 잘라온 고정 입력 (2026-08-30 NC@한화 1회말 3번타자 박민우,
-# gameId=20260830NCHH02026, inning=1). 파서가 쓰는 키만 남겼고 값은 손대지 않았다.
+# 고정 입력: 실제 relay 응답 한 타석의 키 구조·문구 형식을 그대로 따른 **가상 값**(경기·선수·좌표 모두 지어낸 것).
+# 2026-10-24 공개 저장소에 수집 원문을 두지 않으려고 실제 값에서 바꿨다. 파서가 쓰는 키만 둔다.
 # 네이버가 스키마를 바꾸면 크롤러는 예외 대신 빈 결과를 뱉으므로, 이 selfcheck 가
 # 과거 시즌 백필에서 그걸 잡아낼 유일한 수단이다.
 SAMPLE_GAME = {
-    "gameId": "20260830NCHH02026",
-    "gameDate": "20260830",
+    "gameId": "20260101NCHH02026",
+    "gameDate": "20260101",
     "seasonYear": 0,  # 실제 응답값. 0 이면 gameDate 앞 4자리로 폴백해야 한다.
     "awayTeamName": "NC",
     "homeTeamName": "한화",
@@ -525,45 +537,45 @@ SAMPLE_GAME = {
 SAMPLE_RELAY = {
     "inn": 1,
     "homeOrAway": "0",  # 0 = 원정 공격 → 타자팀 NC, 투수팀 한화
-    "title": "3번타자 박민우",
+    "title": "3번타자 가상타자",
     "playTimeAtBat": None,
     "textOptions": [
-        {"text": "3번타자 박민우", "stuff": "",
+        {"text": "3번타자 가상타자", "stuff": "",
          "currentGameState": {"ball": "0", "strike": "0", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
-        {"text": "1구 스트라이크", "stuff": "직구", "speed": "145", "pitchResult": "T",
-         "pitchNum": 1, "ptsPitchId": "260830_180338",
+                              "batter": "90001", "pitcher": "90002"}},
+        {"text": "1구 스트라이크", "stuff": "직구", "speed": "144", "pitchResult": "T",
+         "pitchNum": 1, "ptsPitchId": "260101_000001",
          "currentGameState": {"ball": "0", "strike": "1", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
-        {"text": "2구 스트라이크", "stuff": "커브", "speed": "108", "pitchResult": "T",
-         "pitchNum": 2, "ptsPitchId": "260830_180353",
+                              "batter": "90001", "pitcher": "90002"}},
+        {"text": "2구 스트라이크", "stuff": "커브", "speed": "110", "pitchResult": "T",
+         "pitchNum": 2, "ptsPitchId": "260101_000002",
          "currentGameState": {"ball": "0", "strike": "2", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
-        {"text": "3구 파울", "stuff": "직구", "speed": "149", "pitchResult": "F",
-         "pitchNum": 3, "ptsPitchId": "260830_180415",
+                              "batter": "90001", "pitcher": "90002"}},
+        {"text": "3구 파울", "stuff": "직구", "speed": "150", "pitchResult": "F",
+         "pitchNum": 3, "ptsPitchId": "260101_000003",
          "currentGameState": {"ball": "0", "strike": "2", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
-        {"text": "4구 타격", "stuff": "스위퍼", "speed": "119", "pitchResult": "H",
-         "pitchNum": 4, "ptsPitchId": "260830_180441",
+                              "batter": "90001", "pitcher": "90002"}},
+        {"text": "4구 타격", "stuff": "스위퍼", "speed": "120", "pitchResult": "H",
+         "pitchNum": 4, "ptsPitchId": "260101_000004",
          "currentGameState": {"ball": "0", "strike": "2", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
-        {"text": "박민우 : 우익수 뒤 2루타", "stuff": "",
+                              "batter": "90001", "pitcher": "90002"}},
+        {"text": "가상타자 : 우익수 뒤 2루타", "stuff": "",
          "currentGameState": {"ball": "0", "strike": "2", "out": "2",
-                              "batter": "62907", "pitcher": "54729"}},
+                              "batter": "90001", "pitcher": "90002"}},
     ],
     "ptsOptions": [
-        {"pitchId": "260830_180338", "crossPlateX": 0.430857, "crossPlateY": 0.7083,
-         "y0": 55.0, "vy0": -131.863, "ay": 28.5711, "z0": 5.68636, "vz0": -4.59938,
-         "az": -14.332, "topSz": 3.351, "bottomSz": 1.625, "stance": "L", "inn": 1},
-        {"pitchId": "260830_180353", "crossPlateX": 0.307723, "crossPlateY": 0.7083,
-         "y0": 55.0, "vy0": -97.5239, "ay": 17.6154, "z0": 5.81857, "vz0": 8.3542,
-         "az": -43.3934, "topSz": 3.351, "bottomSz": 1.625, "stance": "L", "inn": 1},
-        {"pitchId": "260830_180415", "crossPlateX": -0.34812, "crossPlateY": 0.7083,
-         "y0": 55.0, "vy0": -135.099, "ay": 29.0826, "z0": 5.747, "vz0": -6.50207,
-         "az": -10.497, "topSz": 3.351, "bottomSz": 1.625, "stance": "L", "inn": 1},
-        {"pitchId": "260830_180441", "crossPlateX": -0.077561, "crossPlateY": 0.7083,
-         "y0": 55.0, "vy0": -108.174, "ay": 19.5417, "z0": 5.47534, "vz0": 4.53497,
-         "az": -36.7109, "topSz": 3.351, "bottomSz": 1.625, "stance": "L", "inn": 1},
+        {"pitchId": "260101_000001", "crossPlateX": 0.41, "crossPlateY": 0.7083,
+         "y0": 55.0, "vy0": -132.0, "ay": 28.5, "z0": 5.7, "vz0": -4.6,
+         "az": -14.3, "topSz": 3.35, "bottomSz": 1.6, "stance": "L", "inn": 1},
+        {"pitchId": "260101_000002", "crossPlateX": 0.29, "crossPlateY": 0.7083,
+         "y0": 55.0, "vy0": -98.0, "ay": 17.5, "z0": 5.8, "vz0": 8.4,
+         "az": -43.4, "topSz": 3.35, "bottomSz": 1.6, "stance": "L", "inn": 1},
+        {"pitchId": "260101_000003", "crossPlateX": -0.33, "crossPlateY": 0.7083,
+         "y0": 55.0, "vy0": -135.0, "ay": 29.0, "z0": 5.75, "vz0": -6.5,
+         "az": -10.5, "topSz": 3.35, "bottomSz": 1.6, "stance": "L", "inn": 1},
+        {"pitchId": "260101_000004", "crossPlateX": -0.06, "crossPlateY": 0.7083,
+         "y0": 55.0, "vy0": -108.0, "ay": 19.5, "z0": 5.5, "vz0": 4.5,
+         "az": -36.7, "topSz": 3.35, "bottomSz": 1.6, "stance": "L", "inn": 1},
     ],
 }
 
@@ -583,7 +595,7 @@ def _selfcheck() -> None:
     # 3) crossPlateY 는 높이가 아니다(여기서는 반쪽 플레이트 상수 0.7083). 높이는
     #    y=0 도달 시각을 풀어 z(t) 로 구해야 한다 — 이걸 헷갈리면 존이 통째로 틀어진다.
     heights = [round(plate_z(pitch), 3) for _, pitch in paired]
-    assert heights == [2.298, 3.090, 2.017, 2.660], heights
+    assert heights == [2.321, 3.158, 2.017, 2.654], heights
     assert all(abs(h - HALF_PLATE_WIDTH_FT) > 1 for h in heights), "plate_z 가 crossPlateY 를 그대로 돌려줬다"
 
     # 4) 존 배정: row 1=상단, col 1=좌. 존 밖은 low/high-out, L/R-out.
@@ -598,7 +610,7 @@ def _selfcheck() -> None:
     # 5) 타석 결과: "{타자} : {설명}" 라인만 결과이고 주루 라인은 아니다. 안타 판정은
     #    문구 기반이라(스키마 아님) 표현이 바뀌면 조용히 틀린다.
     batter = batter_name_from_relay(SAMPLE_RELAY)
-    assert batter == "박민우", batter
+    assert batter == "가상타자", batter
     desc = at_bat_result(SAMPLE_RELAY, batter)
     assert desc == "우익수 뒤 2루타", desc
     assert is_hit_description(desc)
@@ -607,15 +619,15 @@ def _selfcheck() -> None:
 
     # 6) 행 정규화: 인플레이 안타는 마지막 1구뿐, 시즌은 seasonYear=0 → gameDate 폴백,
     #    homeOrAway="0"(원정 공격) → 타자팀 NC / 투수팀 한화.
-    rows = [row_from_pitch(SAMPLE_GAME, SAMPLE_RELAY, opt, pitch, {"62907": "박민우", "54729": "문동주"}, desc)
+    rows = [row_from_pitch(SAMPLE_GAME, SAMPLE_RELAY, opt, pitch, {"90001": "가상타자", "90002": "가상투수"}, desc)
             for opt, pitch in paired]
     assert [r["IsHit"] for r in rows] == [False, False, False, True]
     assert [r["IsSwing"] for r in rows] == [False, False, True, True]
     assert [r["IsCalledStrike"] for r in rows] == [True, True, False, False]
     assert rows[0]["Season"] == 2026, rows[0]["Season"]
     assert rows[0]["BatterTeam"] == "NC" and rows[0]["PitcherTeam"] == "한화"
-    assert rows[0]["BatterName"] == "박민우" and rows[0]["PitcherName"] == "문동주"
-    assert rows[0]["BatterSide"] == "L" and rows[0]["SpeedKmh"] == 145.0
+    assert rows[0]["BatterName"] == "가상타자" and rows[0]["PitcherName"] == "가상투수"
+    assert rows[0]["BatterSide"] == "L" and rows[0]["SpeedKmh"] == 144.0
     assert rows[3]["PitchType"] == "스위퍼"
 
     # 7) 올스타전은 팀명이 구단이 아니라 "나눔"/"드림" 이라 반드시 걸러져야 한다.
@@ -723,6 +735,9 @@ def main() -> None:
 
     if args.selfcheck:
         _selfcheck()
+        return
+    if not naver_access.allowed():
+        naver_access.skip("pitch relay/box score crawl")
         return
 
     if args.missing:

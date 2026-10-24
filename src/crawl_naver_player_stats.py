@@ -27,7 +27,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import requests
+import naver_access
+from naver_access import requests  # 네이버 자동 요청은 승인 전 차단(naver_access.py)
 
 import csv_guard
 
@@ -176,6 +177,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", type=int, default=current_kbo_year())
     args = parser.parse_args()
+    if not naver_access.allowed():
+        naver_access.skip("player season stats")
+        return
     crawl(args.year)
 
 

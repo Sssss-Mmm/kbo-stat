@@ -5,6 +5,14 @@ Default mode refreshes the fast-changing home-dashboard data:
 team standings and schedule/results. Use --players when you also want to
 refresh hitter and pitcher leaderboards for the current season.
 
+KBO 공식 사이트 요청 단계(순위·일정·관중·경기시간·선수 기록·등록선수)는 승인 전까지 건너뛴다
+(kbo_access.py, 2026-10-24 결정). 기존 CSV 로 하는 가공 단계는 그대로 돈다.
+
+로그 구분(grep 용):
+  [skip:collect]  수집을 정책상 건너뜀(승인 전) — 오류 아님
+  [skip:input]    입력 CSV 가 없어 가공을 건너뜀(예: 수집이 멈춘 채 새해) — 없는 자료는 만들지 않는다, 오류 아님
+  [error]         실제 실패 — 0 이 아닌 종료 코드로 끝난다
+
 Usage:
     python src/update_daily.py
     python src/update_daily.py --year 2026 --players
@@ -18,10 +26,23 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import build_team_game_results
+import kbo_access
 import crawl_kbo_attendance
 import crawl_kbo_game_time
 import crawl_kbo_schedule
 import crawl_kbo_team_rank
+
+
+def _skip_kbo(what: str) -> None:
+    print(f"[skip:collect] KBO {what}: 승인 전 자동 요청 비활성화 — 기존 CSV 유지 ({kbo_access.ENV}=1 로 허용)")
+
+
+def _has_input(path: Path, what: str) -> bool:
+    """가공 입력이 있으면 True. 없으면 [skip:input] 를 남기고 False — 다른 FileNotFoundError 는 숨기지 않는다."""
+    if path.exists():
+        return True
+    print(f"[skip:input] {what}: 입력 없음 {path} — 만들지 않고 기존 산출물·DB 유지")
+    return False
 
 
 def current_kbo_year() -> int:
@@ -31,56 +52,67 @@ def current_kbo_year() -> int:
 
 def update_fast(year: int) -> None:
     """매일 바뀌는 핵심 데이터를 갱신한다(순위/일정·결과/관중/경기시간/타자지표)."""
-    print(f"[daily] updating team standings for {year}")
-    team_rank = crawl_kbo_team_rank.crawl(year)
-    crawl_kbo_team_rank.save_snapshot(team_rank, year)
+    if kbo_access.allowed():
+        print(f"[daily] updating team standings for {year}")
+        team_rank = crawl_kbo_team_rank.crawl(year)
+        crawl_kbo_team_rank.save_snapshot(team_rank, year)
 
-    print(f"[daily] updating schedule/results for {year}")
-    crawl_kbo_schedule.crawl(year)
+        print(f"[daily] updating schedule/results for {year}")
+        crawl_kbo_schedule.crawl(year)
+    else:
+        _skip_kbo("standings/schedule/attendance/game-time")
 
-    print(f"[daily] building team game result datasets for {year}")
-    build_team_game_results.build(year)
+    if _has_input(build_team_game_results.RAW_DIR / f"kbo_schedule_{year}.csv", f"team game results {year}"):
+        print(f"[daily] building team game result datasets for {year}")
+        build_team_game_results.build(year)
 
-    print(f"[daily] updating attendance for {year}")
-    crawl_kbo_attendance.crawl(year)
+    if kbo_access.allowed():
+        print(f"[daily] updating attendance for {year}")
+        crawl_kbo_attendance.crawl(year)
 
-    print(f"[daily] updating average game time for {year}")
-    crawl_kbo_game_time.crawl(year)
+        print(f"[daily] updating average game time for {year}")
+        crawl_kbo_game_time.crawl(year)
 
-    try:
-        import build_hitter_metrics
+    _build_hitter_metrics(year)
 
+
+def _build_hitter_metrics(year: int) -> None:
+    import build_hitter_metrics
+
+    if _has_input(build_hitter_metrics.RAW_DIR / f"kbo_{year}.csv", f"hitter metrics {year}"):
         print(f"[daily] building hitter metric dataset for {year}")
         build_hitter_metrics.build(year)
-    except FileNotFoundError as exc:
-        print(f"[daily] skip hitter metrics: {exc}")
 
 
 def update_players(year: int) -> None:
     """타자/투수 리더보드 + 등록선수 명단 + 타자 파생지표를 다시 만든다(--players)."""
-    import crawl_kbo_hitter
-    import crawl_kbo_pitcher
-    import crawl_kbo_players
+    if kbo_access.allowed():
+        import crawl_kbo_hitter
+        import crawl_kbo_pitcher
+        import crawl_kbo_players
 
-    print(f"[daily] updating hitter leaderboard for {year}")
-    crawl_kbo_hitter.crawl(start=year, end=year, overwrite=True)
+        print(f"[daily] updating hitter leaderboard for {year}")
+        crawl_kbo_hitter.crawl(start=year, end=year, overwrite=True)
 
-    print(f"[daily] updating pitcher leaderboard for {year}")
-    crawl_kbo_pitcher.crawl(start=year, end=year, overwrite=True)
+        print(f"[daily] updating pitcher leaderboard for {year}")
+        crawl_kbo_pitcher.crawl(start=year, end=year, overwrite=True)
 
-    print("[daily] updating current registered player list")
-    crawl_kbo_players.crawl()
+        print("[daily] updating current registered player list")
+        crawl_kbo_players.crawl()
+    else:
+        _skip_kbo("hitter/pitcher leaderboards, registered players")
 
-    import build_hitter_metrics
-
-    print(f"[daily] rebuilding hitter metric dataset for {year}")
-    build_hitter_metrics.build(year)
+    _build_hitter_metrics(year)
 
 
 def update_pitch_zones(target_date: str | None = None) -> None:
     """특정 날짜(기본: 오늘 KST)의 네이버 투구 단위 데이터를 수집한다(--pitch-zones)."""
     import crawl_naver_pitch_zones
+    import naver_access
 
+    if not naver_access.allowed():
+        naver_access.skip("pitch-zone crawl")
+        return
     if target_date:
         day = crawl_naver_pitch_zones.parse_date(target_date)
     else:
@@ -155,9 +187,21 @@ def main() -> None:
     args = parser.parse_args()
 
     started = datetime.now(ZoneInfo("Asia/Seoul"))
-    print(f"[daily] started {started:%Y-%m-%d %H:%M:%S %Z}")
+    print(f"[daily] started {started:%Y-%m-%d %H:%M:%S %Z} season={args.year}")
+    try:
+        run(args)
+    except Exception as exc:
+        print(f"[error] daily update failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise
+    finished = datetime.now(ZoneInfo("Asia/Seoul"))
+    print(f"[daily] finished {finished:%Y-%m-%d %H:%M:%S %Z}")
+
+
+def run(args) -> None:
     update_fast(args.year)
-    if args.registered_players:
+    if args.registered_players and not kbo_access.allowed():
+        _skip_kbo("registered players")
+    elif args.registered_players:
         import crawl_kbo_players
 
         print("[daily] updating current registered player list")
@@ -169,8 +213,6 @@ def main() -> None:
         build_pitch_derived(args.year)
     if args.db:
         load_to_db()
-    finished = datetime.now(ZoneInfo("Asia/Seoul"))
-    print(f"[daily] finished {finished:%Y-%m-%d %H:%M:%S %Z}")
 
 
 if __name__ == "__main__":
