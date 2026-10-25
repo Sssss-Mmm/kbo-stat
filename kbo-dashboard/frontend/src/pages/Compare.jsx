@@ -3,18 +3,25 @@
 // URL 쿼리: role, a, b, sa, sb, metric.
 import { useState } from 'react'
 import TrendLine from '../components/charts/TrendLine'
+import CompareBars from '../components/charts/CompareBars'
 import { AdvancedLegend, AdvancedValue, LoadState, SourceLine, Stat, useV2 } from '../components/V2Bits'
 import { useRoute } from '../lib/useRoute'
 import { followLink, pageUrl, updateQuery } from '../lib/navigation'
-import { fetchPlayerSeason, fetchSeasons, intParam } from '../lib/v2'
-import { advancedOf, advancedPercentile, betterSide, comparableAdvanced, COMPARE_METRICS, fetchBattingAdvanced, fetchLeague,
-  fetchProfile, fmtAdvanced, latestCollected, leaguePool, MIN_ADVANCED_POOL, NAVER_SEASON_LABEL, percentile, playerLabel, ROLE_LABEL,
-  searchPlayers, seasonLine, toNumber, verificationSummary } from '../lib/p2d'
+import { fetchPlayerSeason, fetchSeasons, fmtStat, intParam } from '../lib/v2'
+import { advancedOf, chartMetrics, compareWinner, COMPARE_METRICS, fetchBattingAdvanced, fetchLeague,
+  fetchProfile, fmtAdvanced, latestCollected, leaguePool, metricPercentile, MIN_ADVANCED_POOL, NAVER_SEASON_LABEL, playerLabel,
+  ROLE_LABEL, searchPlayers, seasonLine, toNumber, verificationSummary } from '../lib/p2d'
 import '../styles/V2.css'
 import '../styles/P2D.css'
 
 const SIDES = { a: 'var(--series-1)', b: 'var(--series-2)' }
 const DEFAULT_METRIC = { batter: 'OPS', pitcher: 'ERA' }
+// 차트 아래 표본 줄: 타자 G·AB, 투수 G·IP + 규정 충족 여부
+const sampleText = (line, role) => [
+  `${fmtStat(line.stats.G)}경기`,
+  role === 'pitcher' ? `${line.stats.IP ?? '미확정'}이닝` : `${fmtStat(line.stats.AB)}타수`,
+  line.qualified === true ? '규정 충족' : line.qualified === false ? '규정 미달' : '규정 여부 미상',
+].join(' · ')
 // 추이: 계산값 지표는 계산값만, 출처 지표는 출처 값만 잇는다(상태가 섞이지 않게)
 const trendValue = (m, key) => (m && m.status === (key === 'babip_source' ? 'source' : 'calculated') ? m.value : null)
 
@@ -80,15 +87,10 @@ function Compare() {
   const B = useSide(intParam(query, 'b'), role, intParam(query, 'sb'), boxSeasons)
   const sides = { a: A, b: B }
   const metric = metrics.find((m) => m.key === metricKey)
-  const pct = (side, m) => (m.adv ? advancedPercentile(side.advLeague, m.adv, advancedOf(side.line, m.adv), m.better)
-    : percentile(leaguePool(side.league, m.key), side.line?.stats[m.key], m.better))
-  // 고급 지표는 같은 시즌·같은 상태끼리만 우열을 표시한다
-  const winner = (m) => {
-    if (!m.adv) return betterSide(A.line.stats[m.key], B.line.stats[m.key], m.better)
-    const a = advancedOf(A.line, m.adv)
-    const b = advancedOf(B.line, m.adv)
-    return comparableAdvanced(a, b, A.season, B.season) ? betterSide(a.value, b.value, m.better) : null
-  }
+  // 수치표와 차트가 같은 계산(metricPercentile → percentile·advancedPercentile)을 쓴다
+  const pctOf = (side, m) => metricPercentile(m, side.line, side.league, side.advLeague)
+  const pct = (side, m) => pctOf(side, m).pct
+  const winner = (m) => compareWinner(m, A.line, B.line, A.season, B.season)
 
   return (
     <div className="v2-page p2d-compare">
@@ -135,6 +137,34 @@ function Compare() {
 
       {A.line && B.line && (
         <>
+          <section className="p2d-section">
+            <h3 className="v2-section">리그 백분위 비교</h3>
+            <p className="v2-note">막대 길이 = 리그 백분위(그 선수 시즌의 규정 충족 선수 중 이 값보다 나쁘거나 같은 선수 비율). 막대가 길수록
+              {' '}리그 안에서 상대적으로 좋은 위치입니다 — '낮을수록 좋음' 지표도 백분위는 높을수록 좋게 맞춰져 있습니다.
+              {' '}백분위가 없으면 막대를 그리지 않고 사유를 적습니다. n = 그 백분위를 매긴 리그 모집단 수.</p>
+            {role === 'pitcher' && (() => {
+              const ns = [...new Set(['a', 'b'].map((k) => leaguePool(sides[k].league, 'ERA').length))].filter((n) => n > 0)
+              return ns.length > 0 && (
+                <p className="v2-note">투수 백분위 모집단(그 시즌 규정 이닝 충족 투수)은 n {ns.join(' · ')}명뿐이라, 순위 한 칸 차이로 백분위가
+                  {' '}약 {Math.round(100 / Math.min(...ns))}점씩 움직입니다 — 작은 백분위 차이는 의미가 크지 않습니다.</p>
+              )
+            })()}
+            {A.season !== B.season && (() => {
+              // 시즌이 다르면 우세를 감추는 건 compareWinner 의 adv 경로(comparableAdvanced) 지표뿐 — 목록도 거기서 만든다
+              const limited = chartMetrics(role).filter((m) => m.adv).map((m) => m.label)
+              return (
+                <p className="v2-note"><b>시즌이 다릅니다({A.season} · {B.season}).</b> 막대는 각자 해당 시즌 리그 대비 상대적 위치입니다.
+                  {limited.length > 0 && <>{' '}{limited.join('·')}는 시즌이 다르면 우세를 표시하지 않고, 나머지 지표(wRC+ 포함)는 값으로 우세를 비교합니다.</>}</p>
+              )
+            })()}
+            <CompareBars
+              rows={chartMetrics(role).map((m) => ({ m, a: pctOf(A, m), b: pctOf(B, m), win: winner(m) }))}
+              sides={Object.fromEntries(['a', 'b'].map((k) => [k, {
+                name: `${sides[k].profile.data.data.player.name} (${sides[k].season})`,
+                player: sides[k].profile.data.data.player.name, season: sides[k].season, color: SIDES[k],
+                thin: sides[k].line.qualified === false, sample: sampleText(sides[k].line, role) }]))} />
+          </section>
+
           <section className="p2d-section">
             <h3 className="v2-section">시즌 기록과 리그 백분위</h3>
             <p className="v2-note">백분위 = 그 선수 시즌의 규정 충족 선수 중 이 값보다 나쁘거나 같은 선수 비율(100에 가까울수록 좋음). 값이 없으면 '미확정'이고 백분위를 매기지 않습니다.</p>
