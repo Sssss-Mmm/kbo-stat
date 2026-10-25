@@ -1,0 +1,10 @@
+# 최신 백업 복원 테스트(초안 — 아직 등록하지 않음). 운영과 분리된 임시 PostgreSQL 에서만 복원한다.
+[Unit]
+Description=KBO STAT 백업 복원 테스트
+
+[Service]
+Type=oneshot
+ExecStart=%h/kbo-stat/scripts/verify_kbo_backup.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=30min

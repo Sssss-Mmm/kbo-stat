@@ -1,0 +1,12 @@
+# 매일 03:30 KST. Persistent=true — WSL 이 꺼져 있어 놓친 실행은 다음 기동 때 한 번 따라잡는다.
+[Unit]
+Description=KBO STAT 운영 DB 백업 타이머
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=5min
+Unit=kbo-backup.service
+
+[Install]
+WantedBy=timers.target
