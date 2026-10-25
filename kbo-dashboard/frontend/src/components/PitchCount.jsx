@@ -20,7 +20,7 @@ import { matchesName } from '../lib/players'
 // 매트릭스에서 고를 수 있는 지표. grain 이 분모의 낟알이다 — 표본 하한이 달라진다.
 //   pa    = 이 카운트를 거친 타석의 결과 (도달 시점 이후를 포함한 타석 단위)
 //   pitch = 이 카운트에서 던져진 공 (투구 단위)
-// 인플레이 타율(BipAvg)은 CSV 에 있지만 카운트별 차이가 .31~.38 로 좁아
+// 인플레이 안타율(BipAvg)은 CSV 에 있지만 카운트별 차이가 .31~.38 로 좁아
 // (삼진·볼넷이 분모에서 빠지기 때문) 매트릭스 토글에서는 뺐다.
 const METRICS = {
   onbase: { label: '출루율', key: 'OnBaseRate', grain: 'pa', pct: false },
@@ -97,7 +97,7 @@ function PitchCount({ season, search = '' }) {
     }
   }, [season])
 
-  const { league, players, coverage } = useMemo(() => indexRows(rows), [rows])
+  const { league, players } = useMemo(() => indexRows(rows), [rows])
 
   const teams = useMemo(
     () => [...new Set(players.map((p) => p.team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
@@ -283,13 +283,6 @@ function PitchCount({ season, search = '' }) {
                 {' '}스윙률·커트율은 그 카운트에서 던져진 공 기준, 삼진률·출루율은 그 카운트를 거친 타석 기준이다.
                 {' '}투수유리(0-2·1-2)는 2S 의 부분집합이라 버킷이 서로 배타가 아니다 — 세로 합이 전체가 되지 않는다.
               </p>
-
-              {/* 부분 수집 데이터라 '시즌 누적'으로 오독되지 않게 표본 기간을 고정 노출한다. */}
-              {coverage && (
-                <p className="ars-coverage">
-                  ⚠ 수집 {coverage.Days}경기일 표본 ({coverage.FirstDate} ~ {coverage.LastDate}) · 전 경기가 아니다
-                </p>
-              )}
             </>
           )}
         </div>

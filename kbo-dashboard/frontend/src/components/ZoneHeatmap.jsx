@@ -26,7 +26,7 @@ function cellColor(value, avg, metric) {
   return `rgb(${rgb.join(',')})`
 }
 
-function ZoneHeatmap({ cells, metric, leagueAvg, gridN = 5 }) {
+function ZoneHeatmap({ cells, metric, metricLabel = '', leagueAvg, gridN = 5 }) {
   const byZone = new Map(cells.map((cell) => [cell.Zone, cell]))
   const minSample = MIN_SAMPLE[metric]
   const axis = Array.from({ length: gridN }, (_, i) => i + 1)
@@ -79,7 +79,7 @@ function ZoneHeatmap({ cells, metric, leagueAvg, gridN = 5 }) {
         <span>낮음</span>
         <span className="bar" />
         <span>높음</span>
-        <span style={{ marginLeft: 10 }}>리그 평균 {fmtRate(leagueAvg)}</span>
+        <span style={{ marginLeft: 10 }}>리그 평균 {metricLabel && `${metricLabel} `}{fmtRate(leagueAvg)}</span>
       </div>
     </div>
   )
