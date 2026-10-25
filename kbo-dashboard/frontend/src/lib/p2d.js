@@ -1,7 +1,7 @@
 // P2-D 팀 상세 · 선수 검색 · 선수 비교 — API 클라이언트와 표시 규칙(순수 함수).
 // 없는 값(null)은 0 으로 바꾸지 않는다: 계산에서 빼고, 화면에는 '미확정'/'자료 없음'으로 보인다.
 import axios from 'axios'
-import { cleanParams } from './v2.js'
+import { cleanParams, fmtStat } from './v2.js'
 
 const get = (url, params) => axios.get(url, { params: cleanParams(params || {}), timeout: 15000 }).then((r) => r.data)
 
@@ -215,3 +215,66 @@ export function qualifiedSimpleMean(rows, key) {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN
 }
 export const PLAYER_MEAN_BABIP_NOTE = '선수 BABIP 단순 평균: 규정 타석을 채운 타자의 네이버 BABIP 값을 선수 수로 나눈 평균입니다(타석 수 가중 아님, 값이 없는 선수 제외). 리그 전체 BABIP가 아닙니다.'
+
+// ---------------------------------------------------------------- 선수 비교 양방향 막대(1차 시각화)
+
+/** 차트에 올리는 지표(COMPARE_METRICS 의 key). 출장량에 비례하는 누적 지표·WAR 는 수치표에만 둔다. */
+export const CHART_METRICS = {
+  batter: ['AVG', 'OBP', 'SLG', 'iso', 'bb_pct', 'k_pct', 'wRC+'],
+  pitcher: ['ERA', 'WHIP', 'K/9', 'BB/9', 'K/BB'],
+}
+
+/** 역할의 차트 지표 정의(COMPARE_METRICS 순서·속성 그대로). */
+export const chartMetrics = (role) => COMPARE_METRICS[role].filter((m) => CHART_METRICS[role].includes(m.key))
+
+/** 한 선수·한 지표의 백분위와 그 계산에 실제로 쓴 모집단 수(n). 수치표와 같은 함수(percentile·advancedPercentile)를 그대로 부른다.
+ *  pct 가 null 이면 reason 에 정확한 사유, short 에 차트용 짧은 문구('데이터 없음' = 값 자체가 없음, '비교 불가' = 값은 있으나
+ *  백분위를 매길 수 없음)를 담는다 — 막대를 0 으로 그리지 않기 위해서다. */
+export function metricPercentile(m, line, league, advLeague) {
+  if (m.adv) {
+    const v = advancedOf(line, m.adv)
+    const usable = v && ['calculated', 'source'].includes(v.status) && v.value !== null
+    const n = usable ? advancedPool(advLeague, m.adv, v.status).length : null
+    const pct = advancedPercentile(advLeague, m.adv, v, m.better)
+    const reason = pct !== null ? null
+      : !usable ? fmtAdvanced(m.adv, v).note
+        : `같은 상태 값 ${n}명 — ${MIN_ADVANCED_POOL}명 미만이라 백분위 없음`
+    return { pct, n, reason, short: pct !== null ? null : usable ? '비교 불가' : '데이터 없음', text: fmtAdvanced(m.adv, v).text }
+  }
+  const pool = leaguePool(league, m.key)
+  const raw = line?.stats?.[m.key]
+  const pct = percentile(pool, raw, m.better)
+  const reason = pct !== null ? null : toNumber(raw) === null ? '기록 없음' : '그 시즌 규정 충족 선수가 없어 백분위 없음'
+  // 수치표(Stat)와 같은 형식 — 없는 값은 '-'
+  return { pct, n: pool.length, reason, short: pct !== null ? null : toNumber(raw) === null ? '데이터 없음' : '비교 불가',
+    text: fmtStat(raw, { rate: m.rate, digits: m.digits ?? null, unknown: '-' }) }
+}
+
+/** 수치표·차트의 우세 쪽('a' | 'b' | 'tie' | null). 고급 지표는 같은 시즌·같은 상태끼리만 우열을 표시한다. */
+export function compareWinner(m, aLine, bLine, seasonA, seasonB) {
+  if (!m.adv) return betterSide(aLine.stats[m.key], bLine.stats[m.key], m.better)
+  const a = advancedOf(aLine, m.adv)
+  const b = advancedOf(bLine, m.adv)
+  return comparableAdvanced(a, b, seasonA, seasonB) ? betterSide(a.value, b.value, m.better) : null
+}
+
+/** 차트 아래 '백분위 없음' 사유 목록: 같은 사유끼리 묶어 [{reason, items: ['BB% — 오스틴 · 2026', ...]}]. 순서는 처음 나온 순.
+ *  labels = [A 표시, B 표시] — 보통 '이름 · 시즌'. */
+export function missingReasons(rows, labels) {
+  const by = new Map()
+  for (const { m, a, b } of rows) {
+    for (const [s, label] of [[a, labels[0]], [b, labels[1]]]) {
+      if (s.pct !== null) continue
+      if (!by.has(s.reason)) by.set(s.reason, [])
+      by.get(s.reason).push(`${m.label} — ${label}`)
+    }
+  }
+  return [...by].map(([reason, items]) => ({ reason, items }))
+}
+
+/** 차트 행 aria-label: 색·위치 없이도 읽히게 값·백분위·우세를 문장으로. */
+export function chartRowLabel(m, names, a, b, win) {
+  const side = (name, s) => `${name} ${s.text}${s.pct === null ? ` (백분위 없음: ${s.reason})` : `, ${s.pct}백분위`}`
+  const lead = win === 'a' ? `${names[0]} 우세` : win === 'b' ? `${names[1]} 우세` : win === 'tie' ? '같음' : '우세 판정 없음'
+  return `${m.label}${m.better === 'low' ? '(낮을수록 좋음)' : ''}: ${side(names[0], a)} / ${side(names[1], b)} · ${lead}`
+}

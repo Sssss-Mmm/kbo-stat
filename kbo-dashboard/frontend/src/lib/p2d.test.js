@@ -3,6 +3,7 @@ import {
   betterSide, commonSeasons, gameLine, leaguePool, percentile, playerLabel, recordPct, recordText, seasonLine, seasonSpan,
   toNumber, verificationSummary, latestCollected, fmtAdvanced, comparableAdvanced, advancedPool, advancedPercentile,
   advancedOf, COMPARE_METRICS, MIN_ADVANCED_POOL, qualifiedSimpleMean,
+  CHART_METRICS, chartMetrics, metricPercentile, compareWinner, chartRowLabel, missingReasons,
 } from './p2d.js'
 
 // 숫자: 이닝 '180 2/3' 은 1/3 단위, 없는 값은 null(0 이 아님)
@@ -109,5 +110,97 @@ assert.ok(Math.abs(qualifiedSimpleMean(hitters, 'BABIP') - 0.35) < 1e-12)
 assert.ok(Number.isNaN(qualifiedSimpleMean([{ 규정충족: false, BABIP: 0.3 }], 'BABIP')))
 assert.ok(Number.isNaN(qualifiedSimpleMean([], 'BABIP')))
 assert.ok(Math.abs(qualifiedSimpleMean([{ 규정충족: true, BABIP: 0.2, PA: 600 }, { 규정충족: true, BABIP: 0.4, PA: 10 }], 'BABIP') - 0.3) < 1e-12)  // 타석 가중이 아님
+
+// ---- 선수 비교 양방향 막대
+// 차트 지표: 승인된 7개·5개, 모두 COMPARE_METRICS 의 실제 키(순서도 그대로). 누적 지표·WAR 는 빠진다.
+assert.deepEqual(chartMetrics('batter').map((m) => m.key), ['AVG', 'OBP', 'SLG', 'wRC+', 'iso', 'bb_pct', 'k_pct'])
+assert.deepEqual(chartMetrics('pitcher').map((m) => m.key), ['ERA', 'WHIP', 'K/9', 'BB/9', 'K/BB'])
+for (const role of ['batter', 'pitcher']) assert.equal(chartMetrics(role).length, CHART_METRICS[role].length)
+assert.ok(!chartMetrics('batter').some((m) => ['WAR', 'HR', 'SB'].includes(m.key)))
+assert.ok(!chartMetrics('pitcher').some((m) => ['WAR', 'IP', 'SO', 'QS'].includes(m.key)))
+
+const M = (key, role = 'batter') => COMPARE_METRICS[role].find((m) => m.key === key)
+const lg = [{ 규정충족: true, ERA: 2.5, AVG: 0.3 }, { 규정충족: true, ERA: 3.5, AVG: 0.28 }, { 규정충족: true, ERA: 4.5, AVG: 0.25 },
+  { 규정충족: false, ERA: 9.0, AVG: 0.1 }]
+// 수치표와 같은 계산: percentile(leaguePool) 결과·n 이 그대로
+const avg = metricPercentile(M('AVG'), { stats: { AVG: 0.28 } }, lg, [])
+assert.deepEqual(avg, { pct: percentile(leaguePool(lg, 'AVG'), 0.28, 'high'), n: 3, reason: null, short: null, text: '.280' })
+// 낮을수록 좋은 지표(ERA): 낮은 값이 높은 백분위, n 은 규정 충족 3명
+const era = metricPercentile(M('ERA', 'pitcher'), { stats: { ERA: 2.5 } }, lg, [])
+assert.equal(era.pct, 100)
+assert.equal(era.n, 3)
+assert.equal(era.text, '2.50')
+assert.equal(metricPercentile(M('ERA', 'pitcher'), { stats: { ERA: 4.5 } }, lg, []).pct, 33)
+// 백분위 null: 0 이 아니라 null + 사유
+const none = metricPercentile(M('AVG'), { stats: { AVG: null } }, lg, [])
+assert.equal(none.pct, null)
+assert.equal(none.reason, '기록 없음')
+assert.equal(none.short, '데이터 없음')
+assert.equal(none.text, '-')
+const noPool = metricPercentile(M('AVG'), { stats: { AVG: 0.3 } }, [{ 규정충족: false, AVG: 0.3 }], [])  // 2007: 규정 충족 0명
+assert.deepEqual([noPool.pct, noPool.n, noPool.reason, noPool.short], [null, 0, '그 시즌 규정 충족 선수가 없어 백분위 없음', '비교 불가'])
+// 규정 미달 선수도 같은 규정 충족 모집단 기준(계산 그대로) — 화면은 빗금으로 '참고값' 표시
+assert.equal(metricPercentile(M('AVG'), { qualified: false, stats: { AVG: 0.35 } }, lg, []).pct, 100)
+
+// 고급 지표: advancedPercentile 그대로, n = 같은 상태 모집단 수, 20명 미만이면 null + 사유
+const isoM = M('iso')
+const advLine = (status, value) => ({ advanced: { metrics: { iso: s(status, value) } } })
+const big = metricPercentile(isoM, advLine('calculated', 0.1), [], rows(30, 'calculated'))
+assert.equal(big.pct, advancedPercentile(rows(30, 'calculated'), 'iso', s('calculated', 0.1), 'high'))
+assert.equal(big.n, 30)
+assert.equal(big.text, '.100')
+const small = metricPercentile(isoM, advLine('calculated', 0.1), [], rows(MIN_ADVANCED_POOL - 1, 'calculated'))
+assert.deepEqual([small.pct, small.n], [null, MIN_ADVANCED_POOL - 1])
+assert.match(small.reason, /20명 미만/)
+assert.equal(small.short, '비교 불가')   // 값은 있으나 모집단이 작다
+const unavail = metricPercentile(isoM, advLine('unavailable', null), [], rows(30, 'calculated'))
+assert.deepEqual([unavail.pct, unavail.n, unavail.text, unavail.short], [null, null, '-', '데이터 없음'])
+assert.ok(unavail.reason)
+// K% 는 낮을수록 좋음
+assert.equal(M('k_pct').better, 'low')
+
+// 우세: 기본 지표는 시즌이 달라도 값 비교, 고급 지표는 같은 시즌·같은 상태일 때만
+const L = (avgV, isoV, status = 'calculated') => ({ stats: { AVG: avgV }, advanced: { metrics: { iso: s(status, isoV) } } })
+assert.equal(compareWinner(M('AVG'), L(0.3, 0.2), L(0.28, 0.1), 2025, 2024), 'a')
+assert.equal(compareWinner(isoM, L(0.3, 0.2), L(0.28, 0.1), 2025, 2025), 'a')
+assert.equal(compareWinner(isoM, L(0.3, 0.2), L(0.28, 0.1), 2025, 2024), null)               // 다른 시즌
+assert.equal(compareWinner(isoM, L(0.3, 0.2), L(0.28, 0.1, 'source'), 2025, 2025), null)     // 계산값 vs 출처 값
+assert.equal(compareWinner(M('ERA', 'pitcher'), { stats: { ERA: 2.5 } }, { stats: { ERA: 3.1 } }, 2025, 2025), 'a')  // 낮을수록 좋음
+assert.equal(compareWinner(M('AVG'), L(null, 0), L(0.28, 0), 2025, 2025), null)
+
+// BB%·K%: 로컬 KBO 기록실 PA(2026 규정 충족 49명)로 계산되는 경로 — 계산값 49명 모집단이면 백분위가 나온다
+const bbM = M('bb_pct')
+const bbRows = Array.from({ length: 49 }, (_, i) => ({ metrics: { bb_pct: s('calculated', 5 + i * 0.2) } }))
+const bb = metricPercentile(bbM, { advanced: { metrics: { bb_pct: s('calculated', 12.7) } } }, [], bbRows)
+assert.equal(bb.n, 49)
+assert.equal(bb.text, '12.7%')
+assert.equal(bb.pct, advancedPercentile(bbRows, 'bb_pct', s('calculated', 12.7), 'high'))
+const kRows = Array.from({ length: 49 }, (_, i) => ({ metrics: { k_pct: s('calculated', 10 + i * 0.3) } }))
+assert.equal(metricPercentile(M('k_pct'), { advanced: { metrics: { k_pct: s('calculated', 10) } } }, [], kRows).pct, 100)  // 낮을수록 좋음
+
+// 시즌이 다를 때 안내(Compare.jsx): 우세를 감추는 지표 = 차트의 adv 지표 — 타자 ISO·BB%·K%, 투수는 없음
+assert.deepEqual(chartMetrics('batter').filter((m) => m.adv).map((m) => m.label), ['ISO', 'BB%', 'K%'])
+assert.deepEqual(chartMetrics('pitcher').filter((m) => m.adv), [])
+// 실제 동작과 일치: 시즌이 달라도 wRC+ 는 우세가 나오고, ISO 는 나오지 않는다
+const W = (wrc, isoV) => ({ stats: { 'wRC+': wrc }, advanced: { metrics: { iso: s('calculated', isoV) } } })
+assert.equal(compareWinner(M('wRC+'), W(150, 0.2), W(120, 0.1), 2026, 2025), 'a')
+assert.equal(compareWinner(M('iso'), W(150, 0.2), W(120, 0.1), 2026, 2025), null)
+assert.equal(compareWinner(M('ERA', 'pitcher'), { stats: { ERA: 2.5 } }, { stats: { ERA: 3.1 } }, 2026, 2025), 'a')  // 투수는 시즌이 달라도 비교
+
+// 사유 목록: 같은 사유끼리 묶고, 백분위가 있는 칸은 넣지 않는다
+const nul = (reason) => ({ pct: null, reason })
+assert.deepEqual(missingReasons([
+  { m: { label: 'BB%' }, a: nul('PA 없음'), b: nul('PA 없음') },
+  { m: { label: 'K%' }, a: nul('PA 없음'), b: { pct: 50 } },
+  { m: { label: '타율' }, a: { pct: 10 }, b: nul('기록 없음') },
+], ['가 · 2026', '나 · 2025']), [
+  { reason: 'PA 없음', items: ['BB% — 가 · 2026', 'BB% — 나 · 2025', 'K% — 가 · 2026'] },
+  { reason: '기록 없음', items: ['타율 — 나 · 2025'] },
+])
+assert.deepEqual(missingReasons([{ m: { label: '타율' }, a: { pct: 1 }, b: { pct: 2 } }], ['가', '나']), [])
+
+// 접근성 문장: 색·위치 없이 값·백분위·우세가 읽힌다
+assert.equal(chartRowLabel(M('ERA', 'pitcher'), ['가', '나'], { text: '2.50', pct: 100 }, { text: '-', pct: null, reason: '기록 없음' }, null),
+  '평균자책점(낮을수록 좋음): 가 2.50, 100백분위 / 나 - (백분위 없음: 기록 없음) · 우세 판정 없음')
 
 console.log('p2d ok')
