@@ -1,5 +1,4 @@
 """/api/pitch-coverage — 투구 원본이 담은 경기 범위·정규시즌 수집률 (임시 디렉터리, 실데이터 무관)."""
-import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,13 +6,13 @@ from unittest.mock import patch
 
 from routers import zones
 
-HEAD = "Date,GameId,Season,PitchId,PlateX,PlateZ,TopSz,BottomSz,IsInPlay,IsHit\n"
+HEAD = "Date,GameId,Season,PitchId,BatterId,PitcherId,PlateX,PlateZ,TopSz,BottomSz,IsInPlay,IsHit\n"
 
 
 def pitch_rows(*games):
     """(날짜, KBO 경기ID) 마다 투구 두 개(둘째는 좌표 없음 → 존 집계에서 빠진다).
     원본 GameId 는 경기ID 뒤에 시즌이 붙는다."""
-    return "".join(f"{d},{g}{d[:4]},{d[:4]},{d}_{i},{xz},3.4,1.6,False,False\n"
+    return "".join(f"{d},{g}{d[:4]},{d[:4]},{d}_{i},11,22,{xz},3.4,1.6,False,False\n"
                    for d, g in games for i, xz in ((1, "0.1,2.5"), (2, ",")))
 
 
@@ -49,7 +48,7 @@ class PitchCoverageTest(unittest.TestCase):
                 f"Season,Zone,Pitches\n{season},1-1,{zone_pitches - 1}\n{season},2-2,1\n", encoding="utf-8-sig")
 
     def api(self, season):
-        return asyncio.run(zones.pitch_coverage_api(season=season))
+        return zones.pitch_coverage_api(season=season)
 
     def test_range_games_and_rate(self):
         # 겹치는 범위 파일(같은 경기 중복)은 한 번만 센다. 다른 시즌 파일은 열지 않는다.
@@ -139,6 +138,31 @@ class PitchCoverageTest(unittest.TestCase):
         self.assertIsNone(self.api(2026)["data"]["regular_total"])
         self.write_schedule(2026, "20260328KTLG0", "20260329KTLG0")
         self.assertEqual(self.api(2026)["data"]["rate"], 0.5)
+
+    def test_zone_count_follows_builder_drop_rules(self):
+        # 존 빌더가 버리는 투구(TopSz<=BottomSz, 선수 ID 없음)는 원본 기준에서도 빠져야 거짓 '갱신 필요'가 없다.
+        self.write_pitches("2026-03-28", ("2026-03-28", "20260328KTLG0"))
+        extra = ("2026-03-28,20260328KTLG02026,2026,x1,11,22,0.1,2.5,1.6,3.4,False,False\n"  # TopSz<BottomSz
+                 "2026-03-28,20260328KTLG02026,2026,x2,,22,0.1,2.5,3.4,1.6,False,False\n")   # 타자 ID 없음
+        (self.raw / "naver_kbo_pitches_2026-03-28.csv").open("a", encoding="utf-8").write(extra)
+        self.write_analysis(2026, "2026-03-28", "2026-03-28", 1, zone_pitches=1)
+        (self.processed / "kbo_pitcher_zones_2026.csv").write_text("Season,Zone,Pitches\n2026,1-1,2\n", encoding="utf-8-sig")
+        analysis = self.api(2026)["data"]["analysis"]
+        self.assertEqual(analysis["batter_zones"], {"pitches": 1, "raw_pitches": 1, "stale": False})
+        self.assertEqual(analysis["pitcher_zones"], {"pitches": 2, "raw_pitches": 2, "stale": False})
+
+    def test_broken_csvs_only_blank_their_entry(self):
+        self.write_pitches("2026-03-28", ("2026-03-28", "20260328KTLG0"))
+        self.write_analysis(2026, "2026-03-28", "2026-03-28", 1, zone_pitches=1)
+        (self.processed / "kbo_pitcher_arsenal_2026.csv").write_text("", encoding="utf-8")  # 빈 파일
+        (self.processed / "kbo_batter_zones_2026.csv").write_text("Season,Zone\n2026,1-1\n", encoding="utf-8-sig")
+        (self.processed / "kbo_team_games_2026.csv").write_text("Season,Team\n2026,KT\n", encoding="utf-8-sig")
+        data = self.api(2026)["data"]
+        self.assertIsNone(data["analysis"]["pitcher_arsenal"])
+        self.assertIsNone(data["analysis"]["batter_zones"])
+        self.assertFalse(data["analysis"]["count_baseball"]["stale"])
+        self.assertIsNone(data["rate"])
+        self.assertEqual(data["games"], 1)
 
 
 if __name__ == "__main__":
