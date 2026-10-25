@@ -1,0 +1,12 @@
+# 매주 일요일 04:30 KST(백업 한 시간 뒤). 놓치면 다음 기동 때 따라잡는다.
+[Unit]
+Description=KBO STAT 백업 복원 테스트 타이머
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=5min
+Unit=kbo-backup-verify.service
+
+[Install]
+WantedBy=timers.target

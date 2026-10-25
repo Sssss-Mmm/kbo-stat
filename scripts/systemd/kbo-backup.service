@@ -1,0 +1,11 @@
+# 운영 DB 일일 백업(초안 — 아직 등록하지 않음). 등록 방법은 README.md 참고.
+[Unit]
+Description=KBO STAT 운영 DB 백업 (pg_dump -Fc → ~/kbo-backups/daily)
+
+[Service]
+Type=oneshot
+ExecStart=%h/kbo-stat/scripts/backup_kbo_db.sh
+# 운영 서비스보다 우선순위를 낮춘다(덤프는 컨테이너 안에서 돌지만 호스트 쪽 기록·검증 부하를 줄인다)
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=30min
