@@ -10,7 +10,8 @@
 // (존 히트맵) /api/zones 의 (선수, 존) 셀 데이터를 받아, 왼쪽 선수 목록에서 한 명을 고르면
 // 오른쪽에 존 히트맵(ZoneHeatmap)을 보여준다. 격자 크기는 하드코딩하지 않고
 // 응답의 Zone 라벨 최대 번호에서 읽는다(빌더의 GRID_N 만 바꾸면 화면이 따라온다).
-// 지표는 타율/피안타율(hit) 또는 스윙률(swing) 중 선택, 역할은 타자/투수.
+// 지표는 인플레이 안타율/피인플레이 안타율(hit, Hits/InPlay) 또는 스윙률(swing) 중 선택, 역할은 타자/투수.
+// 페이지 위 '투구 데이터' 줄은 /api/pitch-coverage 의 실제 원본 범위다(DB 수집 시각과 별개).
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import ZoneHeatmap from '../components/ZoneHeatmap'
@@ -24,6 +25,7 @@ import { sortRows, nextSort, listFilter, listEmpty } from '../lib/list'
 import '../styles/Home.css'  // MiniTable / bar-track 공용 스타일
 import '../styles/Zones.css'
 import { apiError } from '../lib/apiError'
+import { HIT_RATE_NOTE, hitRateLabel, coverageText, analysisKey, staleText } from '../lib/pitchData'
 
 // 목록 필터의 폴백 하한. 규정충족 플래그가 없는 시즌(2025)에만 기준이 된다.
 // 구종 아스널과 같은 값이다(같은 투구 원본, 같은 목록).
@@ -37,7 +39,7 @@ function fmtRate(value) {
 // 역할/지표 조합에 맞는 한글 라벨.
 function metricLabel(role, metric) {
   if (metric === 'swing') return '스윙률'
-  return role === 'batter' ? '타율' : '피안타율'
+  return hitRateLabel(role)
 }
 
 function Zones({ seasonInfo }) {
@@ -57,6 +59,21 @@ function Zones({ seasonInfo }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  // undefined = 받는 중(줄 생략), null = 원본 없음·API 실패('확인 불가' 표시).
+  const [coverage, setCoverage] = useState(undefined)
+
+  // 투구 데이터 범위는 세 탭 공통이라 시즌만 바뀔 때 받는다. 실패해도 나머지 화면은 그대로 둔다.
+  useEffect(() => {
+    let active = true
+    setCoverage(undefined)
+    axios.get('/api/pitch-coverage', { params: { season } })
+      .then((response) => { if (active) setCoverage(response.data?.data ?? null) })
+      .catch(() => { if (active) setCoverage(null) })
+    return () => { active = false }
+  }, [season])
+  // 지금 탭이 읽는 분석 CSV 가 원본보다 오래됐으면 그 범위를 먼저 보이고, 원본 줄은 '투구 원본'으로 바꾼다.
+  const staleLine = staleText(coverage?.analysis?.[analysisKey(view, role)])
+  const coverageLine = coverage === undefined ? null : coverageText(coverage, staleLine ? '투구 원본' : undefined)
 
   useEffect(() => {
     if (view !== 'zone') return
@@ -104,7 +121,7 @@ function Zones({ seasonInfo }) {
     return [...byId.values()]
   }, [rows])
 
-  // 선수 전체 합계 기준 대표 지표(스윙률 또는 타율/피안타율).
+  // 선수 전체 합계 기준 대표 지표(스윙률 또는 인플레이 안타율).
   const overallMetric = (agg) => {
     if (metric === 'swing') return agg.pitches ? agg.swings / agg.pitches : null
     return agg.inPlay ? agg.hits / agg.inPlay : null
@@ -200,7 +217,7 @@ function Zones({ seasonInfo }) {
               ))}
             </select>
             <div className="toggle-group">
-              <button className={metric === 'hit' ? 'active' : ''} onClick={() => setMetric('hit')}>타율/피안타율</button>
+              <button className={metric === 'hit' ? 'active' : ''} onClick={() => setMetric('hit')}>{hitRateLabel(role)}</button>
               <button className={metric === 'swing' ? 'active' : ''} onClick={() => setMetric('swing')}>스윙률</button>
             </div>
             <label className="ars-check">
@@ -210,6 +227,9 @@ function Zones({ seasonInfo }) {
           </>
         )}
       </div>
+
+      {staleLine && <p className="ars-coverage">⚠ {staleLine}</p>}
+      {coverageLine && <p className="ars-coverage">{coverageLine}</p>}
 
       {view === 'arsenal' && <PitchArsenal role={role} season={season} search={search} />}
       {view === 'count' && <PitchCount season={season} search={search} />}
@@ -266,7 +286,8 @@ function Zones({ seasonInfo }) {
                     {' '}{gridN}×{gridN}(테두리는 존 밖) ·
                     {' '}표본 {metric === 'swing' ? '3구' : '2타구'} 미만은 회색
                   </p>
-                  <ZoneHeatmap cells={selectedCells} metric={metric} leagueAvg={leagueAvg} gridN={gridN} />
+                  {metric === 'hit' && <p className="sub">{HIT_RATE_NOTE}</p>}
+                  <ZoneHeatmap cells={selectedCells} metric={metric} metricLabel={metricLabel(role, metric)} leagueAvg={leagueAvg} gridN={gridN} />
                 </>
               ) : (
                 <p className="zones-empty">선수를 선택하세요.</p>

@@ -9,12 +9,13 @@ import { fmtRate, fmtOne, fmtPct, fmtInt } from '../lib/format'
 import { sortRows, nextSort, listFilter, listEmpty } from '../lib/list'
 import { matchesName } from '../lib/players'
 import { teamColor } from '../lib/teamColors'
+import { HIT_RATE_NOTE, hitRateLabel } from '../lib/pitchData'
 
 // 목록 필터의 폴백 하한. 규정충족 플래그가 없는 시즌(2025)에만 기준이 된다.
 const MIN_PLAYER_PITCHES = 100 // 3구 던지고 구사율 100%인 선수를 숨긴다.
 const MIN_CELL_PITCHES = 30 // 이 미만 구종 셀은 회색 처리(핫/콜드존과 같은 규칙)
 const MIN_SWINGS = 10 // 헛스윙률 분모 하한
-const MIN_INPLAY = 10 // 인플레이 타율 분모 하한
+const MIN_INPLAY = 10 // 인플레이 안타율 분모 하한
 
 // 볼카운트 버킷. 빌더의 BUCKETS 와 같은 이름이고, 서로 배타가 아니라 합이 전체가 아니다.
 const BUCKETS = [
@@ -114,9 +115,6 @@ function PitchArsenal({ role, season, search = '' }) {
   const mine = useMemo(() => rows.filter((r) => r.PlayerId === selectedId2), [rows, selectedId2])
   const myTotals = mine.filter((r) => r.CountBucket === '전체').sort((a, b) => b.Pitches - a.Pitches)
 
-  // 커버리지는 행마다 같은 값으로 실려 온다(빌더가 넣는다).
-  const cov = rows[0]
-
   // 배합 표: 행 = 볼카운트 버킷, 열 = 그 선수가 가장 많이 쓴 구종 5개.
   const mixTypes = myTotals.slice(0, 5).map((r) => r.PitchType)
   const mixRows = BUCKETS.map(([bucket, hint]) => {
@@ -126,8 +124,8 @@ function PitchArsenal({ role, season, search = '' }) {
     return row
   }).filter((r) => r.n > 0)
 
-  // 인플레이 타율은 타구가 된 공만의 안타율이라 시즌 타율·피안타율과 다르다.
-  const hitLabel = role === 'pitcher' ? '피안타' : '타율'
+  // BipAvg = Hits/InPlay. 존 히트맵과 같은 식이라 이름도 같다(lib/pitchData).
+  const hitLabel = hitRateLabel(role)
 
   const columns = [
     {
@@ -149,7 +147,7 @@ function PitchArsenal({ role, season, search = '' }) {
     { key: 'MaxKmh', label: '최고', render: (r) => fmtOne(r.MaxKmh) },
     { key: 'WhiffRate', label: '헛스윙', render: (r) => cell(r.WhiffRate, r.Swings >= MIN_SWINGS, fmtPct) },
     { key: 'StrikeRate', label: '스트라이크', render: (r) => cell(r.StrikeRate, r.Pitches >= MIN_CELL_PITCHES, fmtPct) },
-    { key: 'BipAvg', label: `인플레이 ${hitLabel}`, render: (r) => cell(r.BipAvg, r.InPlay >= MIN_INPLAY, fmtRate) },
+    { key: 'BipAvg', label: hitLabel, render: (r) => cell(r.BipAvg, r.InPlay >= MIN_INPLAY, fmtRate) },
   ]
 
   const mixColumns = [
@@ -210,7 +208,7 @@ function PitchArsenal({ role, season, search = '' }) {
               </h3>
               <p className="sub">
                 {role === 'pitcher' ? '구사율·구속·결과' : '상대한 구종별 성적'} · 총 {fmtInt(selected.pitches)}구 ·
-                {' '}인플레이 {hitLabel} = 타구가 된 공만의 안타율(삼진·볼넷 제외) ·
+                {' '}{hitLabel}: {HIT_RATE_NOTE} ·
                 {' '}구종 {MIN_CELL_PITCHES}구(스윙·인플레이 {MIN_SWINGS}) 미만은 표본 부족으로 수치를 생략
               </p>
               <div className="ars-scroll">
@@ -228,13 +226,6 @@ function PitchArsenal({ role, season, search = '' }) {
               <p className="ars-foot">
                 버킷은 서로 배타가 아니다(결정구는 유리 카운트와 겹친다) — 세로 합이 전체가 되지 않는다.
               </p>
-
-              {/* 부분 수집 데이터라 '시즌 누적'으로 오독되지 않게 표본 기간을 고정 노출한다. */}
-              {cov && (
-                <p className="ars-coverage">
-                  ⚠ 수집 {cov.Days}경기일 표본 ({cov.FirstDate} ~ {cov.LastDate}) · 전 경기가 아니다
-                </p>
-              )}
             </>
           )}
         </div>
