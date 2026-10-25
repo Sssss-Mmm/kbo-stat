@@ -25,18 +25,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import crawl_kbo_team_rank as tr  # noqa: E402
 import csv_guard  # noqa: E402
-import kbo_access  # noqa: E402 — KBO 요청은 승인 전 차단(egress_ip 의 ipify 요청만 일반 requests)
+import kbo_access  # noqa: E402 — KBO 요청은 승인 전 차단
+from fetch_guard import Guard  # noqa: E402
+
+# ipify(제3자)는 KBO 승인과 따로 승인한다 — KBO 승인만으로 다른 외부 사이트에 요청하지 않는다(Codex 교차검증).
+ipify = Guard("PROBE_EGRESS_IP_APPROVED", "ipify(나가는 IP 확인)")
 
 
 def egress_ip() -> str:
     """나가는 IP. 차단 여부를 나중에 대조하려면 어디서 나갔는지 알아야 한다."""
+    if not ipify.allowed():
+        return f"(생략 — {ipify.env}=1 일 때만 확인)"
     try:
-        return requests.get("https://api.ipify.org", timeout=10).text.strip()
+        return ipify.requests.get("https://api.ipify.org", timeout=10).text.strip()
     except requests.RequestException as exc:
         return f"(확인 실패: {type(exc).__name__})"
 
 
 def main() -> int:
+    if not kbo_access.allowed():  # 승인 전에는 아무 외부 요청 없이 끝낸다
+        print(f"판정: 중단 — KBO 자동 요청 비활성화(승인 전) — 허용하려면 {kbo_access.ENV}=1")
+        return 2
     print(f"egress IP : {egress_ip()}")
     print(f"target    : {tr.TEAM_RANK_URL}")
 

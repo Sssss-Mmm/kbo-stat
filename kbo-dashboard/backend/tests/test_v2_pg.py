@@ -1,11 +1,13 @@
 """/api/v2 PostgreSQL 실데이터 통합 테스트 (읽기 전용). V2_PG_TESTS=1 일 때만 돈다.
 
-대상은 TEST_DATABASE_URL 로만 명시한다 — PostgreSQL 이고 DB 이름이 `_test` 로 끝나야 한다(운영 백업을 복원한 격리 DB 등).
-운영·개발용 DATABASE_URL·.env 는 테스트에서 쓰지 않는다(database/__init__.py). 조건이 안 맞으면 접속하지 않고 실패한다.
+대상은 TEST_DATABASE_URL 로만 명시한다 — PostgreSQL 이고 DB 이름이 `_test` 로 끝나야 하며, 호스트:포트가
+TEST_DATABASE_ALLOWED_HOSTS 에 있어야 한다(database/__init__.py — 운영 백업을 복원한 격리 DB 등).
+KBO_ENV=test 로 실행한다 — 운영·개발용 DATABASE_URL·.env 는 쓰지 않는다(database/__init__.py). 조건이 안 맞으면 접속하지 않고 실패한다.
 
 실행 예(격리 네트워크의 테스트 전용 DB):
   docker run --rm --network <격리 네트워크> -v "$PWD/src:/app/src:ro" -v <data>:/data:ro -e KBO_DATA_DIR=/data \
-    -e V2_PG_TESTS=1 -e TEST_DATABASE_URL=postgresql://t:<pw>@<db 호스트>:5432/kbo_p3a_test <백엔드 이미지> \
+    -e KBO_ENV=test -e V2_PG_TESTS=1 -e TEST_DATABASE_URL=postgresql://t:<pw>@<db 호스트>:5432/kbo_p3a_test \
+    -e TEST_DATABASE_ALLOWED_HOSTS=<db 호스트>:5432 <백엔드 이미지> \
     python -m unittest tests.test_v2_pg -v
 """
 import os

@@ -153,5 +153,49 @@ class NaverGuardTest(unittest.TestCase):
             m.assert_not_called()
 
 
+class ProbeTest(unittest.TestCase):
+    """Codex 교차검증: KBO 승인만으로 프로브가 제3자(ipify)에 요청하지 않는다."""
+
+    def test_kbo_approval_alone_does_not_call_ipify(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        import probe_kbo_reachable as probe
+
+        with mock.patch.dict(os.environ, {kbo_access.ENV: "1"}), \
+                mock.patch.object(kbo_access._requests, "get") as real_get:
+            os.environ.pop("PROBE_EGRESS_IP_APPROVED", None)
+            self.assertIn("생략", probe.egress_ip())
+        real_get.assert_not_called()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(kbo_access.ENV, None)
+            with mock.patch.object(kbo_access._requests, "get") as real_get, \
+                    mock.patch("sys.stdout"):
+                self.assertEqual(probe.main(), 2)  # 승인 전엔 아무 요청 없이 종료
+            real_get.assert_not_called()
+
+
+class OtherSourcesTest(unittest.TestCase):
+    """P3-S1: FanGraphs·스탯티즈 수동 크롤러도 승인 스위치 없이는 요청하지 않는다(Selenium 경로 포함)."""
+
+    def setUp(self):
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for env in ("FANGRAPHS_AUTOMATED_FETCH_APPROVED", "STATIZ_AUTOMATED_FETCH_APPROVED"):
+            os.environ.pop(env, None)
+
+    def test_manual_crawlers_are_blocked_without_approval(self):
+        import crawl
+        import crawl_statiz
+
+        with mock.patch.object(kbo_access._requests.Session, "request") as real:
+            with self.assertRaises(kbo_access.FetchDisabled):
+                crawl.fetch_season_requests(2025, max_retries=1)
+            with self.assertRaises(kbo_access.FetchDisabled):
+                crawl_statiz.login("id", "pw")
+        real.assert_not_called()
+        with mock.patch.dict(sys.modules, {"selenium": None}), self.assertRaises(kbo_access.FetchDisabled):
+            crawl.fetch_season_selenium(2025)  # selenium import 전에 막힌다
+
+
 if __name__ == "__main__":
     unittest.main()

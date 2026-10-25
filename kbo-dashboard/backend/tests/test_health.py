@@ -8,8 +8,7 @@ from sqlalchemy.exc import OperationalError
 class ReadinessTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with patch('database.init_db'):
-            cls.app_module = importlib.import_module('main')
+        cls.app_module = importlib.import_module('main')  # import 만으로는 DB 에 접속하지 않는다
 
     def setUp(self):
         # DB 판정만 본다 — 데이터 준비 판정은 고정(로컬 data/ 유무와 무관하게). 데이터 쪽은 test_data_check 가 본다.

@@ -69,8 +69,7 @@ class DataCheckTest(unittest.TestCase):
 
 class ReadyEndpointTest(unittest.TestCase):
     def test_db_ok_but_data_missing_is_503(self):
-        with patch("database.init_db"):
-            import main
+        import main  # import 만으로는 DB 에 접속하지 않는다
         bad = {"ready": False, "mount": "tmpfs", "season": 2025, "problems": ["mount: tmpfs"], "optional_missing": [],
                "required": {}}
         with patch.object(main.data_check, "check", return_value=bad), patch.object(main.engine, "connect"):

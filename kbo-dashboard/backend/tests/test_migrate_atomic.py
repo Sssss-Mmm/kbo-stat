@@ -132,7 +132,7 @@ class MigrateAtomicityTest(unittest.TestCase):
         write_csvs(self.root, break_season=2025)
         with self.assertRaises(KeyError):
             self.run_migrate()
-        # 비어 있어야 seed_if_empty.already_seeded() 가 다음 기동 때 다시 시드한다.
+        # 비어 있어야 seed_if_empty.seed_state() 가 'empty' 로 보고 다음 기동 때 다시 시드한다.
         self.assertTrue(all(n == 0 for n in self.counts().values()), self.counts())
 
 

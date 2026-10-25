@@ -109,7 +109,7 @@ class OrchestrationTests(unittest.TestCase):
 
     def test_budget_reserves_both_calls_and_refunds_unused(self):
         budget = AIBudget()
-        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test', 'AI_MAX_CALLS_PER_DAY': '3'}), patch('services.qa_service.ai_budget', budget):
+        with patch.dict(os.environ, {'OPENAI_API_KEY': 'test', 'LLM_EXTERNAL_CALLS_APPROVED': '1', 'AI_MAX_CALLS_PER_DAY': '3'}), patch('services.qa_service.ai_budget', budget):
             with patch('services.qa_service.structured_call', return_value=AnalysisPlan(kind='unsupported', season=2026)):
                 self.service.ask('삼성 연봉 알려줘', 2026)
             self.assertEqual(len(budget.calls), 1)
