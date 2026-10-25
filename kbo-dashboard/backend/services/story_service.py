@@ -1,13 +1,15 @@
 """AI 데일리 경기 스토리(프리뷰/리뷰) 생성 서비스.
 
-today.py 의 라이브 경기 카드 + 순위/최근 흐름/선발 시즌 성적을 조립해
+today.py 의 경기 카드(로컬 일정 CSV) + 순위/최근 흐름/선발 시즌 성적을 조립해
 OpenAI API 단일 호출로 경기별 내러티브를 만든다. RAG/에이전트가 아니라
 "데이터를 골라 글로 쓰는" 단순 텍스트 생성 작업이라 단일 호출이면 충분하다.
 
-OPENAI_API_KEY 가 없으면 mock 폴백으로 동작해 프런트 흐름을 확인할 수 있다.
+외부 LLM 호출은 llm_access 승인 스위치(기본 꺼짐)가 켜져야만 나간다 — 꺼져 있으면 로컬 기록만으로 만든
+한 줄 요약(_mock)을 쓴다. 키만 있어서는 호출하지 않는다.
 """
 from __future__ import annotations
 
+import logging
 import os
 import time
 from threading import Lock
@@ -18,10 +20,15 @@ import pandas as pd
 
 from services.csv_cache import file_versions
 from services.ai_budget import ai_budget
+from services import llm_access
 
-from routers.today import _fetch  # 라이브 경기 카드(네이버 프록시) 재사용
+logger = logging.getLogger(__name__)
+
+from routers.today import _fetch  # 경기 카드(로컬 일정 CSV — 외부 요청 없음) 재사용
 
 BUDGET_MESSAGE = "오늘의 AI 생성 한도에 도달했습니다. 경기 기록을 확인해 주세요."
+# 승인 후 호출이 실패했을 때의 기록 요약 꼬리 문구 — 승인 전 차단 문구와 구분하고, 이 결과는 짧게만 캐시해 다시 시도한다.
+FAILED_NOTE = "(AI 리뷰를 만들지 못해 기록 요약을 표시합니다.)"
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -36,7 +43,7 @@ STARTER_W = 0.03      # 선발 ERA 1.00 차이 ≈ 승률 3%p
 STARTER_CAP = 1.5     # ERA 편차는 ±1.5까지만 반영(소표본 방어)
 PROB_MIN, PROB_MAX = 0.15, 0.85
 
-# 네이버 홈/원정 팀 코드 -> CSV(팀명/Team) 표기. today.py HOME_STADIUM 과 동일 코드 체계.
+# 팀 코드 -> CSV(팀명/Team) 표기. today.py TEAM_CODE 의 역방향.
 CODE_TO_TEAM = {
     "LG": "LG", "OB": "두산", "WO": "키움", "KT": "KT",
     "SK": "SSG", "SSG": "SSG", "NC": "NC", "LT": "롯데",
@@ -66,6 +73,7 @@ class StoryService:
         # story 캐시: cache_key -> (저장시각, story dict). 종료 경기는 TTL 무한.
         self._story_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._preview_ttl = 600.0  # 프리뷰/진행중 경기는 10분만 캐싱
+        self._retry_keys: set[str] = set()  # AI 호출 실패로 기록 요약을 준 종료 경기 — 영구 캐시하지 않는다
         self._lock = Lock()
 
     # ── 공개 API ──────────────────────────────────────────────────────────
@@ -74,7 +82,7 @@ class StoryService:
             return self._stories_for_date(date, season)
 
     def _stories_for_date(self, date: str, season: int) -> dict[str, Any]:
-        games = _fetch(date)  # today.py 가 60초 캐싱 + 네이버 호출 처리
+        games = _fetch(date)  # 로컬 일정 CSV. 시즌 파일이 없으면 503(HTTPException)
         csv = self._load_csv(season)
         stories = [self._story_for_game(g, csv) for g in games]
         return {
@@ -82,7 +90,7 @@ class StoryService:
             "date": date,
             "season": season,
             "model": MODEL,
-            "ai_enabled": bool(os.getenv("OPENAI_API_KEY")),
+            "ai_enabled": llm_access.allowed(),
             "count": len(stories),
             "data": stories,
         }
@@ -94,7 +102,7 @@ class StoryService:
         if cached:
             saved_at, story = cached
             done = game.get("statusCode") == "RESULT"
-            if done or time.time() - saved_at < self._preview_ttl:
+            if (done and key not in self._retry_keys) or time.time() - saved_at < self._preview_ttl:
                 return {**story, "cached": True}
 
         context = self._build_context(game, csv)
@@ -111,8 +119,13 @@ class StoryService:
         if story["story"] == BUDGET_MESSAGE:
             return story  # 한도가 풀리면 다시 생성해야 하므로 캐싱하지 않는다.
         if len(self._story_cache) >= 2048:
+            self._retry_keys.discard(next(iter(self._story_cache)))
             self._story_cache.pop(next(iter(self._story_cache)))
         self._story_cache[key] = (time.time(), story)
+        if (story["story"] or "").endswith(FAILED_NOTE):
+            self._retry_keys.add(key)  # 일시 장애가 영구 대체 결과가 되지 않게 10분 뒤 다시 시도
+        else:
+            self._retry_keys.discard(key)
         return story
 
     @staticmethod
@@ -209,27 +222,29 @@ class StoryService:
             "IP": r.get("IP"),
         }
 
-    # ── OpenAI 호출 (or mock) ─────────────────────────────────────────────
+    # ── OpenAI 호출(승인 시) 또는 로컬 기록 요약 ──────────────────────────
     def _generate(self, context: dict[str, Any], kind: str) -> str:
-        if not os.getenv("OPENAI_API_KEY"):
+        if not llm_access.allowed():
             return self._mock(context, kind)
 
         if not ai_budget.take():
             return BUDGET_MESSAGE
 
-        from openai import OpenAI  # 키가 있을 때만 import (의존성 선택적)
-
-        client = OpenAI(timeout=20.0, max_retries=0)
-        user_prompt = self._render_prompt(context, kind)
-        resp = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=1024,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        return (resp.choices[0].message.content or "").strip()
+        try:
+            client = llm_access.client()
+            resp = client.chat.completions.create(
+                model=MODEL,
+                max_tokens=1024,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": self._render_prompt(context, kind)},
+                ],
+            )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as exc:  # noqa: BLE001 — 한 경기 실패로 그날 카드 전체가 500 이 되지 않게(QA 와 같은 방식)
+            # 예외 종류만 남긴다(메시지에 요청 내용이 섞일 수 있다). 예산은 이미 썼다 — 결과는 10분만 캐시돼 다시 시도한다.
+            logger.warning("story model call failed: %s", type(exc).__name__)
+            return self._mock(context, kind, failed=True)
 
     @staticmethod
     def _render_prompt(context: dict[str, Any], kind: str) -> str:
@@ -244,24 +259,24 @@ class StoryService:
         return f"{instruction}\n\n```json\n{body}\n```"
 
     @staticmethod
-    def _mock(context: dict[str, Any], kind: str) -> str:
+    def _mock(context: dict[str, Any], kind: str, failed: bool = False) -> str:
         home = context["home"]
         away = context["away"]
         h_team = home["team"]
         a_team = away["team"]
         if kind == "review" and home.get("runs_scored") is not None:
             return (
-                f"[mock] {context['matchup']} 경기는 {home['name']} {home['runs_scored']} : "
+                f"[기록 요약] {context['matchup']} 경기는 {home['name']} {home['runs_scored']} : "
                 f"{away['runs_scored']} {away['name']}로 마무리됐다. "
-                f"(OPENAI_API_KEY를 설정하면 실제 AI 리뷰가 생성됩니다.)"
+                + (FAILED_NOTE if failed else "(외부 AI 리뷰는 데이터 이용 권한 확인 전까지 꺼져 있습니다.)")
             )
         return (
-            f"[mock] {context['stadium']} {context['time']}, "
+            f"[기록 요약] {context['stadium']} {context['time']}, "
             f"{away['name']}(현재 {a_team.get('rank', '?')}위) 와 "
             f"{home['name']}(현재 {h_team.get('rank', '?')}위) 의 맞대결. "
             f"선발은 {(away.get('starter') or {}).get('name', '미정')} 대 "
             f"{(home.get('starter') or {}).get('name', '미정')}. "
-            f"(OPENAI_API_KEY를 설정하면 실제 AI 프리뷰가 생성됩니다.)"
+            + (FAILED_NOTE if failed else "(외부 AI 프리뷰는 데이터 이용 권한 확인 전까지 꺼져 있습니다.)")
         )
 
     @staticmethod

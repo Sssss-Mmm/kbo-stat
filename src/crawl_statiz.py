@@ -13,13 +13,16 @@ import re
 import time
 import random
 import argparse
-import requests
 import pandas as pd
 from pathlib import Path
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 import csv_guard
+from fetch_guard import Guard
+
+# 2026-10-25(P3-S1): 데이터 이용 권한 확인 전이라 스탯티즈 자동 요청도 기본 차단(fetch_guard.py).
+requests = Guard("STATIZ_AUTOMATED_FETCH_APPROVED", "스탯티즈").requests
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 

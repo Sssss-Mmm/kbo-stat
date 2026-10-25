@@ -4,7 +4,6 @@ PostgreSQL 실데이터 통합 테스트는 tests/test_v2_pg.py (V2_PG_TESTS=1 �
 """
 import unittest
 from datetime import date, datetime
-from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -376,8 +375,7 @@ class RouterTest(V2Base):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        with patch("database.init_db"):
-            import main
+        import main  # import 만으로는 DB 에 접속하지 않는다
         from routers import v2 as router
 
         def conn():

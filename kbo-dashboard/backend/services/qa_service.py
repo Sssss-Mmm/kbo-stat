@@ -5,6 +5,7 @@ import os
 import re
 
 from services.ai_budget import ai_budget
+from services import llm_access
 from services.qa_models import AnalysisPlan, AnalysisAnswer
 from services.qa_analysis import analyze, AnalysisUnavailable
 from services.rag_service import RagService, PROCESSED_DIR
@@ -57,14 +58,13 @@ class AIUnavailable(Exception):
 
 
 def structured_call(schema, system, payload):
-    if not os.getenv("OPENAI_API_KEY"):
-        raise AIUnavailable("AI 연결이 없어 기록 계산으로 답했습니다.")
+    if not llm_access.allowed():  # 키가 있어도 승인 스위치(기본 꺼짐)가 없으면 프롬프트를 만들지도 보내지도 않는다
+        raise AIUnavailable(llm_access.DISABLED_NOTICE)
     try:
-        from openai import OpenAI
+        client = llm_access.client()
     except ImportError:
         raise AIUnavailable("AI 연결을 사용할 수 없어 기록 계산으로 답했습니다.") from None
     try:
-        client = OpenAI(timeout=20.0, max_retries=0)
         response = client.chat.completions.parse(
             model=os.getenv("QA_MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1-mini")),
             messages=[{"role": "system", "content": system},
@@ -104,7 +104,7 @@ class QuestionAnswerService:
 
     def ask(self, question, season, history=None):
         # Reserve both calls up front so a question never spends a plan call it cannot explain.
-        has_key = bool(os.getenv("OPENAI_API_KEY"))
+        has_key = llm_access.allowed()
         reserved = has_key and ai_budget.take(2)
         used = []
         try:

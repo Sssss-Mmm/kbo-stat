@@ -4,7 +4,8 @@
 모아 붙인다. 라우터는 두 종류다:
   - DB 기반(standings/schedule/players/analytics): PostgreSQL 조회
   - CSV 기반(zones/player_stats/today/story/rag): data/processed CSV 직접 서빙
-그래서 DB가 없어도 CSV 라우터는 동작하도록 init_db 실패를 치명적으로 보지 않는다.
+import 만으로는 DB 에 접속하지 않는다(테이블 생성은 init_db.py·migrate.py·seed_if_empty.py 의 명시적 단계에서만).
+그래서 DB가 없어도 CSV 라우터는 동작한다.
 """
 import os
 
@@ -15,18 +16,11 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy import text
 
 import data_check
-from database import init_db, engine
+from database import engine
 from routers import analytics, arsenal, player_stats, players, rag, schedule, standings, story, today, v2, zones
 
 
 app = FastAPI(title="KBO Dashboard API")
-
-# Database-backed routes can use PostgreSQL, but CSV-backed RAG should still
-# run when a local database is not available.
-try:
-    init_db()
-except Exception as exc:
-    print(f"[startup] database init skipped: {exc}")
 
 # CORS: 콤마로 구분된 CORS_ORIGINS 환경변수로 허용 출처 지정 (기본 로컬 프런트).
 # 와일드카드와 credentials 동시 사용은 브라우저가 무시하므로 함께 켜지 않는다.

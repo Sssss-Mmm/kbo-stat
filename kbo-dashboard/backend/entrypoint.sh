@@ -20,7 +20,8 @@ if ! python data_check.py; then
 fi
 rm -f "$FAILS"
 
-# DB가 비어 있으면 최초 1회 시드 후 API 기동.
-python seed_if_empty.py
+# DB가 비어 있으면 최초 1회 시드 후 API 기동. 시드가 실패해도(DB 접속·권한 오류 등 — 원인은 seed 로그) API 는 띄운다:
+# CSV 라우터는 DB 없이 동작하고 DB 라우터는 503 을 준다(기존 동작과 같음).
+python seed_if_empty.py || echo "[seed] 초기화 실패(exit $?) — DB 라우터는 503, CSV 라우터만 동작"
 
 exec uvicorn main:app --host 0.0.0.0 --port 8001

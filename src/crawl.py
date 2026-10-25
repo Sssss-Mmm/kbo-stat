@@ -19,12 +19,17 @@ import json
 import time
 import random
 import argparse
-import requests
 import pandas as pd
 from pathlib import Path
 from bs4 import BeautifulSoup
 
 import csv_guard
+from fetch_guard import Guard
+
+# 2026-10-25(P3-S1): 데이터 이용 권한 확인 전이라 FanGraphs 자동 요청도 기본 차단(fetch_guard.py).
+# requests 경로는 래퍼와 fetch_season_requests 첫 줄이, Selenium 경로는 fetch_season_selenium 첫 줄이 막는다.
+_guard = Guard("FANGRAPHS_AUTOMATED_FETCH_APPROVED", "FanGraphs")
+requests = _guard.requests
 
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -69,6 +74,7 @@ def _build_session(ua: str) -> requests.Session:
 
 def fetch_season_requests(season: int, qual: str = "y", max_retries: int = 3) -> pd.DataFrame:
     """requests 로 한 시즌을 받는다. 403 등 실패 시 UA/대기를 바꿔 재시도한다."""
+    _guard.ensure_allowed()  # 아래 except Exception 이 차단 예외를 재시도로 삼키지 않게 먼저 확인
     params = {"type": "0", "season": str(season), "qual": qual}
     for attempt in range(max_retries):
         ua = random.choice(USER_AGENTS)
@@ -96,6 +102,7 @@ def fetch_season_requests(season: int, qual: str = "y", max_retries: int = 3) ->
 
 def fetch_season_selenium(season: int, qual: str = "y") -> pd.DataFrame:
     """requests 가 막힐 때 헤드리스 크롬으로 페이지를 띄워 같은 JSON 을 긁어온다."""
+    _guard.ensure_allowed()
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
@@ -144,6 +151,7 @@ def fetch_season(season: int, qual: str = "y", use_selenium: bool = False) -> pd
 def crawl(start: int = 2002, end: int = 2025, qual: str = "y",
           delay: float = 3.0, use_selenium: bool = False):
     """연도 범위를 돌며 시즌별 CSV 를 저장한다(이미 있으면 건너뜀)."""
+    _guard.ensure_allowed()  # 승인 전이면 시즌마다 실패·대기를 반복하지 않고 바로 멈춘다
     failures: list[int] = []
     for season in range(start, end + 1):
         out_path = RAW_DIR / f"kbo_{season}.csv"

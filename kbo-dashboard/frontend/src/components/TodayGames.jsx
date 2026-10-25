@@ -1,10 +1,12 @@
 // 오늘의 경기 카드 섹션 (HOME 상단).
-// /api/today-games(라이브 경기/스코어/선발)와 /api/today-story(승부예측/AI 리뷰)를
+// /api/today-games(저장된 일정 CSV — 실시간 아님)와 /api/today-story(승부예측/AI 리뷰)를
 // 따로 받아 날짜별 카드로 보여준다. 경기 전이면 예상 승률 막대, 종료 후면 AI 리뷰.
+// 외부 실시간 조회는 데이터 이용 권한 확인 전까지 꺼져 있어 자동 갱신(폴링)도 하지 않는다.
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { teamColor, teamEmblem } from '../lib/teamColors'
 import { kstToday } from '../lib/season'
+import { scheduleNotes } from '../lib/today'
 import '../styles/TodayGames.css'
 import { apiError } from '../lib/apiError'
 
@@ -32,48 +34,34 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [refresh, setRefresh] = useState(0)
-  const [checkedAt, setCheckedAt] = useState(null)
+  const [notes, setNotes] = useState(null) // 저장 일정 기준·자료 저장 시각·결과 미반영 안내
   const [stories, setStories] = useState({}) // gameId -> story
   const [storyLoading, setStoryLoading] = useState(false)
 
   useEffect(() => {
     let active = true
-    let busy = false
     const controller = new AbortController()
-    setCheckedAt(null)
+    setNotes(null)
     setGames([])
-    const fetchGames = async (initial = false) => {
-      if (busy) return
-      busy = true
-      if (initial) setLoading(true)
+    const fetchGames = async () => {
+      setLoading(true)
       try {
         const r = await axios.get('/api/today-games', { params: { date }, signal: controller.signal, timeout: 15000 })
         if (active) {
           setGames(r.data.data || [])
-          setCheckedAt(new Date())
+          setNotes(scheduleNotes(r.data, kstToday()))
           setError(null)
         }
       } catch (err) {
         if (active) setError(apiError(err))
       } finally {
-        busy = false
         if (active) setLoading(false)
       }
     }
-    fetchGames(true)
-    // 오늘 날짜는 경기 시작·취소·종료 전환도 확인한다. 숨긴 탭은 조회하지 않는다.
-    const timer = setInterval(() => {
-      if (date === kstToday() && document.visibilityState === 'visible') fetchGames()
-    }, 60000)
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && date === kstToday()) fetchGames()
-    }
-    document.addEventListener('visibilitychange', onVisible)
+    fetchGames()
     return () => {
       active = false
       controller.abort()
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [date, refresh])
 
@@ -147,14 +135,13 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
         </div>
       </div>
 
-      {checkedAt && (
+      {notes && (
         <p className="tg-freshness" role="status">
-          <time dateTime={checkedAt.toISOString()} title="화면에 표시된 경기 정보를 마지막으로 확인한 시각 · 한국 시간">
-            {checkedAt.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })} 업데이트
-          </time>
-          {date === kstToday() && <span>· 1분마다 자동 갱신</span>}
+          <span>{notes.basis}</span>
+          {notes.asOf && <span title="일정 CSV 를 마지막으로 저장(수집)한 시각 · 한국 시간">· {notes.asOf}</span>}
         </p>
       )}
+      {notes?.stale && <p className="tg-msg">{notes.stale}</p>}
       {note && <p className="tg-msg">{note}</p>}
       {loading && <p className="tg-msg">로딩중...</p>}
       {error && <p className="tg-msg error">{error}</p>}
@@ -164,7 +151,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
         <div className="tg-cards">
           {games.map((g) => {
             const done = g.statusCode === 'RESULT'
-            const started = g.statusCode && g.statusCode !== 'BEFORE'
+            const started = !g.cancel && g.statusCode && g.statusCode !== 'BEFORE'  // 취소 경기는 스코어·진행중 표시 안 함
             const story = stories[g.gameId]
             // 서버 예측이 있으면 그걸 쓴다(선발 ERA 보정 포함). 없으면 순위표 폴백.
             const hp = story?.winProb?.home ?? homeWinProb(g)
@@ -195,7 +182,7 @@ function TodayGames({ standings = [], storyEnabled = true, note = '' }) {
                   <Team t={g.home} won={homeWon} loser={done && !homeWon} home />
                 </div>
 
-                {!started && ap != null && (
+                {!g.cancel && !started && ap != null && (
                   <div className="tg-prob" title={story?.winProb ? '예상 승률 (홈/원정 성적 + 선발 ERA)' : '예상 승률 (시즌 성적 기반)'}>
                     <div className="tg-prob-bar">
                       <span className="tg-prob-fill away" style={{ width: `${ap * 100}%`, background: teamColor(g.away.name) }} />

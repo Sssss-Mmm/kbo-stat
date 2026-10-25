@@ -155,12 +155,19 @@ npm run lint
 npm run build
 ```
 
-백엔드 회귀 테스트(백엔드 의존성이 설치된 환경):
+백엔드 회귀 테스트(백엔드 의존성이 설치된 환경). 테스트는 `KBO_ENV=test` 를 반드시 지정한다 —
+이때만 `.env`·`DATABASE_URL` 을 무시하고 `TEST_DATABASE_URL`(없으면 메모리 SQLite)에 붙는다. 빠뜨리면 DB 접속 전에 멈춘다.
 
 ```bash
 cd backend
-python -m unittest discover -s tests -v
+KBO_ENV=test python -m unittest discover -s tests -v
 ```
+
+PostgreSQL 통합 테스트는 테스트 전용 DB(이름이 `_test` 로 끝남)를 명시할 때만 돈다:
+`KBO_ENV=test V2_PG_TESTS=1 TEST_DATABASE_URL=postgresql://…/kbo_xxx_test python -m unittest tests.test_v2_pg`.
+
+앱 import·서버 기동은 테이블을 만들지 않는다. 테이블은 컨테이너 첫 기동의 `seed_if_empty.py`(→ `migrate.py`),
+`python migrate.py`, 또는 테이블만 만드는 `DATABASE_URL=… python init_db.py`(설정이 없으면 실행 거부)로 만든다.
 
 `/health`는 프로세스 생존 여부, `/ready`는 DB 연결 가능 여부를 확인합니다.
 DB가 중단되면 `/ready`는 503을 반환하며 CSV 기반 기능은 계속 사용할 수 있습니다.

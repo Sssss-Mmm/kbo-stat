@@ -20,7 +20,8 @@ cp .env.example .env
 # 패키지 설치
 pip install -r requirements.txt
 
-# CSV 데이터 마이그레이션 (1-2분 소요)
+# CSV 데이터 마이그레이션 (1-2분 소요) — 테이블도 이 단계에서 만든다(서버 기동은 테이블을 만들지 않음).
+# 테이블만 필요하면: python init_db.py  (.env 또는 환경변수의 DATABASE_URL 필수)
 python migrate.py
 
 # 서버 시작
