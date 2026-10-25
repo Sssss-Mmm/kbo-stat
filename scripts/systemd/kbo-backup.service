@@ -9,3 +9,5 @@ ExecStart=%h/kbo-stat/scripts/backup_kbo_db.sh
 Nice=10
 IOSchedulingClass=idle
 TimeoutStartSec=30min
+# 7 = 다른 백업이 실행 중이라 건너뜀(잠금 충돌) — 실패로 보지 않는다
+SuccessExitStatus=7

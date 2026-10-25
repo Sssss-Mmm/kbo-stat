@@ -17,8 +17,10 @@
 #   KBO_BACKUP_MIN_RATIO     직전 백업 대비 최소 크기비  (기본 0.5 — 이보다 줄면 DB 가 비었을 수 있다)
 #   KBO_BACKUP_MIN_FREE_MB   필요한 여유 공간(MB)      (기본: 직전 백업 크기의 3배, 최소 200)
 #   KBO_BACKUP_KEEP_DAILY/WEEKLY/MONTHLY  보관 개수   (기본 14 / 8 / 6)
-# 종료 코드: 0 성공 · 2 사전 점검 실패(엔진·컨테이너·잠금) · 3 덤프 실패 · 4 검증 실패 · 5 공간 부족 · 6 저장 실패
-set -euo pipefail
+# 종료 코드: 0 성공 · 2 사전 점검 실패(엔진·컨테이너) · 3 덤프 실패 · 4 검증 실패 · 5 공간 부족 · 6 저장 실패
+#           7 잠금 충돌(다른 백업이 실행 중 — 그쪽이 status.json 을 쓰므로 기록하지 않는다)
+#           그 밖의 값 = 예상치 못한 종료(TERM 143 · INT 130 포함) — EXIT 트랩이 status.json 에 fail 로 남긴다
+set -eEuo pipefail
 umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +35,9 @@ TMP_DIR="${BACKUP_ROOT}/.tmp"
 STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M%S)"
 NAME="kbo-${STAMP}.dump"
 PART="${TMP_DIR}/${NAME}.part"
+
+RECORDED=0   # 이번 실행의 결과(ok·fail)를 status.json 에 이미 썼는가 — 트랩이 두 번 쓰지 않게
+LAST_CMD=""
 
 mkdir -p "${BACKUP_ROOT}" "${TMP_DIR}"
 
@@ -60,14 +65,31 @@ EOF
 
 fail() {  # fail code reason — 임시 파일만 지우고 기존 백업은 건드리지 않는다
   rm -f "${PART}"
+  RECORDED=1
   log "FAIL($1): $2"
   write_status fail "$1" "$2"
   exit "$1"
 }
 
-# 동시에 두 번 돌지 않게(타이머 + 수동 실행 겹침)
+# 예상치 못한 종료(set -e·신호)도 status.json 에 남긴다. 임시 .part 만 지우고, 저장된 백업은 지우지 않는다.
+# LAST_CMD 는 확장 전 명령 원문이라 컨테이너 안 변수($POSTGRES_USER 등)의 값은 들어가지 않는다.
+on_exit() {
+  local rc=$?
+  rm -f "${PART}"
+  (( rc == 0 || RECORDED == 1 )) && return 0
+  RECORDED=1
+  local why="예상치 못한 종료(exit ${rc}${LAST_CMD:+ · line ${LAST_CMD}})"
+  log "FAIL(${rc}): ${why}" || true
+  write_status fail "${rc}" "${why}" || echo "[backup] status.json 기록 실패" >&2
+}
+trap 'LAST_CMD="${LINENO}: ${BASH_COMMAND:0:120}"' ERR
+trap on_exit EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+# 동시에 두 번 돌지 않게(타이머 + 수동 실행 겹침). 상태는 실행 중인 쪽이 쓴다.
 exec 9>"${BACKUP_ROOT}/.lock"
-flock -n 9 || { log "다른 백업이 실행 중 — 건너뜀"; exit 2; }
+flock -n 9 || { RECORDED=1; log "다른 백업이 실행 중 — 건너뜀(exit 7)"; exit 7; }
 
 log "start ${NAME} container=${CONTAINER} root=${BACKUP_ROOT}"
 
@@ -115,6 +137,7 @@ mv -n "${PART}" "${final}" && [[ -f "${final}" && ! -e "${PART}" ]] || fail 6 "�
 ln -sfn "${NAME}" "${BACKUP_ROOT}/latest.dump"
 log "ok ${NAME} bytes=${bytes} tables=${tables} sha256=$(cut -c1-16 "${final}.sha256")…"
 write_status ok 0 "" "${NAME}" "${bytes}"
+RECORDED=1
 
 # 6) 보관 정리 — 검증 성공 뒤에만. 정리 실패는 백업 실패가 아니다(경고만)
 python3 "${ROOT_DIR}/scripts/kbo_backup_retention.py" "${BACKUP_ROOT}" --protect "${final}" \

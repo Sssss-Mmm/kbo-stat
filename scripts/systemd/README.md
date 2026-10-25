@@ -16,3 +16,4 @@ systemctl --user list-timers 'kbo-*'
   세션 없이도 돌게 하려면 `sudo loginctl enable-linger $USER`(별도 승인).
 - 해제: `systemctl --user disable --now kbo-backup.timer kbo-backup-verify.timer` — 백업 파일은 남는다.
 - 결과: `~/kbo-backups/daily/status.json`(마지막 시도·마지막 성공), `backup.log`, `verify.log`.
+  예상치 못한 종료(신호·중간 오류)도 `status.json` 에 `fail` 과 종료 코드·실패한 줄로 남는다. 잠금 충돌(exit 7)은 건너뜀이라 기록하지 않는다.
