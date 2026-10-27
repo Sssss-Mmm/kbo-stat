@@ -1,3 +1,5 @@
+import { pageUrl } from './navigation.js'
+
 const normalize = (value) => String(value ?? '').normalize('NFKC').replace(/\s+/g, '').toLocaleLowerCase('ko-KR')
 
 export function playerKey(row) {
@@ -20,6 +22,14 @@ export function filterPlayers(rows, { team = 'all', query = '', qualified = fals
 export function toggleComparison(selected, id) {
   if (selected.includes(id)) return selected.filter((value) => value !== id)
   return selected.length < 2 ? [...selected, id] : selected
+}
+
+// 선택한 두 선수 → 비교 화면(/compare) URL. 두 ID 가 모두 선수 ID(양의 정수)일 때만 — 아니면 null.
+// 대체 키('팀명:선수명')를 이름으로 다른 선수에 이어 붙이지 않는다. 시즌은 목록이 보여 준 시즌 그대로 양쪽에 넘긴다.
+export function compareUrl(selected, role, season) {
+  if (selected.length !== 2 || !selected.every((id) => /^[1-9]\d*$/.test(id))) return null
+  const [a, b] = selected
+  return pageUrl('compare', { role: role === 'pitcher' ? 'pitcher' : 'batter', a, b, sa: season, sb: season })
 }
 
 export const BASIC_COLUMNS = {

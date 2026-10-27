@@ -1,6 +1,7 @@
 // 선수 기록 페이지.
 // /api/player-stats 의 타자/투수 전체 스탯을 표로 보여준다. 구단 필터, 규정충족
 // 필터, 컬럼 헤더 클릭 정렬을 지원한다. 표시 컬럼/형식은 아래 COLUMNS 로 정의.
+// 선수 비교는 여기서 두 명을 고르기만 하고 결과는 /compare 에서 본다(기존 ?compare=A,B 링크도 그리로 보낸다).
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import SeasonBanner from '../components/SeasonBanner'
@@ -8,8 +9,8 @@ import { sortRows, nextSort } from '../lib/list'
 import '../styles/Players.css'
 import { apiError } from '../lib/apiError'
 import { useRoute } from '../lib/useRoute'
-import { updateQuery } from '../lib/navigation'
-import { filterPlayers, playerKey, toggleComparison, BASIC_COLUMNS, STAT_LABELS } from '../lib/players'
+import { navigate, updateQuery } from '../lib/navigation'
+import { compareUrl, filterPlayers, playerKey, toggleComparison, BASIC_COLUMNS, STAT_LABELS } from '../lib/players'
 
 // 역할별 컬럼 정의. key=API 응답 필드, label=헤더, fmt=표시 형식.
 const COLUMNS = {
@@ -94,6 +95,12 @@ function Players({ seasonInfo }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const legacyCompare = compareUrl(selected, role, season)
+
+  // 기존 비교 링크(/players?compare=A,B) → 비교 화면. replace 라 뒤로 가기가 다시 이 링크로 돌아와 되튕기지 않는다.
+  useEffect(() => {
+    if (legacyCompare) navigate(legacyCompare, true)
+  }, [legacyCompare])
 
   useEffect(() => {
     let active = true
@@ -138,8 +145,13 @@ function Players({ seasonInfo }) {
     const next = nextSort(sort, key)
     updateQuery({ sort: next.key, dir: next.dir })
   }
-  const togglePlayer = (row) => updateQuery({ compare: toggleComparison(selected, playerKey(row)).join(',') })
-  const compared = selected.map((id) => rows.find((row) => playerKey(row) === id)).filter(Boolean)
+  // 두 번째 선수를 고르면 비교 화면으로(push — 뒤로 가기는 한 명 고른 이 목록으로 돌아온다).
+  const togglePlayer = (row) => {
+    const next = toggleComparison(selected, playerKey(row))
+    const url = compareUrl(next, role, season)
+    if (url) navigate(url)
+    else updateQuery({ compare: next.join(',') })
+  }
   const columns = COLUMNS[role].filter((col) => detailed || BASIC_COLUMNS[role].includes(col.key))
 
   return (
@@ -184,28 +196,26 @@ function Players({ seasonInfo }) {
           <p className="players-empty">{season}시즌 {role === 'hitter' ? '타자' : '투수'} 데이터가 아직 없습니다.</p>
         ) : (
           <>
-            <section className="players-comparison" aria-label="선수 비교">
+            <section className="players-comparison" aria-label="비교할 선수 선택">
               <div className="players-comparison-head">
-                <h3>선수 비교 <span>{compared.length}/2</span></h3>
+                <h3>선수 비교 <span>{selected.length}/2</span></h3>
                 {selected.length > 0 && <button onClick={() => updateQuery({ compare: null })}>선택 초기화</button>}
               </div>
-              {compared.length === 0 ? <p className="players-note">목록에서 같은 역할의 선수 2명을 선택해 기록을 비교하세요.</p> : (
-                <>
-                  {compared.length === 1 && <p className="players-note">비교할 선수를 한 명 더 선택하세요. 구단이나 검색어를 바꿔도 선택은 유지됩니다.</p>}
-                  <div className="players-table-wrap">
-                    <table className="players-table">
-                      <caption className="players-note">{season}시즌 {role === 'hitter' ? '타자' : '투수'} 기록 비교 · 같은 시즌 누적 기록</caption>
-                      <thead><tr><th scope="col">지표</th>{compared.map((row) => (
-                        <th scope="col" key={playerKey(row)}>{row['선수명']} ({row['팀명']}) <button aria-label={`${row['선수명']} 비교에서 제외`} onClick={() => togglePlayer(row)}>×</button></th>
-                      ))}</tr></thead>
-                      <tbody>{columns.filter((col) => !['선수명', '팀명', '포지션'].includes(col.key)).map((col) => (
-                        <tr key={col.key}><th scope="row" title={STAT_LABELS[col.key]}>{col.label}</th>
-                          {compared.map((row) => <td key={playerKey(row)}>{fmtValue(row[col.key], col.fmt)}</td>)}
-                        </tr>
-                      ))}</tbody>
-                    </table>
-                  </div>
-                </>
+              {selected.length > 0 && (
+                <ul className="players-picked">{selected.map((id) => {
+                  const row = rows.find((r) => playerKey(r) === id)
+                  return (
+                    <li key={id}>{row ? `${row['선수명']} (${row['팀명']})` : `${season}시즌 ${role === 'hitter' ? '타자' : '투수'} 목록에 없는 ID ${id}`}
+                      {' '}<button aria-label={`${row ? row['선수명'] : id} 선택 해제`}
+                        onClick={() => updateQuery({ compare: selected.filter((v) => v !== id).join(',') })}>×</button></li>
+                  )
+                })}</ul>
+              )}
+              {selected.length === 2 && !legacyCompare ? (
+                <p className="error">선수 ID 가 확인되지 않은 선택이 있어 비교 화면으로 보낼 수 없습니다 — 다른 선수로 바꾸지 않았습니다. 선택을 해제하고 다시 골라 주세요.</p>
+              ) : (
+                <p className="players-note">{selected.length === 1 ? '비교할 선수를 한 명 더 선택하세요. 구단이나 검색어를 바꿔도 선택은 유지됩니다.'
+                  : '목록에서 같은 역할의 선수 2명을 고르면 비교 화면(리그 백분위·기본/상세 기록·시즌별 추이)으로 이동합니다.'}</p>
               )}
             </section>
             <p className="players-note">

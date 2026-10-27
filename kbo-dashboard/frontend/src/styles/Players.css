@@ -111,7 +111,9 @@
 .players-comparison-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
 .players-comparison-head h3 { font-size: 16px; }
 .players-comparison-head span { color: var(--muted); font-size: 13px; }
-.players-table caption { padding: 10px; text-align: left; white-space: normal; }
+.players-picked { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 0; list-style: none; }
+.players-picked li { padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
+.players-picked button { padding: 0 6px; border: 0; background: none; color: var(--muted); cursor: pointer; }
 
 .players-header .record-mode,
 .players-comparison-head button,
