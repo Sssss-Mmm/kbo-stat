@@ -20,7 +20,10 @@ export const NAVER_SEASON_LABEL = '네이버 시즌 기록 (자동 수집 · KBO
 
 /** 비교 지표. better: high/low = 백분위 방향. digits/rate = 표시 형식. */
 export const COMPARE_METRICS = {
+  // neutral = 우세·백분위를 매기지 않는 지표(값만 표시)와 그 사유. 출장량(경기·타수)과 투수 보직 지표(세이브·홀드).
+  // 수치표는 선수 기록 목록(lib/players.js BASIC_COLUMNS)의 기본 지표를 먼저, 나머지를 상세로 나눠 보인다.
   batter: [
+    { key: 'G', label: '경기', neutral: '출장량 지표 — 백분위·우세를 매기지 않음' },
     { key: 'AVG', label: '타율', rate: true, better: 'high' },
     { key: 'OBP', label: '출루율', rate: true, better: 'high' },
     { key: 'SLG', label: '장타율', rate: true, better: 'high' },
@@ -33,11 +36,24 @@ export const COMPARE_METRICS = {
     { key: 'babip_source', adv: 'babip_source', label: 'BABIP(출처)', better: 'high', advanced: true },
     { key: 'bb_pct', adv: 'bb_pct', label: 'BB%', better: 'high', advanced: true },
     { key: 'k_pct', adv: 'k_pct', label: 'K%', better: 'low', advanced: true },
+    { key: 'AB', label: '타수', neutral: '출장량 지표 — 백분위·우세를 매기지 않음' },
+    { key: 'H', label: '안타', better: 'high' },
+    { key: '2B', label: '2루타', better: 'high' },
+    { key: '3B', label: '3루타', better: 'high' },
     { key: 'HR', label: '홈런', better: 'high' },
+    { key: 'RBI', label: '타점', better: 'high' },
+    { key: 'R', label: '득점', better: 'high' },
     { key: 'SB', label: '도루', better: 'high' },
+    { key: 'BB', label: '볼넷', better: 'high' },
+    { key: 'SO', label: '삼진', better: 'low' },
     { key: 'WAR', label: 'WAR', digits: 2, better: 'high', advanced: true },
   ],
   pitcher: [
+    { key: 'G', label: '경기', neutral: '출장량 지표 — 백분위·우세를 매기지 않음' },
+    { key: 'W', label: '승', better: 'high' },
+    { key: 'L', label: '패', better: 'low' },
+    { key: 'SV', label: '세이브', neutral: '보직 지표 — 규정이닝 투수(대부분 선발) 모집단과 맞지 않아 백분위·우세를 매기지 않음' },
+    { key: 'HLD', label: '홀드', neutral: '보직 지표 — 규정이닝 투수(대부분 선발) 모집단과 맞지 않아 백분위·우세를 매기지 않음' },
     { key: 'ERA', label: '평균자책점', digits: 2, better: 'low' },
     { key: 'WHIP', label: 'WHIP', digits: 2, better: 'low' },
     { key: 'K/9', label: '9이닝당 삼진', digits: 2, better: 'high', advanced: true },
@@ -45,6 +61,10 @@ export const COMPARE_METRICS = {
     { key: 'K/BB', label: '삼진/볼넷', digits: 2, better: 'high', advanced: true },
     { key: 'IP', label: '이닝', innings: true, better: 'high' },
     { key: 'SO', label: '탈삼진', better: 'high' },
+    { key: 'BB', label: '볼넷', better: 'low' },
+    { key: 'H', label: '피안타', better: 'low' },
+    { key: 'HR', label: '피홈런', better: 'low' },
+    { key: 'ER', label: '자책점', better: 'low' },
     { key: 'QS', label: '퀄리티 스타트', better: 'high' },
     { key: 'WAR', label: 'WAR', digits: 2, better: 'high', advanced: true },
   ],
@@ -231,6 +251,10 @@ export const chartMetrics = (role) => COMPARE_METRICS[role].filter((m) => CHART_
  *  pct 가 null 이면 reason 에 정확한 사유, short 에 차트용 짧은 문구('데이터 없음' = 값 자체가 없음, '비교 불가' = 값은 있으나
  *  백분위를 매길 수 없음)를 담는다 — 막대를 0 으로 그리지 않기 위해서다. */
 export function metricPercentile(m, line, league, advLeague) {
+  if (m.neutral) {
+    const raw = line?.stats?.[m.key]
+    return { pct: null, n: null, reason: m.neutral, short: '비교 불가', text: fmtStat(raw, { unknown: '-' }) }
+  }
   if (m.adv) {
     const v = advancedOf(line, m.adv)
     const usable = v && ['calculated', 'source'].includes(v.status) && v.value !== null
@@ -252,6 +276,7 @@ export function metricPercentile(m, line, league, advLeague) {
 
 /** 수치표·차트의 우세 쪽('a' | 'b' | 'tie' | null). 고급 지표는 같은 시즌·같은 상태끼리만 우열을 표시한다. */
 export function compareWinner(m, aLine, bLine, seasonA, seasonB) {
+  if (m.neutral) return null
   if (!m.adv) return betterSide(aLine.stats[m.key], bLine.stats[m.key], m.better)
   const a = advancedOf(aLine, m.adv)
   const b = advancedOf(bLine, m.adv)

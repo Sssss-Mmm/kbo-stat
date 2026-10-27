@@ -204,3 +204,54 @@ assert.equal(chartRowLabel(M('ERA', 'pitcher'), ['가', '나'], { text: '2.50', 
   '평균자책점(낮을수록 좋음): 가 2.50, 100백분위 / 나 - (백분위 없음: 기록 없음) · 우세 판정 없음')
 
 console.log('p2d ok')
+
+// 선수 기록 목록의 기본·상세 지표가 수치표에 모두 있다(차트에는 누적·출장량 지표를 올리지 않는다).
+{
+  const keys = (role) => COMPARE_METRICS[role].map((m) => m.key)
+  for (const k of ['G', 'AVG', 'AB', 'H', '2B', '3B', 'HR', 'RBI', 'R', 'SB', 'BB', 'SO', 'OBP', 'SLG', 'OPS', 'wRC+', 'WAR'])
+    assert.ok(keys('batter').includes(k), `batter ${k}`)
+  for (const k of ['G', 'W', 'L', 'SV', 'HLD', 'IP', 'ERA', 'WHIP', 'SO', 'BB', 'H', 'HR', 'ER', 'QS', 'K/9', 'BB/9', 'K/BB', 'WAR'])
+    assert.ok(keys('pitcher').includes(k), `pitcher ${k}`)
+  for (const role of ['batter', 'pitcher']) {
+    assert.equal(new Set(keys(role)).size, keys(role).length, `${role} 지표 중복 없음`)
+    assert.ok(chartMetrics(role).every((m) => !['G', 'AB', 'H', 'HR', 'RBI', 'W', 'SV', 'ER'].includes(m.key)))
+  }
+  // 출장량 지표: 값은 그대로, 우세·백분위 없음. 값이 없으면 0 이 아니라 '-'.
+  const g = COMPARE_METRICS.batter.find((m) => m.key === 'G')
+  const line = (G) => ({ stats: { G } })
+  assert.equal(compareWinner(g, line(140), line(30), 2026, 2026), null)
+  const p = metricPercentile(g, line(140), [{ 규정충족: true, G: 100 }], [])
+  assert.equal(p.pct, null)
+  assert.equal(p.text, '140')
+  assert.equal(metricPercentile(g, line(null), [], []).text, '-')
+  // 낮을수록 좋은 상세 지표(타자 삼진, 투수 피안타)
+  const so = COMPARE_METRICS.batter.find((m) => m.key === 'SO')
+  assert.equal(compareWinner(so, { stats: { SO: 60 } }, { stats: { SO: 90 } }, 2026, 2025), 'a')
+  assert.equal(compareWinner(COMPARE_METRICS.pitcher.find((m) => m.key === 'H'), { stats: { H: 150 } }, { stats: { H: 120 } }, 2026, 2026), 'b')
+  assert.equal(compareWinner(so, { stats: { SO: null } }, { stats: { SO: 90 } }, 2026, 2026), null)
+}
+console.log('p2d detail metrics ok')
+
+// 투수 세이브·홀드: 값은 그대로, 백분위·우세 없음(규정이닝 투수 모집단은 대부분 선발이라 0 세이브가 100백분위가 된다).
+{
+  const sv = COMPARE_METRICS.pitcher.find((m) => m.key === 'SV')
+  const hld = COMPARE_METRICS.pitcher.find((m) => m.key === 'HLD')
+  const pool = [{ 규정충족: true, SV: 0, HLD: 0 }, { 규정충족: true, SV: 0, HLD: 1 }]
+  for (const m of [sv, hld]) {
+    const line = (v) => ({ stats: { [m.key]: v } })
+    assert.equal(metricPercentile(m, line(0), pool, []).pct, null, `${m.key} 백분위 없음`)
+    assert.match(metricPercentile(m, line(0), pool, []).reason, /보직 지표/)
+    assert.equal(metricPercentile(m, line(31), pool, []).text, '31', `${m.key} 값은 표시`)
+    assert.equal(metricPercentile(m, line(null), pool, []).text, '-', `${m.key} 없는 값은 0 이 아니다`)
+    assert.equal(compareWinner(m, line(31), line(0), 2026, 2026), null, `${m.key} 우세 없음`)
+    assert.ok(!chartMetrics('pitcher').includes(m))
+  }
+  // 다른 투수 지표는 그대로 백분위·우세를 매긴다
+  const w = COMPARE_METRICS.pitcher.find((m) => m.key === 'W')
+  assert.equal(metricPercentile(w, { stats: { W: 11 } }, [{ 규정충족: true, W: 10 }, { 규정충족: true, W: 12 }], []).pct, 50)
+  assert.equal(compareWinner(w, { stats: { W: 11 } }, { stats: { W: 15 } }, 2026, 2026), 'b')
+  const era = COMPARE_METRICS.pitcher.find((m) => m.key === 'ERA')
+  assert.equal(compareWinner(era, { stats: { ERA: 2.24 } }, { stats: { ERA: 3.28 } }, 2026, 2026), 'a')
+  assert.deepEqual(chartMetrics('pitcher').map((m) => m.key), ['ERA', 'WHIP', 'K/9', 'BB/9', 'K/BB'])
+}
+console.log('p2d SV/HLD ok')

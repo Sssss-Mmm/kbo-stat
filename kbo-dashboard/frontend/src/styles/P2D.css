@@ -26,6 +26,7 @@
   color: inherit; font: inherit; font-size: 13px; padding: 8px 10px; cursor: pointer; white-space: normal; }
 .p2d-pick-list button:hover, .p2d-pick-list button:focus-visible { background: var(--hover); }
 .p2d-cmp td.p2d-win { font-weight: 700; }
+.p2d-cmp .p2d-group th { padding-top: 14px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .p2d-pct { display: inline-flex; align-items: center; gap: 6px; }
 .p2d-bar { position: relative; display: inline-block; width: 120px; height: 12px; background: var(--panel-soft); }
 .p2d-bar > span { position: absolute; left: 0; top: 0; bottom: 0; }

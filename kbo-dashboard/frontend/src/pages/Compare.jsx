@@ -1,6 +1,6 @@
 // 선수 비교(P2-D): 타자끼리·투수끼리. 선수마다 시즌을 따로 고를 수 있고(sa, sb), 리그 백분위는 각자 그 시즌의
 // 규정 충족 선수를 기준으로 한다. 값은 네이버 시즌 기록. 박스스코어 자료가 있는 시즌(2025)은 그 검증 상태를 함께 보인다.
-// URL 쿼리: role, a, b, sa, sb, metric.
+// URL 쿼리: role, a, b, sa, sb, metric. 선수 기록 목록(/players)에서 두 명을 고르면 이 화면으로 온다.
 import { useState } from 'react'
 import TrendLine from '../components/charts/TrendLine'
 import CompareBars from '../components/charts/CompareBars'
@@ -8,6 +8,7 @@ import { AdvancedLegend, AdvancedValue, LoadState, SourceLine, Stat, useV2 } fro
 import { useRoute } from '../lib/useRoute'
 import { followLink, pageUrl, updateQuery } from '../lib/navigation'
 import { fetchPlayerSeason, fetchSeasons, fmtStat, intParam } from '../lib/v2'
+import { BASIC_COLUMNS } from '../lib/players'
 import { advancedOf, chartMetrics, compareWinner, COMPARE_METRICS, fetchBattingAdvanced, fetchLeague,
   fetchProfile, fmtAdvanced, latestCollected, leaguePool, metricPercentile, MIN_ADVANCED_POOL, NAVER_SEASON_LABEL, playerLabel,
   ROLE_LABEL, searchPlayers, seasonLine, toNumber, verificationSummary } from '../lib/p2d'
@@ -15,6 +16,8 @@ import '../styles/V2.css'
 import '../styles/P2D.css'
 
 const SIDES = { a: 'var(--series-1)', b: 'var(--series-2)' }
+// 수치표 상세 묶음: 비율·고급 지표(소수 표시) / 나머지는 누적 기록(개수·이닝·출장량)
+const isRate = (m) => Boolean(m.rate || m.digits || m.adv)
 const DEFAULT_METRIC = { batter: 'OPS', pitcher: 'ERA' }
 // 차트 아래 표본 줄: 타자 G·AB, 투수 G·IP + 규정 충족 여부
 const sampleText = (line, role) => [
@@ -56,7 +59,8 @@ function useSide(id, role, seasonParam, boxSeasons) {
   const hasBox = season !== null && boxSeasons.includes(season)
   const box = useV2(() => (id && hasBox ? fetchPlayerSeason(id, { season }).catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e)))
     : Promise.resolve(null)), [id, season, hasBox])
-  return { id, profile, seasons: mine, season, line: seasonLine(profile.data, season, role), league: league.data || [], hasBox,
+  // 요청 시즌(sa·sb)에 이 역할 기록이 없으면 다른 시즌으로 바꿔 보여 준다 — 그 사실을 화면에 남기려고 요청값도 넘긴다
+  return { id, profile, seasons: mine, season, requested: seasonParam, line: seasonLine(profile.data, season, role), league: league.data || [], hasBox,
     advLeague: advLeague.data || [],
     verification: verificationSummary(box.data, role) }
 }
@@ -87,6 +91,8 @@ function Compare() {
   const B = useSide(intParam(query, 'b'), role, intParam(query, 'sb'), boxSeasons)
   const sides = { a: A, b: B }
   const metric = metrics.find((m) => m.key === metricKey)
+  // 수치표 묶음: 선수 기록 목록의 기본 지표와 같은 항목을 '기본 기록'으로
+  const basicKeys = BASIC_COLUMNS[role === 'batter' ? 'hitter' : 'pitcher']
   // 수치표와 차트가 같은 계산(metricPercentile → percentile·advancedPercentile)을 쓴다
   const pctOf = (side, m) => metricPercentile(m, side.line, side.league, side.advLeague)
   const pct = (side, m) => pctOf(side, m).pct
@@ -106,10 +112,14 @@ function Compare() {
       <section className="p2d-sides">
         {Object.entries(sides).map(([k, side]) => (
           <div className="v2-card" key={k} style={{ borderTop: `4px solid ${SIDES[k]}` }}>
+            {!side.id && query.get(k) && (
+              <p className="v2-error" role="alert">'{query.get(k)}' 는 올바른 선수 ID 가 아닙니다 — 다른 선수로 바꾸지 않았습니다. 아래에서 선수를 고르세요.</p>
+            )}
             {!side.id && <Picker side={k} role={role} onPick={(id) => updateQuery({ [k]: id, [`s${k}`]: null })} />}
             {side.id && (
               <>
-                <LoadState state={side.profile} empty={side.profile.status === 404 ? '선수 기록이 없습니다.' : null} />
+                <LoadState state={side.profile.status === 404
+                  ? { ...side.profile, error: `선수 ID ${side.id} 의 기록이 없습니다 — 다른 선수로 바꾸지 않았습니다.` } : side.profile} />
                 {side.profile.data && (
                   <>
                     <h3>
@@ -124,6 +134,9 @@ function Compare() {
                       <button className="v2-link-btn" onClick={() => updateQuery({ [k]: null, [`s${k}`]: null })}>다른 선수</button>
                     </div>
                     {!side.seasons.length && <p className="v2-empty">{ROLE_LABEL[role]} 기록이 없습니다.</p>}
+                    {side.requested && side.season !== null && side.season !== side.requested && (
+                      <p className="v2-note" role="status"><b>{side.requested} 시즌 {ROLE_LABEL[role]} 기록이 없어 {side.season} 시즌을 표시합니다.</b></p>
+                    )}
                     {side.line && <p className="v2-card-sub">{side.season} {side.line.team} · {side.line.position || ROLE_LABEL[role]}
                       {side.line.qualified === true ? ' · 규정 충족' : side.line.qualified === false ? ' · 규정 미달' : ''}</p>}
                     <VerifyLine side={side} role={role} />
@@ -167,13 +180,18 @@ function Compare() {
 
           <section className="p2d-section">
             <h3 className="v2-section">시즌 기록과 리그 백분위</h3>
-            <p className="v2-note">백분위 = 그 선수 시즌의 규정 충족 선수 중 이 값보다 나쁘거나 같은 선수 비율(100에 가까울수록 좋음). 값이 없으면 '미확정'이고 백분위를 매기지 않습니다.</p>
+            <p className="v2-note">백분위 = 그 선수 시즌의 규정 충족 선수 중 이 값보다 나쁘거나 같은 선수 비율(100에 가까울수록 좋음). 값이 없으면 '미확정'이고 백분위를 매기지 않습니다.
+              {' '}{role === 'batter' ? '경기·타수는 출장량이라' : '경기(출장량)와 세이브·홀드(보직 지표 — 규정이닝 투수 모집단과 맞지 않음)는'} 우세·백분위를 매기지 않습니다. 누적 기록은 위 백분위 차트에 올리지 않고 이 표에만 둡니다.</p>
             <div className="v2-table-wrap">
               <table className="v2-table p2d-cmp">
                 <thead><tr><th className="lalign">지표</th><th>{A.profile.data.data.player.name} ({A.season})</th><th className="lalign">백분위</th>
                   <th>{B.profile.data.data.player.name} ({B.season})</th><th className="lalign">백분위</th></tr></thead>
-                <tbody>
-                  {metrics.map((m) => {
+                {[['기본 기록', metrics.filter((m) => basicKeys.includes(m.key))],
+                  ['비율·고급 지표', metrics.filter((m) => !basicKeys.includes(m.key) && isRate(m))],
+                  ['누적 기록', metrics.filter((m) => !basicKeys.includes(m.key) && !isRate(m))]].map(([title, group]) => (
+                <tbody key={title}>
+                  <tr className="p2d-group"><th className="lalign" colSpan={5} scope="colgroup">{title}</th></tr>
+                  {group.map((m) => {
                     const win = winner(m)
                     return (
                       <tr key={m.key}>
@@ -200,6 +218,7 @@ function Compare() {
                     )
                   })}
                 </tbody>
+                ))}
               </table>
             </div>
             <p className="v2-foot">리그 기준: {A.season} 규정 충족 {leaguePool(A.league, metrics[0].key).length}명
