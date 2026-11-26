@@ -27,7 +27,9 @@ function RankRace({ series, dateCount, teamCount }) {
         </g>
       ))}
       {series.map((s) => {
-        const d = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p.index)} ${sy(p.rank)}`).join(' ')
+        // 매일 찍으면 승률 동률·근소차로 순위가 하루 단위로 뒤집혀 선이 지그재그가 된다 → 7일 간격 + 마지막 날만.
+        const weekly = s.points.filter((p, i) => p.index % 7 === 0 || i === s.points.length - 1)
+        const d = weekly.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p.index)} ${sy(p.rank)}`).join(' ')
         const last = s.points[s.points.length - 1]
         const dim = selected && selected !== s.team
         const active = selected === s.team
