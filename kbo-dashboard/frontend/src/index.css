@@ -211,6 +211,9 @@ input[type="text"] {
   cursor: pointer;
 }
 
+/* 링크는 브라우저 기본 파랑·보라 대신 본문색 + 밑줄로만 구분한다(다크 모드에서 특히 튄다). */
+a { color: inherit; text-underline-offset: 2px; }
+
 select:focus-visible,
 input:focus-visible,
 button:focus-visible,
