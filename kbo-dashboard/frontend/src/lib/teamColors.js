@@ -16,8 +16,10 @@ export function teamColor(team) {
   return TEAM_COLORS[team] || '#53636f'
 }
 
-// 팀 엠블럼: KBO 공식 엠블럼(Naver CDN 원본)을 로컬에 받아 자체 origin 에서 서빙.
-// CDN 직접 참조는 핫링크(Referer) 차단으로 403 이 나므로 public/emblems/ 로 vendoring.
+// 팀 엠블럼: 구단 엠블럼은 각 구단의 상표라 공개 저장소에 포함하지 않는다.
+// 로컬에서만 public/emblems/{코드}.png 를 직접 넣고 VITE_TEAM_EMBLEMS=1 로 켜면 표시된다.
+// 꺼져 있으면 엠블럼 자리를 비우고 팀명·팀 색상만 쓴다.
+const EMBLEMS_ENABLED = import.meta.env?.VITE_TEAM_EMBLEMS === '1'
 const EMBLEM = (code) => `/emblems/${code}.png`
 export const TEAM_EMBLEMS = {
   LG: EMBLEM('LG'),
@@ -33,5 +35,6 @@ export const TEAM_EMBLEMS = {
 }
 
 export function teamEmblem(team) {
+  if (!EMBLEMS_ENABLED) return null
   return TEAM_EMBLEMS[team] || null
 }

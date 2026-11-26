@@ -16,6 +16,9 @@ CLAUDE.md
 scripts/cross-review.sh
 docs/reports/external_db_exposure.md
 docs/reports/P2C_stabilization.md
+# 구단 엠블럼(구단 상표) — 로컬 전용
+kbo-dashboard/frontend/public/emblems/
+
 # DB 백업
 *.sql
 *.sql.gz
