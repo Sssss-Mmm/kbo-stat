@@ -35,6 +35,8 @@
 .v2-pill { font-size: 12px; padding: 4px 10px; border: 1px solid var(--line); color: var(--muted); }
 
 .v2-note, .v2-foot, .v2-card-sub, .v2-source { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.v2-foot a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.v2-foot a:hover { text-decoration: underline; }
 .v2-source-label { font-weight: 700; color: var(--text); }
 .v2-error { padding: 12px; border: 2px solid var(--rule-key); font-size: 14px; }
 .v2-empty { padding: 12px; color: var(--muted); font-size: 14px; }

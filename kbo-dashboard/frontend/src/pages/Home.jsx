@@ -142,7 +142,8 @@ function Home({ seasonInfo, onOpsClick, onNavigate, onTeamClick }) {
       const ranked = Object.keys(cum)
         .map((t) => ({ t, pct: cum[t].w / ((cum[t].w + cum[t].l) || 1), w: cum[t].w }))
         .sort((a, b) => b.pct - a.pct || b.w - a.w)
-      if (ranked.length < TEAM_COUNT) return
+      // 매일 찍으면 승률 동률·근소차로 순위가 하루 단위로 뒤집혀 선이 지그재그가 된다 → 7일 간격 + 마지막 날만.
+      if (ranked.length < TEAM_COUNT || (di % 7 && di !== dates.length - 1)) return
       ranked.forEach((r, i) => { (seriesMap[r.t] ||= []).push({ index: di, rank: i + 1 }) })
     })
     const series = Object.entries(seriesMap).map(([team, points]) => ({ team, color: teamColor(team), points }))
