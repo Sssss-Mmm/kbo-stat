@@ -24,6 +24,20 @@ KBO 데이터를 수집, 정제, 저장하고 웹 대시보드로 시각화하�
 | [docs/IDEAS.md](docs/IDEAS.md) | 아이디어 후보와 채택/기각 근거 |
 | [docs/BACKFILL_PITCH_DATA.md](docs/BACKFILL_PITCH_DATA.md) | 네이버 투구 데이터 백필 절차 |
 
+## 화면
+
+![HOME](docs/images/home.png)
+
+| 순위표 | 가을야구 |
+| --- | --- |
+| ![순위표](docs/images/standings.png) | ![가을야구](docs/images/race.png) |
+| **투구 분석 (핫/콜드존)** | **선수 기록** |
+| ![핫/콜드존](docs/images/zones.png) | ![선수 기록](docs/images/players.png) |
+
+**질의응답** — 자연어 질문에 수집 기록으로 계산한 근거([E번호])를 붙여 답변
+
+![질의응답](docs/images/ask.png)
+
 ## 주요 기능
 
 React 앱은 네비게이션 **9개 페이지**로 구성됩니다.
